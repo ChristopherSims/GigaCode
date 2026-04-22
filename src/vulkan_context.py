@@ -7,6 +7,7 @@ pipeline can still be exercised.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import struct
@@ -48,6 +49,50 @@ def _cpu_dot_search(
         Array of shape ``(N,)`` with similarity scores.
     """
     return np.dot(embeddings, query)
+
+
+def _cpu_dot_search_chunked(
+    embeddings: np.ndarray,
+    query: np.ndarray,
+    max_workers: int = 4,
+) -> np.ndarray:
+    """Chunked dot-product search using asyncio + ThreadPoolExecutor.
+
+    Splits *embeddings* into chunks and computes dot products in parallel.
+    Useful when ``N`` is very large or when running multiple queries.
+
+    Args:
+        embeddings: Array of shape ``(N, D)``.
+        query: Array of shape ``(D,)``.
+        max_workers: Number of parallel chunks.
+
+    Returns:
+        Array of shape ``(N,)`` with similarity scores.
+    """
+    n = embeddings.shape[0]
+    if n < 10000 or max_workers <= 1:
+        return _cpu_dot_search(embeddings, query)
+
+    chunk_size = max(1, n // max_workers)
+    chunks = [(i, embeddings[i : i + chunk_size]) for i in range(0, n, chunk_size)]
+
+    def _dot_chunk(args: tuple[int, np.ndarray]) -> tuple[int, np.ndarray]:
+        idx, chunk = args
+        return idx, np.dot(chunk, query)
+
+    async def _run() -> list[tuple[int, np.ndarray]]:
+        loop = asyncio.get_event_loop()
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            tasks = [loop.run_in_executor(executor, _dot_chunk, c) for c in chunks]
+            return await asyncio.gather(*tasks)
+
+    results = asyncio.run(_run())
+    scores = np.empty(n, dtype=np.float32)
+    for idx, part in results:
+        scores[idx : idx + len(part)] = part
+    return scores
 
 
 def _cpu_cluster_regions(
@@ -95,6 +140,95 @@ def _cpu_cluster_regions(
         )
         i = end + 1
     return clusters
+
+
+def _cpu_cluster_regions_parallel(
+    embeddings: np.ndarray,
+    threshold: float,
+    window: int = 16,
+    max_workers: int = 4,
+) -> list[dict[str, Any]]:
+    """Greedy clustering on the CPU with chunk-based parallelism.
+
+    Splits the array into overlapping chunks, clusters each chunk, then
+    merges boundary clusters.
+
+    Args:
+        embeddings: Array of shape ``(N, D)``.
+        threshold: Similarity threshold.
+        window: Max scan-ahead distance.
+        max_workers: Number of parallel workers.
+
+    Returns:
+        List of cluster dicts with ``start_token``, ``end_token``, ``count``,
+        ``avg_score``.
+    """
+    n = embeddings.shape[0]
+    if n < 1000 or max_workers <= 1:
+        return _cpu_cluster_regions(embeddings, threshold, window)
+
+    chunk_size = max(window * 4, n // max_workers)
+    ranges: list[tuple[int, int, int]] = []
+    for i in range(max_workers):
+        start = i * chunk_size
+        if start >= n:
+            break
+        end = min(start + chunk_size + window, n)
+        # Keep clusters whose start_token is in [start, start + chunk_size)
+        keep_before = start + chunk_size
+        ranges.append((start, end, keep_before))
+
+    def _cluster_chunk(args: tuple[int, int, int]) -> list[dict[str, Any]]:
+        start, end, keep_before = args
+        chunk_emb = embeddings[start:end]
+        clusters = _cpu_cluster_regions(chunk_emb, threshold, window)
+        result: list[dict[str, Any]] = []
+        for c in clusters:
+            c = dict(c)
+            c["start_token"] += start
+            c["end_token"] += start
+            if c["start_token"] < keep_before:
+                result.append(c)
+        return result
+
+    async def _run() -> list[list[dict[str, Any]]]:
+        loop = asyncio.get_event_loop()
+        from concurrent.futures import ProcessPoolExecutor
+
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [loop.run_in_executor(executor, _cluster_chunk, r) for r in ranges]
+            return await asyncio.gather(*futures)
+
+    chunk_results = asyncio.run(_run())
+
+    # Merge overlapping boundary clusters
+    all_clusters: list[dict[str, Any]] = []
+    for clusters in chunk_results:
+        all_clusters.extend(clusters)
+
+    all_clusters.sort(key=lambda c: c["start_token"])
+    merged: list[dict[str, Any]] = []
+    for c in all_clusters:
+        if not merged:
+            merged.append(dict(c))
+            continue
+        last = merged[-1]
+        if c["start_token"] <= last["end_token"]:
+            # Overlapping or adjacent: extend and average score
+            old_count = last["count"]
+            last["end_token"] = max(last["end_token"], c["end_token"])
+            last["count"] = last["end_token"] - last["start_token"] + 1
+            # Approximate blended avg_score
+            weight = max(1, old_count - 1) + max(1, c["count"] - 1)
+            if weight > 0:
+                last["avg_score"] = (
+                    last["avg_score"] * max(1, old_count - 1)
+                    + c["avg_score"] * max(1, c["count"] - 1)
+                ) / weight
+        else:
+            merged.append(dict(c))
+
+    return merged
 
 
 # ---------------------------------------------------------------------------
@@ -255,17 +389,21 @@ class VulkanContext:
         self,
         embeddings: np.ndarray,
         query: np.ndarray,
+        max_workers: int = 1,
     ) -> np.ndarray:
         """Return similarity scores for each token against *query*.
 
         Args:
             embeddings: ``(N, D)`` float32 array.
             query: ``(D,)`` float32 array.
+            max_workers: Parallelism for CPU fallback (1 = sequential).
 
         Returns:
             ``(N,)`` float32 scores.
         """
         if self._cpu_mode:
+            if max_workers > 1:
+                return _cpu_dot_search_chunked(embeddings, query, max_workers)
             return _cpu_dot_search(embeddings, query)
         # TODO: GPU compute shader dispatch
         logger.warning("GPU similarity_search not yet implemented; using CPU fallback.")
@@ -275,17 +413,21 @@ class VulkanContext:
         self,
         embeddings: np.ndarray,
         threshold: float,
+        max_workers: int = 1,
     ) -> list[dict[str, Any]]:
         """Cluster similar token regions.
 
         Args:
             embeddings: ``(N, D)`` float32 array.
             threshold: Similarity threshold.
+            max_workers: Parallelism for CPU fallback (1 = sequential).
 
         Returns:
             List of cluster metadata dicts.
         """
         if self._cpu_mode:
+            if max_workers > 1:
+                return _cpu_cluster_regions_parallel(embeddings, threshold, max_workers=max_workers)
             return _cpu_cluster_regions(embeddings, threshold)
         # TODO: GPU compute shader dispatch
         logger.warning("GPU cluster_regions not yet implemented; using CPU fallback.")

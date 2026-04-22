@@ -81,3 +81,74 @@ def test_list_and_delete(tmp_path: Path) -> None:
     assert not any(b["buffer_id"] == buf_id for b in listed2["buffers"])
 
     tool.close()
+
+
+def test_reload_codebase_with_matching_hash(tmp_path: Path) -> None:
+    code_dir = tmp_path / "code"
+    code_dir.mkdir()
+    (code_dir / "a.py").write_text("x = 1\n", encoding="utf-8")
+
+    work_dir = tmp_path / "work"
+    tool = CodeEmbeddingTool(work_dir=work_dir, device="cpu")
+    result = tool.embed_codebase(code_dir, pattern="*.py")
+    assert result["status"] == "ok"
+    buf_id = result["buffer_id"]
+
+    # Reload with unchanged files should skip re-embedding
+    reload_result = tool.reload_codebase(buf_id)
+    assert reload_result["status"] == "ok"
+    assert "reloaded without re-embedding" in reload_result["message"]
+    assert reload_result["buffer_id"] == buf_id
+
+    tool.close()
+
+
+def test_reload_codebase_with_changed_hash(tmp_path: Path) -> None:
+    code_dir = tmp_path / "code"
+    code_dir.mkdir()
+    (code_dir / "a.py").write_text("x = 1\n", encoding="utf-8")
+
+    work_dir = tmp_path / "work"
+    tool = CodeEmbeddingTool(work_dir=work_dir, device="cpu")
+    result = tool.embed_codebase(code_dir, pattern="*.py")
+    assert result["status"] == "ok"
+    buf_id = result["buffer_id"]
+
+    # Modify the file
+    (code_dir / "a.py").write_text("x = 2\ny = 3\n", encoding="utf-8")
+
+    # Reload should detect hash mismatch and re-embed
+    reload_result = tool.reload_codebase(buf_id)
+    assert reload_result["status"] == "ok"
+    # New buffer_id because re-embed creates a new buffer
+    assert reload_result.get("message", "").lower() != "hashes match; reloaded without re-embedding."
+
+    tool.close()
+
+
+def test_vkbuff_directory_naming(tmp_path: Path) -> None:
+    code_dir = tmp_path / "code"
+    code_dir.mkdir()
+    (code_dir / "a.py").write_text("x = 1\n", encoding="utf-8")
+
+    work_dir = tmp_path / "work"
+    tool = CodeEmbeddingTool(work_dir=work_dir, device="cpu")
+    result = tool.embed_codebase(code_dir, pattern="*.py")
+    assert result["status"] == "ok"
+
+    buf_id = result["buffer_id"]
+    buffer_dir = work_dir / f"{buf_id}.vkbuff"
+    assert buffer_dir.exists()
+    assert (buffer_dir / "embeddings.bin").exists()
+    assert (buffer_dir / "metadata.json").exists()
+
+    tool.close()
+
+
+def test_tool_schemas_exposed() -> None:
+    schemas = CodeEmbeddingTool.get_tool_schemas()
+    assert len(schemas) >= 6
+    names = {s["name"] for s in schemas}
+    assert "embed_codebase" in names
+    assert "semantic_search" in names
+    assert "cluster_code" in names

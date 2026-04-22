@@ -83,10 +83,61 @@ The tool **never returns raw source code**. Responses contain only:
 If a codebase exceeds the size threshold (default 500 MB), the tool returns a
 warning with a suggestion to narrow the scope.
 
+### Formal Tool Schemas (Phase 6.1)
+
+```python
+from src.agent_tool import CodeEmbeddingTool
+schemas = CodeEmbeddingTool.get_tool_schemas()
+```
+
+Schemas are available for:
+- `embed_codebase`
+- `semantic_search`
+- `cluster_code`
+- `update_codebase`
+- `check_codebase`
+- `list_buffers`
+- `delete_buffer`
+
+Also exportable to OpenAI function-calling format and MCP tool format via
+`src.tool_schema`.
+
+## Language-Agnostic Code Editing
+
+GigaCode can now edit source files in **any programming language**:
+
+```bash
+python src/agent_skill.py example.js --language javascript
+python src/agent_skill.py src/main.rs
+```
+
+Supported improvements (language-aware via tree-sitter or regex fallback):
+- Add documentation comments / docstrings
+- Add type annotations / signatures
+- Fix bare exception / catch blocks
+- Use context managers for resource handling
+- Add explicit visibility modifiers
+
 ## Incremental Updates
 
 The diff engine tracks per-line SHA-256 hashes. On re-ingest, only changed
 lines are re-embedded and patched into the buffer.
+
+## Persistence & Reload (Phase 6.4)
+
+Buffers are stored in `.vkbuff/` directories under the working directory:
+
+```
+work_dir/
+├── registry.json
+└── <uuid>.vkbuff/
+    ├── embeddings.bin
+    ├── offsets.bin
+    ├── metadata.json
+    └── file_index.json
+```
+
+Use `reload_codebase(buffer_id)` to skip re-embedding when file hashes match.
 
 ## Tests
 
@@ -99,6 +150,10 @@ pytest tests/ -v
 | File | Purpose |
 |------|---------|
 | `src/agent_tool.py` | Main agent interface |
+| `src/agent_skill.py` | Language-agnostic code editing agent |
+| `src/tool_schema.py` | Formal JSON schemas for all tools (Phase 6.1) |
+| `src/language_detect.py` | Language detection from extension / shebang |
+| `src/cross_language_rules.py` | Language-agnostic editing rules |
 | `src/tokenizer.py` | Code tokenization |
 | `src/embedder.py` | Sentence-transformers wrapper |
 | `src/flatten.py` | Buffer serialization |

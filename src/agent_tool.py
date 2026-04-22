@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import shutil
 import uuid
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,7 @@ class CodeEmbeddingTool:
 
     Args:
         work_dir: Directory where buffer files and metadata are persisted.
+            Each buffer gets a ``.vkbuff/`` subdirectory.
         model_name: Sentence-transformers model name.
         device: torch device (``"cuda"``, ``"cpu"``, or ``None`` for auto).
         threshold_mb: Size-guard threshold in megabytes.
@@ -60,6 +62,16 @@ class CodeEmbeddingTool:
             if self._registry_path.exists()
             else {}
         )
+
+    # ------------------------------------------------------------------
+    # Schema exposure (Phase 6.1)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def get_tool_schemas() -> list[dict[str, Any]]:
+        """Return formal JSON schemas for all exposed tools."""
+        from src.tool_schema import get_all_schemas
+
+        return get_all_schemas()
 
     # ------------------------------------------------------------------
     # Pre-flight size check
@@ -219,9 +231,9 @@ class CodeEmbeddingTool:
             lines_data, self._embedding_dim
         )
 
-        # Stage 5: persist buffers and metadata
+        # Stage 5: persist buffers and metadata in .vkbuff/ directory
         buffer_id = str(uuid.uuid4())
-        buffer_dir = self.work_dir / buffer_id
+        buffer_dir = self.work_dir / f"{buffer_id}.vkbuff"
         buffer_dir.mkdir(parents=True, exist_ok=True)
 
         data_path = buffer_dir / "embeddings.bin"
@@ -236,6 +248,9 @@ class CodeEmbeddingTool:
             json.dumps({"files": file_index}, indent=2), encoding="utf-8"
         )
 
+        # Compute aggregate content hash for quick reload checks
+        content_hash = self._hash_files(files)
+
         # Stage 6: register
         self._registry[buffer_id] = {
             "root": str(root),
@@ -243,6 +258,9 @@ class CodeEmbeddingTool:
             "token_count": token_count,
             "embedding_dim": self._embedding_dim,
             "size_bytes": len(data_bytes),
+            "content_hash": content_hash,
+            "pattern": pattern,
+            "language_hint": language_hint,
         }
         self._save_registry()
 
@@ -257,6 +275,51 @@ class CodeEmbeddingTool:
             "size_bytes": len(data_bytes),
             "message": f"Embedded {token_count} lines from {len(files)} files.",
         }
+
+    # ------------------------------------------------------------------
+    # Reload without re-embedding (Phase 6.4)
+    # ------------------------------------------------------------------
+    def reload_codebase(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Reload an existing buffer if file hashes match, avoiding re-embedding.
+
+        Args:
+            buffer_id: Existing buffer handle.
+
+        Returns:
+            Dict with ``status``, ``buffer_id``, ``token_count``, ``size_bytes``,
+            and ``message``.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        root = Path(info["root"])
+        pattern = info.get("pattern", "*.py")
+        if root.is_file():
+            files = [root]
+        else:
+            files = sorted(root.rglob(pattern))
+
+        current_hash = self._hash_files(files)
+        if current_hash == info.get("content_hash"):
+            return {
+                "status": "ok",
+                "buffer_id": buffer_id,
+                "token_count": info["token_count"],
+                "size_bytes": info["size_bytes"],
+                "message": "Hashes match; reloaded without re-embedding.",
+            }
+
+        # Hash mismatch: fall back to full re-embed
+        logger.info("Hash mismatch for %s; re-embedding.", buffer_id)
+        return self.embed_codebase(
+            root,
+            language_hint=info.get("language_hint"),
+            pattern=pattern,
+        )
 
     # ------------------------------------------------------------------
     # Search
@@ -448,8 +511,6 @@ class CodeEmbeddingTool:
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
         self._save_registry()
-        import shutil
-
         shutil.rmtree(info["buffer_dir"], ignore_errors=True)
         return {"status": "ok", "message": f"Deleted buffer {buffer_id}"}
 
@@ -468,6 +529,14 @@ class CodeEmbeddingTool:
             if entry["start_idx"] <= token_idx < entry["end_idx"]:
                 return entry["path"]
         return "unknown"
+
+    @staticmethod
+    def _hash_files(files: list[Path]) -> str:
+        """Compute a deterministic aggregate hash of a file list."""
+        hasher = hashlib.sha256()
+        for f in sorted(files):
+            hasher.update(f.read_bytes())
+        return hasher.hexdigest()
 
     def _upload_to_gpu(
         self,
