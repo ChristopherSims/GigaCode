@@ -40,15 +40,21 @@ def test_embed_and_search(tmp_path: Path) -> None:
     tool.close()
 
 
-def test_size_guard_warning(tmp_path: Path) -> None:
-    # Create a large synthetic file
+def test_size_guard_preflight(tmp_path: Path) -> None:
+    # Use a tiny codebase with a very low threshold to trigger the guard
     code_dir = tmp_path / "code"
     code_dir.mkdir()
-    big = "\n".join([f"line {i}" for i in range(1_000_000)])
-    (code_dir / "big.py").write_text(big, encoding="utf-8")
+    (code_dir / "a.py").write_text("x = 1\n", encoding="utf-8")
 
     work_dir = tmp_path / "work"
-    tool = CodeEmbeddingTool(work_dir=work_dir, device="cpu", threshold_mb=10)
+    tool = CodeEmbeddingTool(work_dir=work_dir, device="cpu", threshold_mb=0.0001)
+
+    # Pre-flight check should warn without creating large files
+    preflight = tool.check_codebase(code_dir, pattern="*.py")
+    assert preflight["status"] == "exceeds_threshold"
+    assert "estimated_mb" in preflight
+
+    # embed_codebase should also bail early
     result = tool.embed_codebase(code_dir, pattern="*.py")
     assert result["status"] == "warning"
     assert "too large" in result["message"].lower()

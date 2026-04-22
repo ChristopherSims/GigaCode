@@ -62,6 +62,62 @@ class CodeEmbeddingTool:
         )
 
     # ------------------------------------------------------------------
+    # Pre-flight size check
+    # ------------------------------------------------------------------
+    def check_codebase(
+        self,
+        path: str | Path,
+        pattern: str = "*.py",
+    ) -> dict[str, Any]:
+        """Lightweight pre-flight size estimate without tokenizing.
+
+        Args:
+            path: Root directory or single file to scan.
+            pattern: Glob pattern for files when *path* is a directory.
+
+        Returns:
+            Dict with ``status``, ``estimated_lines``, ``estimated_tokens``,
+            ``estimated_mb``, ``threshold_mb``, and ``message``.
+        """
+        root = Path(path)
+        if root.is_file():
+            files = [root]
+        else:
+            files = sorted(root.rglob(pattern))
+
+        if not files:
+            return {
+                "status": "warning",
+                "message": f"No files matched pattern '{pattern}' in {root}",
+            }
+
+        total_lines = 0
+        for f in files:
+            try:
+                with f.open("r", encoding="utf-8", errors="replace") as fh:
+                    total_lines += sum(1 for _ in fh)
+            except Exception as exc:
+                logger.debug("Could not count lines in %s: %s", f, exc)
+
+        # Rough heuristic: tokens per line ~ 8 on average
+        estimated_tokens = total_lines * 8
+        size_check = check_size(
+            estimated_tokens, self._embedding_dim, self.threshold_mb
+        )
+
+        return {
+            "status": size_check["status"],
+            "estimated_lines": total_lines,
+            "estimated_tokens": estimated_tokens,
+            "estimated_mb": size_check["estimated_mb"],
+            "threshold_mb": size_check["threshold_mb"],
+            "message": (
+                f"Estimated {total_lines} lines (~{estimated_tokens} tokens) "
+                f"=> ~{size_check['estimated_mb']:.1f} MB"
+            ),
+        }
+
+    # ------------------------------------------------------------------
     # Ingestion
     # ------------------------------------------------------------------
     def embed_codebase(
@@ -91,6 +147,20 @@ class CodeEmbeddingTool:
             return {
                 "status": "warning",
                 "message": f"No files matched pattern '{pattern}' in {root}",
+            }
+
+        # Pre-flight size check (cheap line-count only)
+        preflight = self.check_codebase(path, pattern)
+        if preflight["status"] == "exceeds_threshold":
+            return {
+                "status": "warning",
+                "message": (
+                    f"Codebase too large for embedding ({preflight['estimated_mb']:.1f} MB "
+                    f"exceeds threshold {preflight['threshold_mb']:.1f} MB). "
+                    f"Suggest narrowing with a more specific glob or sub-directory."
+                ),
+                "suggested_max": f"{preflight['threshold_mb']:.0f} MB",
+                "estimated_mb": preflight["estimated_mb"],
             }
 
         # Stage 1: tokenize
