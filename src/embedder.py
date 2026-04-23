@@ -1,4 +1,8 @@
-"""Sentence-transformers embedder with pre-normalized outputs."""
+"""Code embedding model with batching and GPU acceleration.
+
+Defaults to a code-specific model (jina-embeddings-v2-base-code) and falls
+back to all-MiniLM-L6-v2 if unavailable.
+"""
 
 from __future__ import annotations
 
@@ -9,50 +13,64 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# Prefer code-specific models; fallback to general MiniLM
+_CODE_MODELS = [
+    "jinaai/jina-embeddings-v2-base-code",
+    "Salesforce/codet5p-110m-embedding",
+]
+_FALLBACK_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 class Embedder:
-    """Lightweight wrapper around sentence-transformers.
-
-    Loads ``all-MiniLM-L6-v2`` by default and produces L2-normalized
-    embeddings so that dot-product equals cosine similarity.
-    """
+    """Lightweight wrapper around sentence-transformers with code defaults."""
 
     def __init__(self, model_name: str | None = None, device: str | None = None) -> None:
-        """Initialise the embedder.
+        from sentence_transformers import SentenceTransformer
 
-        Args:
-            model_name: Hugging Face model name or local path.
-                Defaults to ``all-MiniLM-L6-v2``.
-            device: torch device (``"cpu"``, ``"cuda"``, etc.).
-                ``None`` lets sentence-transformers auto-select.
-        """
-        from sentence_transformers import SentenceTransformer  # type: ignore[import-untyped]
+        self.device = device
+        self.model_name = model_name
+        self._model: Any = None
+        self._embedding_dim: int = 0
 
-        self.model_name = model_name or _DEFAULT_MODEL
-        logger.info("Loading embedding model %s ...", self.model_name)
-        self._model: Any = SentenceTransformer(self.model_name, device=device)
-        logger.info("Model loaded (%s)", self._model.get_embedding_dimension())
+        if model_name:
+            self._load(model_name)
+        else:
+            # Try code models in order, then fallback
+            loaded = False
+            for name in _CODE_MODELS:
+                try:
+                    self._load(name)
+                    loaded = True
+                    break
+                except Exception as exc:
+                    logger.debug("Code model %s unavailable (%s)", name, exc)
+            if not loaded:
+                self._load(_FALLBACK_MODEL)
+
+        logger.info("Embedder ready: %s (%s dim) on %s", self.model_name, self._embedding_dim, self.device)
+
+    def _load(self, name: str) -> None:
+        from sentence_transformers import SentenceTransformer
+        self._model = SentenceTransformer(name, device=self.device)
+        self.model_name = name
+        self._embedding_dim = int(self._model.get_embedding_dimension())
 
     @property
     def embedding_dim(self) -> int:
-        """Dimensionality of produced vectors."""
-        return int(self._model.get_embedding_dimension())
+        return self._embedding_dim
 
-    def encode(self, texts: list[str], batch_size: int = 256) -> np.ndarray:
-        """Embed a list of strings and L2-normalize the result.
+    def encode(self, texts: list[str], batch_size: int = 64) -> np.ndarray:
+        """Embed texts and L2-normalize so dot-product == cosine similarity.
 
         Args:
-            texts: Input strings.
-            batch_size: Inference batch size.
+            texts: Input strings (code chunks).
+            batch_size: Forward-pass batch size.
 
         Returns:
-            Array of shape ``(len(texts), embedding_dim)`` with dtype float32
-            and L2 norm 1.0 along the last axis.
+            float32 ndarray of shape ``(len(texts), embedding_dim)``.
         """
         if not texts:
-            return np.zeros((0, self.embedding_dim), dtype=np.float32)
+            return np.zeros((0, self._embedding_dim), dtype=np.float32)
 
         embeddings: np.ndarray = self._model.encode(
             texts,
@@ -62,21 +80,5 @@ class Embedder:
         )
         embeddings = np.asarray(embeddings, dtype=np.float32)
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-        # Avoid division by zero
         norms = np.where(norms == 0, 1.0, norms)
-        normalized = embeddings / norms
-        return normalized
-
-
-def embed_tokens(token_texts: list[str]) -> np.ndarray:
-    """Convenience function: embed token strings with the default model.
-
-    Args:
-        token_texts: List of token strings.
-
-    Returns:
-        float32 ndarray of shape ``(len(token_texts), embedding_dim)``.
-        Vectors are L2-normalized so that dot-product == cosine similarity.
-    """
-    embedder = Embedder()
-    return embedder.encode(token_texts)
+        return embeddings / norms

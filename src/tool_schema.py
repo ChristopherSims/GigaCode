@@ -190,6 +190,116 @@ CLUSTER_CODE_SCHEMA: dict[str, Any] = {
     },
 }
 
+SEARCH_FOR_SCHEMA: dict[str, Any] = {
+    "name": "search_for",
+    "description": (
+        "Literal substring search across the entire buffered codebase. "
+        "Returns file paths, line numbers, and the matching line content."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "query": {
+                "type": "string",
+                "description": "Substring to search for in every source line.",
+            },
+            "case_sensitive": {
+                "type": "boolean",
+                "description": "If true, match exact case. Default false.",
+                "default": False,
+            },
+            "max_results": {
+                "type": "integer",
+                "description": "Maximum number of matches to return (default 50).",
+                "default": 50,
+            },
+        },
+        "required": ["buffer_id", "query"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "matches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "content": {"type": "string"},
+                    },
+                    "required": ["file", "line", "content"],
+                },
+            },
+            "total": {"type": "integer"},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+SEARCH_SYMBOLS_SCHEMA: dict[str, Any] = {
+    "name": "search_symbols",
+    "description": (
+        "Find functions, classes, methods, and variables matching a query. "
+        "Performs both name-based substring matching and semantic embedding search, "
+        "then merges and deduplicates the results. Returns file paths, line ranges, "
+        "symbol names, types, and scores — never full source text."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "query": {
+                "type": "string",
+                "description": "Word or phrase describing the symbol to find (e.g. 'fetch_data', 'config loader').",
+            },
+            "top_k": {
+                "type": "integer",
+                "description": "Maximum number of symbol matches to return (default 10).",
+                "default": 10,
+            },
+        },
+        "required": ["buffer_id", "query"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "matches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "start_line": {"type": "integer"},
+                        "end_line": {"type": "integer"},
+                        "type": {"type": "string"},
+                        "name": {"type": ["string", "null"]},
+                        "score": {"type": "number"},
+                        "match_type": {
+                            "type": "string",
+                            "enum": ["name", "semantic"],
+                        },
+                    },
+                    "required": ["file", "start_line", "end_line", "type", "name", "score"],
+                },
+            },
+            "total": {"type": "integer"},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
 
 UPDATE_CODEBASE_SCHEMA: dict[str, Any] = {
     "name": "update_codebase",
@@ -522,6 +632,8 @@ COMMIT_SCHEMA: dict[str, Any] = {
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
+    SEARCH_FOR_SCHEMA,
+    SEARCH_SYMBOLS_SCHEMA,
     CLUSTER_CODE_SCHEMA,
     UPDATE_CODEBASE_SCHEMA,
     CHECK_CODEBASE_SCHEMA,

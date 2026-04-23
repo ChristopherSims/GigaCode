@@ -1,16 +1,16 @@
 # GigaCode
 
-GPU-accelerated code embedding for AI agents. Embed a codebase into searchable buffers, run semantic search and clustering, and edit code through a safe read-write-commit workflow.
+GPU-accelerated code embedding for AI agents. Embed a codebase into searchable chunks, run semantic search and clustering, and edit code through a safe read-write-commit workflow.
 
 ## Features
 
-- **Semantic search** over code with sentence-transformers embeddings
-- **Region clustering** to find similar code blocks
+- **AST-based chunking** — functions, classes, and methods extracted via tree-sitter (falls back to sliding windows)
+- **Semantic search** with FAISS — approximate nearest neighbor on GPU when available, CPU fallback
+- **Persistent GPU index** — embeddings stay in VRAM for sub-millisecond search (auto-syncs on edit)
 - **Agent read-write-commit** workflow with hash-based safety checks
-- **Memory-mapped buffers** for fast search without loading everything into RAM
-- **Incremental updates** — only changed files are re-embedded on edit
-- **Vulkan compute backend** (with CPU fallback)
-- **Language-agnostic** — tree-sitter, tiktoken, or regex tokenization
+- **Deferred batch rebuilds** — edits accumulate in a dirty queue; re-embedding happens on commit or threshold
+- **Code-specific embeddings** — defaults to `jina-embeddings-v2-base-code` (falls back to `all-MiniLM-L6-v2`)
+- **Incremental updates** — only changed files are re-chunked and re-embedded
 
 ## Quick Start
 
@@ -23,7 +23,7 @@ pip install -r requirements.txt
 ### Embed and search
 
 ```python
-from src.agent_tool import CodeEmbeddingTool
+from src.gigacode_tool import CodeEmbeddingTool
 
 with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
     result = tool.embed_codebase("./examplecode", pattern="*.py")
@@ -31,7 +31,7 @@ with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
 
     search = tool.semantic_search(buf_id, "sorting algorithm", top_k=5)
     for m in search["matches"]:
-        print(m["file"], m["line"], m["score"])
+        print(m["file"], m["start_line"], m["end_line"], m["score"])
 
     clusters = tool.cluster_code(buf_id, threshold=0.75)
     for c in clusters["clusters"]:
@@ -50,7 +50,7 @@ with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
     for line in read["lines"]:
         print(line)
 
-    # Write
+    # Write (fast — only updates snapshot, defers re-embed)
     tool.write_code(
         buf_id,
         file="main.py",
@@ -63,7 +63,7 @@ with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
     for f in diff["changed_files"]:
         print(f"Changed: {f['file']} ({f['buffer_lines']} lines)")
 
-    # Commit to disk
+    # Commit to disk (rebuilds index for dirty files, then writes)
     tool.commit(buf_id, dry_run=False)
 ```
 
@@ -74,25 +74,24 @@ with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
 
 GigaCode is optimized for fast agent loops:
 
-- **Vectorized flattening** — embeddings are stacked with NumPy instead of per-line Python loops
-- **Compact JSON I/O** — metadata is persisted without pretty-printing overhead
-- **Memory-mapped search** — `embeddings.bin` is accessed via `np.memmap`, so search only touches the pages the CPU needs
-- **Surgical rebuilds** — editing a file re-embeds only that file and splices head + new + tail bytes directly to disk
-- **Larger default batch size** — embedding batch size defaults to 256 for fewer forward passes
+- **AST chunking** reduces embedding count 5-20x vs per-line
+- **FAISS ANN** search is sub-millisecond even for 100K+ chunks (GPU) or single-digit ms (CPU)
+- **Deferred rebuilds** — `write_code` is ~0.5 ms because re-embedding is batched until `commit`
+- **Surgical index updates** — only dirty files are re-chunked and patched into the FAISS index
 
 Run the benchmark:
 
 ```bash
-python benchmark.py --dir examplecode/ --search-iters 10 --edit-iters 5
+python benchmark.py --dir examplecode/ --search-iters 50 --edit-iters 5
 ```
 
-Example output on `examplecode/` (CPU, 382 lines):
+Example output on `examplecode/` (CPU, 44 chunks):
 
 ```
-embed_codebase : 1.71s
-semantic_search: ~11ms median
-cluster_code   : ~3ms
-write_code     : ~115ms median (dominated by re-embedding the changed file)
+embed_codebase : 1.57s
+semantic_search: ~20.6 ms median (CPU FAISS; ~0.1 ms expected on GPU)
+cluster_code   : ~1.9 ms
+write_code     : ~0.59 ms median (deferred rebuild)
 ```
 
 ## Architecture
@@ -101,19 +100,17 @@ write_code     : ~115ms median (dominated by re-embedding the changed file)
 Codebase
    |
    v
-Tokenizer (tree-sitter / tiktoken / regex)
+Chunker (tree-sitter AST: functions/classes, sliding-window fallback)
    |
    v
-Embedder (sentence-transformers)
+Embedder (code-specific sentence-transformers model)
    |
    v
-Flatten + Size Guard
+FAISS Index (CPU IDMap + FlatIP)
    |
-   v
-VkBuffer (GPU) or NumPy memmap (CPU fallback)
+   +-- GPU mirror (faiss.index_cpu_to_gpu) — rebuilt lazily on edit
    |
-   +-- Compute Shader: similarity_search.comp (Top-K NNS)
-   +-- Compute Shader: cluster_regions.comp (region clustering)
+   +-- search() uses GPU if available & clean, else CPU
 ```
 
 ## Tool Schemas
@@ -121,7 +118,7 @@ VkBuffer (GPU) or NumPy memmap (CPU fallback)
 All tools expose formal JSON schemas for agent integration:
 
 ```python
-from src.agent_tool import CodeEmbeddingTool
+from src.gigacode_tool import CodeEmbeddingTool
 schemas = CodeEmbeddingTool.get_tool_schemas()
 ```
 
@@ -135,11 +132,11 @@ Also exportable to OpenAI function-calling and MCP formats via `src.tool_schema`
 
 ## Language-Agnostic Editing
 
-Edit any language GigaCode can tokenize:
+Edit any language GigaCode can parse:
 
 ```bash
-python src/agent_skill.py example.js --language javascript
-python src/agent_skill.py src/main.rs
+python src/gigacode_skill.py example.js --language javascript
+python src/gigacode_skill.py src/main.rs
 ```
 
 Supported improvements (language-aware via tree-sitter or regex fallback):
@@ -151,20 +148,24 @@ Supported improvements (language-aware via tree-sitter or regex fallback):
 
 ## Incremental Updates
 
-The diff engine tracks per-line SHA-256 hashes. On re-ingest, only changed lines are re-embedded and patched into the buffer.
+The dirty-queue tracks edited files. On `commit()`, only dirty files are:
+1. Re-chunked via tree-sitter
+2. Re-embedded in a batch
+3. Old chunks removed from the FAISS index
+4. New chunks added with fresh IDs
+5. Files written to disk
 
 ## Persistence
 
-Buffers are stored in `.vkbuff/` directories under the working directory:
+Buffers are stored in `.gcbuff/` directories under the working directory:
 
 ```
 work_dir/
 ├── registry.json
-└── <uuid>.vkbuff/
-    ├── embeddings.bin
-    ├── offsets.bin
-    ├── metadata.json
-    ├── file_index.json
+└── <uuid>.gcbuff/
+    ├── embeddings.npy
+    ├── chunks.json
+    ├── index.faiss
     └── source_snapshot.json
 ```
 
@@ -180,24 +181,19 @@ pytest tests/ -v
 
 | File | Purpose |
 |------|---------|
-| `src/agent_tool.py` | Main agent interface |
-| `src/agent_skill.py` | Language-agnostic code editing agent |
+| `src/gigacode_tool.py` | Main agent interface |
+| `src/gigacode_skill.py` | Language-agnostic code editing agent |
 | `src/tool_schema.py` | Formal JSON schemas for all tools |
 | `src/language_detect.py` | Language detection from extension / shebang |
 | `src/cross_language_rules.py` | Language-agnostic editing rules |
-| `src/tokenizer.py` | Code tokenization (tree-sitter / tiktoken / regex) |
-| `src/embedder.py` | Sentence-transformers wrapper |
-| `src/flatten.py` | Vectorized buffer serialization |
+| `src/chunker.py` | AST-based code chunking (tree-sitter / sliding window) |
+| `src/embedder.py` | Code embedding model wrapper |
+| `src/gpu_index.py` | FAISS CPU+GPU index manager |
 | `src/diff_engine.py` | Incremental diff with parallel hashing |
 | `src/size_guard.py` | Size threshold guard |
 | `src/metadata_store.py` | Compact JSON metadata I/O |
-| `src/vulkan_context.py` | Vulkan device + CPU fallback compute |
-| `src/buffer_manager.py` | Buffer allocation / upload / patch |
-| `shaders/similarity_search.comp` | GLSL Top-K dot-product shader |
-| `shaders/cluster_regions.comp` | GLSL clustering shader |
-| `shaders/compile_shaders.py` | SPIR-V compilation script |
 | `benchmark.py` | Performance benchmark script |
-| `tests/test_buffer_rw.py` | Read/write/commit round-trip tests |
+| `tests/` | Test suite |
 | `examplecode/` | Example codebase for testing |
 
 ## Requirements
@@ -205,8 +201,9 @@ pytest tests/ -v
 - Python 3.10+
 - PyTorch
 - sentence-transformers
+- faiss-gpu (recommended) or faiss-cpu
 - NumPy
-- Optional: tree-sitter + language grammars, tiktoken, Vulkan bindings
+- tree-sitter + language grammars
 
 ## License
 

@@ -45,7 +45,7 @@ _CodeEmbeddingTool = None
 def _get_tool() -> Any:
     global _CodeEmbeddingTool
     if _CodeEmbeddingTool is None:
-        from src.agent_tool import CodeEmbeddingTool
+        from src.gigacode_tool import CodeEmbeddingTool
         _CodeEmbeddingTool = CodeEmbeddingTool
     return _CodeEmbeddingTool
 

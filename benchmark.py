@@ -1,8 +1,7 @@
-"""Quick benchmark for GigaCode buffer operations.
+"""Benchmark for GigaCode chunk-level embedding and search.
 
-Usage (from the repo root):
-    source .venv/bin/activate
-    python benchmark.py [--dir examplecode/]
+Usage:
+    python benchmark.py --dir examplecode/ --search-iters 50 --edit-iters 10
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from src.agent_tool import CodeEmbeddingTool
+from src.gigacode_tool import CodeEmbeddingTool
 
 
 def _elapsed(start: float) -> float:
@@ -29,7 +28,7 @@ def benchmark_create(tool: CodeEmbeddingTool, code_dir: Path, pattern: str) -> d
     return {
         "status": result["status"],
         "buffer_id": result.get("buffer_id"),
-        "token_count": result.get("token_count", 0),
+        "chunk_count": result.get("chunk_count", 0),
         "size_bytes": result.get("size_bytes", 0),
         "elapsed_sec": elapsed,
     }
@@ -84,12 +83,13 @@ def benchmark_edit(tool: CodeEmbeddingTool, buffer_id: str, file: str, iteration
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark GigaCode buffer ops")
+    parser = argparse.ArgumentParser(description="Benchmark GigaCode chunk ops")
     parser.add_argument("--dir", type=Path, default=Path("examplecode"), help="Codebase to embed")
     parser.add_argument("--pattern", default="*.py", help="Glob pattern")
     parser.add_argument("--device", default="cpu", help="torch device for embedder")
+    parser.add_argument("--use-gpu", action="store_true", help="Mirror FAISS index to GPU if available")
     parser.add_argument("--edit-iters", type=int, default=5, help="write_code iterations")
-    parser.add_argument("--search-iters", type=int, default=10, help="semantic_search iterations")
+    parser.add_argument("--search-iters", type=int, default=50, help="semantic_search iterations")
     args = parser.parse_args()
 
     code_dir = args.dir.resolve()
@@ -98,13 +98,14 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory() as tmp:
         work_dir = Path(tmp)
-        tool = CodeEmbeddingTool(work_dir=work_dir, device=args.device)
+        tool = CodeEmbeddingTool(work_dir=work_dir, device=args.device, use_gpu=args.use_gpu)
 
         print("=" * 60)
-        print("GigaCode Benchmark")
+        print("GigaCode Benchmark (chunk-level, FAISS)")
         print(f"  codebase : {code_dir}")
         print(f"  pattern  : {args.pattern}")
         print(f"  device   : {args.device}")
+        print(f"  GPU      : {args.use_gpu}")
         print("=" * 60)
 
         # 1. Create buffer
@@ -113,39 +114,39 @@ def main() -> None:
         if create["status"] != "ok":
             raise SystemExit(f"Embedding failed: {create}")
         buf_id = create["buffer_id"]
-        print(f"  tokens   : {create['token_count']:,}")
+        print(f"  chunks   : {create['chunk_count']:,}")
         print(f"  size     : {create['size_bytes'] / 1024 / 1024:.2f} MB")
         print(f"  time     : {create['elapsed_sec']:.3f}s")
 
-        # 2. Semantic search (multiple queries)
+        # 2. Semantic search (many queries)
         print(f"\n[2] semantic_search (x{args.search_iters})")
-        queries = ["sorting algorithm", "machine learning feature", "string utility", "math helper"]
+        queries = ["sorting algorithm", "machine learning feature", "string utility", "math helper", "file parser"]
         search_times: list[float] = []
         for i in range(args.search_iters):
             q = queries[i % len(queries)]
             res = benchmark_search(tool, buf_id, q, top_k=5)
             search_times.append(res["elapsed_sec"])
-        print(f"  median   : {statistics.median(search_times):.4f}s")
-        print(f"  mean     : {statistics.mean(search_times):.4f}s")
-        print(f"  min/max  : {min(search_times):.4f}s / {max(search_times):.4f}s")
+        print(f"  median   : {statistics.median(search_times)*1000:.3f} ms")
+        print(f"  mean     : {statistics.mean(search_times)*1000:.3f} ms")
+        print(f"  min/max  : {min(search_times)*1000:.3f} ms / {max(search_times)*1000:.3f} ms")
 
         # 3. Clustering
         print("\n[3] cluster_code")
         cluster = benchmark_cluster(tool, buf_id)
         print(f"  clusters : {cluster['clusters']}")
-        print(f"  time     : {cluster['elapsed_sec']:.3f}s")
+        print(f"  time     : {cluster['elapsed_sec']*1000:.3f} ms")
 
-        # 4. Edit / rebuild (if at least one file exists)
+        # 4. Edit / rebuild
         files = sorted(code_dir.rglob(args.pattern))
         if files:
             first_file = str(files[0].relative_to(code_dir))
-            print(f"\n[4] write_code / _rebuild_file_region (x{args.edit_iters})")
+            print(f"\n[4] write_code / rebuild (x{args.edit_iters})")
             print(f"  target   : {first_file}")
             edit = benchmark_edit(tool, buf_id, first_file, iterations=args.edit_iters)
             e = edit["elapsed_sec"]
-            print(f"  median   : {e['median']:.4f}s")
-            print(f"  mean     : {e['mean']:.4f}s")
-            print(f"  min/max  : {e['min']:.4f}s / {e['max']:.4f}s")
+            print(f"  median   : {e['median']*1000:.3f} ms")
+            print(f"  mean     : {e['mean']*1000:.3f} ms")
+            print(f"  min/max  : {e['min']*1000:.3f} ms / {e['max']*1000:.3f} ms")
 
         print("\n" + "=" * 60)
         print("Benchmark complete.")

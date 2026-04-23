@@ -1,12 +1,23 @@
-# Core dependencies for GigaCode Vulkan embedding tool
+# Core dependencies for GigaCode GPU-accelerated code embedding
 numpy>=1.24.0
-sentence-transformers>=2.2.0
 torch>=2.0.0
-vulkan>=1.3.0
+sentence-transformers>=2.2.0
 
-# Optional but recommended
-tiktoken>=0.5.0
-tree-sitter>=0.20.0
+# Vector search — install faiss-gpu for CUDA, faiss-cpu for CPU-only
+# faiss-gpu>=1.8.0
+faiss-cpu>=1.8.0
+
+# Code parsing
+tree-sitter>=0.22.0
+tree-sitter-python>=0.21.0
+
+# Optional
+# tree-sitter-javascript
+# tree-sitter-rust
+# tree-sitter-cpp
+# tree-sitter-go
+# tree-sitter-java
+# tree-sitter-typescript
 
 # Dev / test
 pytest>=7.0.0
