@@ -141,14 +141,20 @@ def test_vkbuff_directory_naming(tmp_path: Path) -> None:
     assert buffer_dir.exists()
     assert (buffer_dir / "embeddings.bin").exists()
     assert (buffer_dir / "metadata.json").exists()
+    assert (buffer_dir / "source_snapshot.json").exists()
 
     tool.close()
 
 
 def test_tool_schemas_exposed() -> None:
     schemas = CodeEmbeddingTool.get_tool_schemas()
-    assert len(schemas) >= 6
+    assert len(schemas) >= 11
     names = {s["name"] for s in schemas}
     assert "embed_codebase" in names
     assert "semantic_search" in names
     assert "cluster_code" in names
+    assert "read_code" in names
+    assert "write_code" in names
+    assert "commit" in names
+    assert "diff" in names
+    assert "discard" in names

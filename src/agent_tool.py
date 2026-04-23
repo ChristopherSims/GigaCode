@@ -248,8 +248,29 @@ class CodeEmbeddingTool:
             json.dumps({"files": file_index}, indent=2), encoding="utf-8"
         )
 
-        # Compute aggregate content hash for quick reload checks
-        content_hash = self._hash_files(files)
+        # Compute per-file content hashes for incremental reload / discard
+        file_hashes: dict[str, str] = {}
+        for f in files:
+            rel = str(f.relative_to(root))
+            file_hashes[rel] = hashlib.sha256(f.read_bytes()).hexdigest()
+
+        # Build and persist source snapshot (authoritative in-buffer source text)
+        source_snapshot: dict[str, list[str]] = {}
+        for rec in all_lines:
+            rel_file = rec.get("file", "")
+            if not rel_file:
+                # Fallback: derive from file_index
+                for entry in file_index:
+                    if entry["start_idx"] <= len(source_snapshot.get(rel_file, [])) < entry["end_idx"]:
+                        rel_file = entry["path"]
+                        break
+            source_snapshot.setdefault(rel_file, []).append(rec["text"])
+
+        snapshot_path = buffer_dir / "source_snapshot.json"
+        snapshot_path.write_text(
+            json.dumps(source_snapshot, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
 
         # Stage 6: register
         self._registry[buffer_id] = {
@@ -258,9 +279,10 @@ class CodeEmbeddingTool:
             "token_count": token_count,
             "embedding_dim": self._embedding_dim,
             "size_bytes": len(data_bytes),
-            "content_hash": content_hash,
+            "file_hashes": file_hashes,
             "pattern": pattern,
             "language_hint": language_hint,
+            "dirty_files": {},
         }
         self._save_registry()
 
@@ -303,18 +325,25 @@ class CodeEmbeddingTool:
         else:
             files = sorted(root.rglob(pattern))
 
-        current_hash = self._hash_files(files)
-        if current_hash == info.get("content_hash"):
+        old_hashes = info.get("file_hashes", {})
+        mismatched: list[str] = []
+        for f in files:
+            rel = str(f.relative_to(root))
+            current = hashlib.sha256(f.read_bytes()).hexdigest()
+            if old_hashes.get(rel) != current:
+                mismatched.append(rel)
+
+        if not mismatched:
             return {
                 "status": "ok",
                 "buffer_id": buffer_id,
                 "token_count": info["token_count"],
                 "size_bytes": info["size_bytes"],
-                "message": "Hashes match; reloaded without re-embedding.",
+                "message": "All file hashes match; reloaded without re-embedding.",
             }
 
         # Hash mismatch: fall back to full re-embed
-        logger.info("Hash mismatch for %s; re-embedding.", buffer_id)
+        logger.info("Hash mismatch for %s in files %s; re-embedding.", buffer_id, mismatched)
         return self.embed_codebase(
             root,
             language_hint=info.get("language_hint"),
@@ -515,6 +544,415 @@ class CodeEmbeddingTool:
         return {"status": "ok", "message": f"Deleted buffer {buffer_id}"}
 
     # ------------------------------------------------------------------
+    # Read / Write / Commit (Agent editing workflow)
+    # ------------------------------------------------------------------
+    def read_code(
+        self,
+        buffer_id: str,
+        file: str | None = None,
+        start_line: int = 1,
+        end_line: int | None = None,
+    ) -> dict[str, Any]:
+        """Read raw source text from the buffer.
+
+        .. note::
+            This intentionally returns raw source text so that an agent can
+            edit it. The original ``semantic_search`` / ``cluster_code``
+            tools still never expose source text.
+
+        Args:
+            buffer_id: Handle returned by :meth:`embed_codebase`.
+            file: Relative file path to read. If ``None``, all files are
+                returned as a mapping.
+            start_line: 1-based start line (inclusive).
+            end_line: 1-based end line (exclusive). ``None`` means "to end".
+
+        Returns:
+            Dict with ``status`` and either ``lines`` or ``files``.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        snapshot = self._load_source_snapshot(buffer_id)
+        if snapshot is None:
+            return {"status": "error", "message": "Source snapshot missing for buffer."}
+
+        if file is not None:
+            if file not in snapshot:
+                return {"status": "error", "message": f"File not in buffer: {file}"}
+            lines = snapshot[file]
+            end = end_line if end_line is not None else len(lines) + 1
+            selected = lines[start_line - 1 : end - 1]
+            return {
+                "status": "ok",
+                "file": file,
+                "start_line": start_line,
+                "end_line": end,
+                "lines": selected,
+            }
+
+        # Return all files
+        result: dict[str, list[str]] = {}
+        for fname, lines in snapshot.items():
+            end = end_line if end_line is not None else len(lines) + 1
+            result[fname] = lines[start_line - 1 : end - 1]
+        return {"status": "ok", "files": result}
+
+    def write_code(
+        self,
+        buffer_id: str,
+        file: str,
+        start_line: int,
+        new_lines: list[str],
+        end_line: int | None = None,
+    ) -> dict[str, Any]:
+        """Replace a range of lines in the buffer and re-embed the file.
+
+        Args:
+            buffer_id: Handle returned by :meth:`embed_codebase`.
+            file: Relative file path to edit.
+            start_line: 1-based start line (inclusive).
+            new_lines: List of replacement line strings (no newlines).
+            end_line: 1-based end line (exclusive). ``None`` means "to end
+                of file".
+
+        Returns:
+            Dict with ``status``, ``changed_lines``, and ``file``.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        snapshot = self._load_source_snapshot(buffer_id)
+        if snapshot is None:
+            return {"status": "error", "message": "Source snapshot missing for buffer."}
+
+        if file not in snapshot:
+            return {"status": "error", "message": f"File not in buffer: {file}"}
+
+        old_lines = snapshot[file]
+        end = end_line if end_line is not None else len(old_lines) + 1
+        # Build new line list
+        new_file_lines = old_lines[: start_line - 1] + new_lines + old_lines[end - 1 :]
+        snapshot[file] = new_file_lines
+        self._save_source_snapshot(buffer_id, snapshot)
+
+        # Rebuild embeddings / metadata for this file
+        rebuild_result = self._rebuild_file_region(
+            buffer_id, file, new_file_lines, info.get("language_hint")
+        )
+        if rebuild_result.get("status") != "ok":
+            return rebuild_result
+
+        # Mark file dirty
+        dirty = info.setdefault("dirty_files", {})
+        dirty[file] = True
+        self._save_registry()
+
+        return {
+            "status": "ok",
+            "file": file,
+            "changed_lines": len(new_lines),
+            "replaced_lines": end - start_line,
+            "total_lines": len(new_file_lines),
+        }
+
+    def diff(self, buffer_id: str) -> dict[str, Any]:
+        """List files that differ from the original on-disk versions.
+
+        Args:
+            buffer_id: Handle returned by :meth:`embed_codebase`.
+
+        Returns:
+            Dict with ``status`` and ``changed_files``.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        root = Path(info["root"])
+        snapshot = self._load_source_snapshot(buffer_id)
+        if snapshot is None:
+            return {"status": "error", "message": "Source snapshot missing."}
+
+        changed: list[dict[str, Any]] = []
+        old_hashes = info.get("file_hashes", {})
+        for rel_path, lines in snapshot.items():
+            current_text = "\n".join(lines)
+            current_hash = hashlib.sha256(current_text.encode("utf-8")).hexdigest()
+            if old_hashes.get(rel_path) != current_hash:
+                disk_path = root / rel_path
+                disk_lines = disk_path.read_text(encoding="utf-8").splitlines() if disk_path.exists() else []
+                changed.append(
+                    {
+                        "file": rel_path,
+                        "buffer_lines": len(lines),
+                        "disk_lines": len(disk_lines),
+                        "dirty": info.get("dirty_files", {}).get(rel_path, False),
+                    }
+                )
+
+        return {"status": "ok", "changed_files": changed}
+
+    def discard(
+        self,
+        buffer_id: str,
+        file: str | None = None,
+    ) -> dict[str, Any]:
+        """Revert buffer state for one or all files back to the on-disk original.
+
+        Args:
+            buffer_id: Handle returned by :meth:`embed_codebase`.
+            file: Relative file path. If ``None``, all files are reverted.
+
+        Returns:
+            Dict with ``status`` and ``reverted_files``.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        root = Path(info["root"])
+        snapshot = self._load_source_snapshot(buffer_id)
+        if snapshot is None:
+            return {"status": "error", "message": "Source snapshot missing."}
+
+        files_to_revert = [file] if file is not None else list(snapshot.keys())
+        reverted: list[str] = []
+        dirty = info.setdefault("dirty_files", {})
+
+        for rel_path in files_to_revert:
+            disk_path = root / rel_path
+            if not disk_path.exists():
+                continue
+            with disk_path.open("r", encoding="utf-8", errors="replace") as fh:
+                disk_lines = fh.read().splitlines()
+            snapshot[rel_path] = disk_lines
+            rebuild = self._rebuild_file_region(
+                buffer_id, rel_path, disk_lines, info.get("language_hint")
+            )
+            if rebuild.get("status") == "ok":
+                dirty.pop(rel_path, None)
+                reverted.append(rel_path)
+
+        self._save_source_snapshot(buffer_id, snapshot)
+        self._save_registry()
+        return {"status": "ok", "reverted_files": reverted}
+
+    def commit(
+        self,
+        buffer_id: str,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """Write dirty files from the buffer back to disk.
+
+        Args:
+            buffer_id: Handle returned by :meth:`embed_codebase`.
+            dry_run: If ``True``, report what would be written without
+                touching disk.
+
+        Returns:
+            Dict with ``status``, ``written_files``, and ``dry_run``.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        root = Path(info["root"])
+        snapshot = self._load_source_snapshot(buffer_id)
+        if snapshot is None:
+            return {"status": "error", "message": "Source snapshot missing."}
+
+        dirty = info.get("dirty_files", {})
+        if not dirty:
+            return {"status": "ok", "written_files": [], "dry_run": dry_run}
+
+        written: list[str] = []
+        new_hashes: dict[str, str] = {}
+
+        for rel_path in dirty:
+            lines = snapshot.get(rel_path, [])
+            disk_path = root / rel_path
+
+            if not dry_run:
+                # Safety: check hash hasn't changed on disk since embed
+                if disk_path.exists():
+                    disk_hash = hashlib.sha256(disk_path.read_bytes()).hexdigest()
+                    old_hash = info.get("file_hashes", {}).get(rel_path)
+                    if old_hash is not None and disk_hash != old_hash:
+                        return {
+                            "status": "error",
+                            "message": (
+                                f"File {rel_path} changed on disk since embedding "
+                                f"(hash mismatch). Aborting commit to avoid overwriting."
+                            ),
+                        }
+                disk_path.parent.mkdir(parents=True, exist_ok=True)
+                disk_path.write_text("\n".join(lines), encoding="utf-8")
+                new_hashes[rel_path] = hashlib.sha256(
+                    "\n".join(lines).encode("utf-8")
+                ).hexdigest()
+
+            written.append(rel_path)
+
+        if not dry_run:
+            info["file_hashes"].update(new_hashes)
+            info["dirty_files"] = {}
+            self._save_registry()
+
+        return {"status": "ok", "written_files": written, "dry_run": dry_run}
+
+    # ------------------------------------------------------------------
+    # Buffer editing helpers
+    # ------------------------------------------------------------------
+    def _load_source_snapshot(self, buffer_id: str) -> dict[str, list[str]] | None:
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return None
+        snapshot_path = Path(info["buffer_dir"]) / "source_snapshot.json"
+        if not snapshot_path.exists():
+            return None
+        data = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        # Ensure values are lists of strings
+        return {k: list(v) for k, v in data.items()}
+
+    def _save_source_snapshot(
+        self, buffer_id: str, snapshot: dict[str, list[str]]
+    ) -> None:
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return
+        snapshot_path = Path(info["buffer_dir"]) / "source_snapshot.json"
+        snapshot_path.write_text(
+            json.dumps(snapshot, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    def _rebuild_file_region(
+        self,
+        buffer_id: str,
+        rel_path: str,
+        new_lines: list[str],
+        language_hint: str | None,
+    ) -> dict[str, Any]:
+        """Re-tokenize and re-embed a single file, then splice into the buffer."""
+        import tempfile
+
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        buffer_dir = Path(info["buffer_dir"])
+        meta_path = buffer_dir / "metadata.json"
+        index_path = buffer_dir / "file_index.json"
+        data_path = buffer_dir / "embeddings.bin"
+        offsets_path = buffer_dir / "offsets.bin"
+
+        # Load current structures
+        metadata = load_metadata(meta_path)
+        file_index = json.loads(index_path.read_text(encoding="utf-8"))
+        old_embeddings = np.fromfile(data_path, dtype=np.float32).reshape(
+            -1, info["embedding_dim"]
+        )
+
+        # Find file range
+        file_entry: dict[str, Any] | None = None
+        file_entry_idx = -1
+        for idx, entry in enumerate(file_index["files"]):
+            if entry["path"] == rel_path:
+                file_entry = entry
+                file_entry_idx = idx
+                break
+
+        if file_entry is None:
+            return {"status": "error", "message": f"File not in index: {rel_path}"}
+
+        old_start = file_entry["start_idx"]
+        old_end = file_entry["end_idx"]
+        old_count = old_end - old_start
+
+        # Tokenize new file content via temp file
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, encoding="utf-8"
+        ) as tmp:
+            tmp.write("\n".join(new_lines))
+            tmp_path = tmp.name
+
+        try:
+            new_line_recs = tokenize_file(tmp_path, language_hint=language_hint)
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
+        # Ensure each record knows its file
+        for rec in new_line_recs:
+            rec["file"] = rel_path
+
+        new_count = len(new_line_recs)
+        new_texts = [rec["text"] for rec in new_line_recs]
+        new_embeddings = self._embedder.encode(new_texts)
+
+        # Build new metadata list
+        new_metadata = metadata[:old_start] + [
+            {k: v for k, v in rec.items() if k != "embedding"}
+            for rec in new_line_recs
+        ]
+        # Each new_line_rec doesn't have "embedding" key since tokenize_file doesn't
+        # produce it; but to be safe we strip it if present.
+        new_metadata += metadata[old_end:]
+
+        # Build new embeddings array
+        new_emb_array = np.concatenate(
+            [
+                old_embeddings[:old_start],
+                new_embeddings,
+                old_embeddings[old_end:],
+            ]
+        )
+
+        # Update file_index: adjust this file and all subsequent files
+        delta = new_count - old_count
+        file_index["files"][file_entry_idx]["end_idx"] = old_start + new_count
+        for subsequent in file_index["files"][file_entry_idx + 1 :]:
+            subsequent["start_idx"] += delta
+            subsequent["end_idx"] += delta
+
+        # Flatten and persist
+        lines_data: list[dict[str, Any]] = []
+        for rec, emb in zip(new_line_recs, new_embeddings):
+            meta = dict(rec)
+            meta["embedding"] = emb
+            lines_data.append(meta)
+
+        # Rebuild the full lines_data for flattening
+        full_lines_data: list[dict[str, Any]] = []
+        for i, meta in enumerate(new_metadata):
+            if old_start <= i < old_start + new_count:
+                # From newly embedded region
+                rec = new_line_recs[i - old_start]
+                full_rec = dict(rec)
+                full_rec["embedding"] = new_embeddings[i - old_start]
+                full_lines_data.append(full_rec)
+            else:
+                # From old embeddings
+                full_rec = dict(meta)
+                full_rec["embedding"] = new_emb_array[i]
+                full_lines_data.append(full_rec)
+
+        data_bytes, offsets_bytes, metadata_list = flatten_embeddings(
+            full_lines_data, info["embedding_dim"]
+        )
+
+        data_path.write_bytes(data_bytes)
+        offsets_path.write_bytes(offsets_bytes)
+        save_metadata(meta_path, metadata_list)
+        index_path.write_text(
+            json.dumps(file_index, indent=2), encoding="utf-8"
+        )
+
+        return {"status": "ok", "rebuilt_lines": new_count}
+
+    # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
     def _get_buffer_info(self, buffer_id: str) -> dict[str, Any] | None:
@@ -529,14 +967,6 @@ class CodeEmbeddingTool:
             if entry["start_idx"] <= token_idx < entry["end_idx"]:
                 return entry["path"]
         return "unknown"
-
-    @staticmethod
-    def _hash_files(files: list[Path]) -> str:
-        """Compute a deterministic aggregate hash of a file list."""
-        hasher = hashlib.sha256()
-        for f in sorted(files):
-            hasher.update(f.read_bytes())
-        return hasher.hexdigest()
 
     def _upload_to_gpu(
         self,

@@ -51,6 +51,8 @@ Requires `glslc` or `glslangValidator` in your PATH.
 
 ## Usage
 
+### Read-only semantic search (original workflow)
+
 ```python
 from src.agent_tool import CodeEmbeddingTool
 
@@ -70,15 +72,55 @@ with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
         print(c["file"], c["start_line"], c["end_line"], c["size"])
 ```
 
+### Agent Read / Write / Commit workflow
+
+GigaCode can now act as a mutable coding workspace for agents:
+
+```python
+from src.agent_tool import CodeEmbeddingTool
+
+with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
+    # 1. Embed
+    result = tool.embed_codebase("./src", pattern="*.py")
+    buf_id = result["buffer_id"]
+
+    # 2. Read raw source from the buffer
+    read = tool.read_code(buf_id, file="main.py")
+    for line in read["lines"]:
+        print(line)
+
+    # 3. Write modified lines back into the buffer
+    tool.write_code(
+        buf_id,
+        file="main.py",
+        start_line=5,
+        new_lines=["    # Added by agent", "    pass"],
+    )
+
+    # 4. Preview changes
+    diff = tool.diff(buf_id)
+    for f in diff["changed_files"]:
+        print(f"Changed: {f['file']} ({f['buffer_lines']} lines)")
+
+    # 5. Commit to disk (overwrites original)
+    tool.commit(buf_id, dry_run=False)
+```
+
+**Rollback:** `tool.discard(buf_id, file="main.py")` reverts a file to its on-disk state.
+
+**Safety:** `commit` aborts if the original file changed on disk since embedding (hash mismatch).
+
 ## Tool Contract (Agent Interface)
 
-The tool **never returns raw source code**. Responses contain only:
+The original search and cluster tools **never return raw source code**. Responses contain only:
 
 - `buffer_id` — opaque handle
 - `file` — relative file path
 - `line` — 1-based line number
 - `score` — similarity score
 - `size` — cluster token count
+
+The new **read/write/commit** workflow intentionally exposes raw source text so that an agent can edit code and persist changes back to disk.
 
 If a codebase exceeds the size threshold (default 500 MB), the tool returns a
 warning with a suggestion to narrow the scope.
@@ -98,6 +140,11 @@ Schemas are available for:
 - `check_codebase`
 - `list_buffers`
 - `delete_buffer`
+- `read_code`
+- `write_code`
+- `diff`
+- `discard`
+- `commit`
 
 Also exportable to OpenAI function-calling format and MCP tool format via
 `src.tool_schema`.
@@ -165,6 +212,7 @@ pytest tests/ -v
 | `shaders/similarity_search.comp` | GLSL Top-K dot-product shader |
 | `shaders/cluster_regions.comp` | GLSL clustering shader |
 | `shaders/compile_shaders.py` | SPIR-V compilation script |
+| `tests/test_buffer_rw.py` | Tests for read/write/commit round-trip |
 | `examplecode/` | Example codebase for testing |
 
 ## License

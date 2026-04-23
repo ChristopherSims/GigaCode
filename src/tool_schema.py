@@ -313,6 +313,208 @@ DELETE_BUFFER_SCHEMA: dict[str, Any] = {
     },
 }
 
+READ_CODE_SCHEMA: dict[str, Any] = {
+    "name": "read_code",
+    "description": (
+        "Read raw source text from an embedded buffer. "
+        "Unlike semantic_search, this returns actual code lines so the agent can edit them."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "file": {
+                "type": "string",
+                "description": "Relative file path. If omitted, all files are returned.",
+            },
+            "start_line": {
+                "type": "integer",
+                "description": "1-based start line (inclusive). Default 1.",
+                "default": 1,
+            },
+            "end_line": {
+                "type": "integer",
+                "description": "1-based end line (exclusive). Null means to end of file.",
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "file": {"type": "string"},
+            "start_line": {"type": "integer"},
+            "end_line": {"type": "integer"},
+            "lines": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+            "files": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+            },
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+WRITE_CODE_SCHEMA: dict[str, Any] = {
+    "name": "write_code",
+    "description": (
+        "Replace a range of lines in a buffered file and re-embed the changed region. "
+        "The file is marked dirty until commit is called."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "file": {
+                "type": "string",
+                "description": "Relative file path to edit.",
+            },
+            "start_line": {
+                "type": "integer",
+                "description": "1-based start line (inclusive).",
+            },
+            "new_lines": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Replacement line strings (no newlines).",
+            },
+            "end_line": {
+                "type": "integer",
+                "description": "1-based end line (exclusive). Null means to end of file.",
+            },
+        },
+        "required": ["buffer_id", "file", "start_line", "new_lines"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "file": {"type": "string"},
+            "changed_lines": {"type": "integer"},
+            "replaced_lines": {"type": "integer"},
+            "total_lines": {"type": "integer"},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+DIFF_SCHEMA: dict[str, Any] = {
+    "name": "diff",
+    "description": "List files that differ from the original on-disk versions.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "changed_files": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "buffer_lines": {"type": "integer"},
+                        "disk_lines": {"type": "integer"},
+                        "dirty": {"type": "boolean"},
+                    },
+                },
+            },
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+DISCARD_SCHEMA: dict[str, Any] = {
+    "name": "discard",
+    "description": "Revert one or all files in the buffer back to the on-disk originals.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "file": {
+                "type": "string",
+                "description": "Relative file path. If omitted, all files are reverted.",
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "reverted_files": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+COMMIT_SCHEMA: dict[str, Any] = {
+    "name": "commit",
+    "description": (
+        "Write dirty files from the buffer back to disk, overwriting the originals. "
+        "Use dry_run to preview changes first."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "dry_run": {
+                "type": "boolean",
+                "description": "If true, report what would be written without touching disk.",
+                "default": False,
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "written_files": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+            "dry_run": {"type": "boolean"},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
 
 # ---------------------------------------------------------------------------
 # Schema registry
@@ -325,6 +527,11 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     CHECK_CODEBASE_SCHEMA,
     LIST_BUFFERS_SCHEMA,
     DELETE_BUFFER_SCHEMA,
+    READ_CODE_SCHEMA,
+    WRITE_CODE_SCHEMA,
+    DIFF_SCHEMA,
+    DISCARD_SCHEMA,
+    COMMIT_SCHEMA,
 ]
 
 

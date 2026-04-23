@@ -118,6 +118,92 @@ class GigacodeEditAgent:
             "buffer_id": buffer_id,
         }
 
+    def edit_file_commit(
+        self,
+        src_path: str | Path,
+        language_hint: str | None = None,
+    ) -> dict[str, Any]:
+        """Edit a single source file and overwrite the original in-place.
+
+        Uses the full agent workflow: embed -> read -> apply rules -> write -> commit.
+
+        Args:
+            src_path: Path to the source file.
+            language_hint: Optional language override.
+
+        Returns:
+            Dict with ``language``, ``changed``, ``changes``, ``committed_path``.
+        """
+        src_path = Path(src_path)
+        language = detect_language(src_path, hint=language_hint)
+        rel_file = src_path.name
+
+        # Step 1: embed
+        Tool = _get_tool()
+        with Tool(work_dir=self.work_dir, device="cpu") as tool:
+            embed_result = tool.embed_codebase(src_path, language_hint=language)
+            if embed_result["status"] != "ok":
+                return {
+                    "status": "error",
+                    "message": f"Embedding failed: {embed_result.get('message')}",
+                }
+            buffer_id = embed_result["buffer_id"]
+            logger.info("[GigaCode] embedded %s -> %s", src_path, buffer_id)
+
+            # Step 2: read current source from buffer
+            read_result = tool.read_code(buffer_id, file=rel_file)
+            if read_result["status"] != "ok":
+                return {
+                    "status": "error",
+                    "message": f"Read failed: {read_result.get('message')}",
+                }
+            current_lines = read_result["lines"]
+            current_source = "\n".join(current_lines)
+
+            # Step 3: apply language-agnostic editing rules
+            from src.cross_language_rules import EditResult
+
+            edit_result = edit_file(src_path, language_hint=language)
+            if not edit_result.changed:
+                return {
+                    "status": "ok",
+                    "changed": False,
+                    "committed_path": str(src_path),
+                    "message": "No changes needed.",
+                }
+
+            new_lines = edit_result.modified.splitlines()
+
+            # Step 4: write back to buffer
+            write_result = tool.write_code(
+                buffer_id,
+                file=rel_file,
+                start_line=1,
+                new_lines=new_lines,
+            )
+            if write_result["status"] != "ok":
+                return {
+                    "status": "error",
+                    "message": f"Write failed: {write_result.get('message')}",
+                }
+
+            # Step 5: commit to disk
+            commit_result = tool.commit(buffer_id, dry_run=False)
+            if commit_result["status"] != "ok":
+                return {
+                    "status": "error",
+                    "message": f"Commit failed: {commit_result.get('message')}",
+                }
+
+            return {
+                "status": "ok",
+                "language": edit_result.language,
+                "changed": True,
+                "changes": edit_result.changes,
+                "committed_path": str(src_path),
+                "buffer_id": buffer_id,
+            }
+
     def edit_directory(
         self,
         dir_path: str | Path,
@@ -186,6 +272,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Enable verbose logging",
     )
+    parser.add_argument(
+        "--commit",
+        "-c",
+        action="store_true",
+        help="Overwrite original files in-place instead of writing *_gigacode_edited copies",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -195,6 +287,8 @@ def main(argv: list[str] | None = None) -> int:
 
     agent = GigacodeEditAgent(work_dir=args.work_dir)
     input_path = Path(args.input)
+
+    edit_method = agent.edit_file_commit if args.commit else agent.edit_file
 
     if input_path.is_dir():
         results = agent.edit_directory(
@@ -206,11 +300,15 @@ def main(argv: list[str] | None = None) -> int:
             if r.get("status") == "error":
                 print(f"  ERROR {r['path']}: {r['message']}")
             elif r.get("changed"):
-                print(f"  EDITED {r['output_path']} ({len(r.get('changes', []))} changes)")
+                out_key = "committed_path" if args.commit else "output_path"
+                print(f"  EDITED {r[out_key]} ({len(r.get('changes', []))} changes)")
     else:
-        result = agent.edit_file(input_path, language_hint=args.language_hint)
-        if result["changed"]:
-            print(f"Edited -> {result['output_path']}")
+        result = edit_method(input_path, language_hint=args.language_hint)
+        if result.get("status") == "error":
+            print(f"ERROR: {result['message']}")
+        elif result["changed"]:
+            out_key = "committed_path" if args.commit else "output_path"
+            print(f"Edited -> {result[out_key]}")
             for ch in result.get("changes", []):
                 print(f"  Line {ch['line']}: {ch['description']}")
         else:
