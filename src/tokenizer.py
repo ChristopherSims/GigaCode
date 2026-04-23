@@ -156,33 +156,31 @@ def _resolve_tree_sitter_language(language_hint: str | None):
     )
 
 
-def tokenize_file(path: str | Path, language_hint: str | None = None) -> list[dict[str, Any]]:
-    """Tokenize a source file into per-line token records.
+def tokenize_string(
+    text: str,
+    language_hint: str | None = None,
+    filename_hint: str = "<string>",
+) -> list[dict[str, Any]]:
+    """Tokenize source text into per-line token records.
 
-    The function attempts the following strategies in order:
-    1. tree-sitter (if available and a language package is installed).
-    2. tiktoken (if available).
-    3. Simple regex fallback (always available).
+    This is the core implementation used by :func:`tokenize_file`. It avoids
+    disk I/O so callers that already have the text in memory (e.g. the agent
+    edit buffer) don't need to write a temporary file.
 
     Args:
-        path: Path to the source file.
-        language_hint: Optional language identifier (e.g. ``"python"``, ``"rust"``)
-            used to select the tree-sitter grammar.
+        text: Raw source code.
+        language_hint: Optional language identifier (e.g. ``"python"``).
+        filename_hint: Used only for debug logging.
 
     Returns:
         A list of dicts, one per line, with keys:
         ``line_num`` (int), ``tokens`` (list[str]), ``text`` (str).
     """
-    p = Path(path)
-    if not p.exists():
-        raise FileNotFoundError(f"File not found: {p}")
-
-    raw_text = p.read_text(encoding="utf-8", errors="replace")
-    lines = raw_text.splitlines()
+    lines = text.splitlines()
 
     # --- Strategy 1: tree-sitter ---
     try:
-        ts_result = _tree_sitter_tokenize(raw_text, language_hint)
+        ts_result = _tree_sitter_tokenize(text, language_hint)
         output: list[dict[str, Any]] = []
         for ln, tokens in ts_result:
             output.append(
@@ -192,15 +190,14 @@ def tokenize_file(path: str | Path, language_hint: str | None = None) -> list[di
                     "text": lines[ln - 1] if ln <= len(lines) else "",
                 }
             )
-        logger.debug("Used tree-sitter tokenizer for %s", p)
+        logger.debug("Used tree-sitter tokenizer for %s", filename_hint)
         return output
     except Exception as exc:
         logger.debug("tree-sitter tokenizer failed (%s), falling back", exc)
 
     # --- Strategy 2: tiktoken ---
     try:
-        all_tokens = _tiktoken_tokenize(raw_text)
-        # Map each token back to its line by scanning left-to-right
+        all_tokens = _tiktoken_tokenize(text)
         output = []
         token_idx = 0
         char_pos = 0
@@ -210,9 +207,8 @@ def tokenize_file(path: str | Path, language_hint: str | None = None) -> list[di
             line_end = char_pos + len(line)
             while token_idx < len(all_tokens):
                 tok = all_tokens[token_idx]
-                tok_start = raw_text.find(tok, char_pos)
+                tok_start = text.find(tok, char_pos)
                 if tok_start == -1:
-                    # Token not found from current position; advance anyway
                     token_idx += 1
                     continue
                 if tok_start >= line_end:
@@ -221,8 +217,8 @@ def tokenize_file(path: str | Path, language_hint: str | None = None) -> list[di
                 char_pos = tok_start + len(tok)
                 token_idx += 1
             output.append({"line_num": i, "tokens": line_tokens, "text": line})
-            char_pos = line_end + 1  # +1 for newline
-        logger.debug("Used tiktoken tokenizer for %s", p)
+            char_pos = line_end + 1
+        logger.debug("Used tiktoken tokenizer for %s", filename_hint)
         return output
     except Exception as exc:
         logger.debug("tiktoken tokenizer failed (%s), falling back to regex", exc)
@@ -232,5 +228,25 @@ def tokenize_file(path: str | Path, language_hint: str | None = None) -> list[di
     for i, line in enumerate(lines, start=1):
         tokens = _regex_tokenize(line)
         output.append({"line_num": i, "tokens": tokens, "text": line})
-    logger.debug("Used regex fallback tokenizer for %s", p)
+    logger.debug("Used regex fallback tokenizer for %s", filename_hint)
     return output
+
+
+def tokenize_file(path: str | Path, language_hint: str | None = None) -> list[dict[str, Any]]:
+    """Tokenize a source file into per-line token records.
+
+    Thin wrapper around :func:`tokenize_string` that reads the file from disk.
+
+    Args:
+        path: Path to the source file.
+        language_hint: Optional language identifier.
+
+    Returns:
+        A list of dicts, one per line, with keys:
+        ``line_num`` (int), ``tokens`` (list[str]), ``text`` (str).
+    """
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"File not found: {p}")
+    raw_text = p.read_text(encoding="utf-8", errors="replace")
+    return tokenize_string(raw_text, language_hint=language_hint, filename_hint=str(p))

@@ -10,13 +10,13 @@ __pycache__/
 dist/
 build/
 
-# Large binary / temp files
-page-*.png
+# Generated / temp files
+buffers/
+*.tmp
+*.tmp.py
 output.txt
-"vulkan code embedding.pdf"
-
-# Hermes plans (keep if desired, but can be large)
-.hermes/
+_run_*.py
+*_edited.py
 
 # IDE
 .vscode/
@@ -28,3 +28,11 @@ output.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docs / plans
+.hermes/

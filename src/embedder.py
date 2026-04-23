@@ -40,7 +40,7 @@ class Embedder:
         """Dimensionality of produced vectors."""
         return int(self._model.get_embedding_dimension())
 
-    def encode(self, texts: list[str], batch_size: int = 32) -> np.ndarray:
+    def encode(self, texts: list[str], batch_size: int = 256) -> np.ndarray:
         """Embed a list of strings and L2-normalize the result.
 
         Args:

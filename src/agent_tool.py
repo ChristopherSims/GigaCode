@@ -22,7 +22,7 @@ from src.embedder import Embedder
 from src.flatten import flatten_embeddings
 from src.metadata_store import load_metadata, save_metadata
 from src.size_guard import check_size
-from src.tokenizer import tokenize_file
+from src.tokenizer import tokenize_file, tokenize_string
 from src.vulkan_context import VulkanContext
 
 logger = logging.getLogger(__name__)
@@ -244,32 +244,29 @@ class CodeEmbeddingTool:
         data_path.write_bytes(data_bytes)
         offsets_path.write_bytes(offsets_bytes)
         save_metadata(meta_path, metadata_list)
-        index_path.write_text(
-            json.dumps({"files": file_index}, indent=2), encoding="utf-8"
+        index_path.write_bytes(
+            json.dumps({"files": file_index}, separators=(",", ":")).encode("utf-8")
         )
 
         # Compute per-file content hashes for incremental reload / discard
         file_hashes: dict[str, str] = {}
         for f in files:
             rel = str(f.relative_to(root))
-            file_hashes[rel] = hashlib.sha256(f.read_bytes()).hexdigest()
+            raw_text = f.read_text(encoding="utf-8", errors="replace")
+            normalized = "\n".join(raw_text.splitlines())
+            file_hashes[rel] = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
-        # Build and persist source snapshot (authoritative in-buffer source text)
+        # Build source snapshot directly from file_index (O(N) instead of O(N*M))
         source_snapshot: dict[str, list[str]] = {}
-        for rec in all_lines:
-            rel_file = rec.get("file", "")
-            if not rel_file:
-                # Fallback: derive from file_index
-                for entry in file_index:
-                    if entry["start_idx"] <= len(source_snapshot.get(rel_file, [])) < entry["end_idx"]:
-                        rel_file = entry["path"]
-                        break
-            source_snapshot.setdefault(rel_file, []).append(rec["text"])
+        for entry in file_index:
+            rel_file = entry["path"]
+            start = entry["start_idx"]
+            end = entry["end_idx"]
+            source_snapshot[rel_file] = [rec["text"] for rec in all_lines[start:end]]
 
         snapshot_path = buffer_dir / "source_snapshot.json"
-        snapshot_path.write_text(
-            json.dumps(source_snapshot, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        snapshot_path.write_bytes(
+            json.dumps(source_snapshot, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         )
 
         # Stage 6: register
@@ -329,7 +326,9 @@ class CodeEmbeddingTool:
         mismatched: list[str] = []
         for f in files:
             rel = str(f.relative_to(root))
-            current = hashlib.sha256(f.read_bytes()).hexdigest()
+            raw_text = f.read_text(encoding="utf-8", errors="replace")
+            normalized = "\n".join(raw_text.splitlines())
+            current = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
             if old_hashes.get(rel) != current:
                 mismatched.append(rel)
 
@@ -374,16 +373,16 @@ class CodeEmbeddingTool:
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
 
-        # Load embeddings from disk
+        # Load embeddings from disk (memory-mapped to avoid copying into RAM)
         data_path = Path(info["buffer_dir"]) / "embeddings.bin"
         meta_path = Path(info["buffer_dir"]) / "metadata.json"
         index_path = Path(info["buffer_dir"]) / "file_index.json"
 
-        embeddings = np.fromfile(data_path, dtype=np.float32).reshape(
+        embeddings = np.memmap(data_path, dtype=np.float32, mode="r").reshape(
             -1, info["embedding_dim"]
         )
         metadata = load_metadata(meta_path)
-        file_index = json.loads(index_path.read_text(encoding="utf-8"))
+        file_index = json.loads(index_path.read_bytes())
 
         # Embed query
         q_emb = self._embedder.encode([query])[0]
@@ -437,11 +436,11 @@ class CodeEmbeddingTool:
         meta_path = Path(info["buffer_dir"]) / "metadata.json"
         index_path = Path(info["buffer_dir"]) / "file_index.json"
 
-        embeddings = np.fromfile(data_path, dtype=np.float32).reshape(
+        embeddings = np.memmap(data_path, dtype=np.float32, mode="r").reshape(
             -1, info["embedding_dim"]
         )
         metadata = load_metadata(meta_path)
-        file_index = json.loads(index_path.read_text(encoding="utf-8"))
+        file_index = json.loads(index_path.read_bytes())
 
         clusters = self._ctx.cluster_regions(embeddings, threshold)
 
@@ -778,7 +777,9 @@ class CodeEmbeddingTool:
             if not dry_run:
                 # Safety: check hash hasn't changed on disk since embed
                 if disk_path.exists():
-                    disk_hash = hashlib.sha256(disk_path.read_bytes()).hexdigest()
+                    raw_text = disk_path.read_text(encoding="utf-8", errors="replace")
+                    normalized = "\n".join(raw_text.splitlines())
+                    disk_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
                     old_hash = info.get("file_hashes", {}).get(rel_path)
                     if old_hash is not None and disk_hash != old_hash:
                         return {
@@ -824,9 +825,8 @@ class CodeEmbeddingTool:
         if info is None:
             return
         snapshot_path = Path(info["buffer_dir"]) / "source_snapshot.json"
-        snapshot_path.write_text(
-            json.dumps(snapshot, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        snapshot_path.write_bytes(
+            json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         )
 
     def _rebuild_file_region(
@@ -837,8 +837,6 @@ class CodeEmbeddingTool:
         language_hint: str | None,
     ) -> dict[str, Any]:
         """Re-tokenize and re-embed a single file, then splice into the buffer."""
-        import tempfile
-
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
@@ -851,8 +849,10 @@ class CodeEmbeddingTool:
 
         # Load current structures
         metadata = load_metadata(meta_path)
-        file_index = json.loads(index_path.read_text(encoding="utf-8"))
-        old_embeddings = np.fromfile(data_path, dtype=np.float32).reshape(
+        file_index = json.loads(index_path.read_bytes())
+
+        # Memory-map old embeddings so we don't load the whole matrix into RAM
+        old_emb = np.memmap(data_path, dtype=np.float32, mode="r").reshape(
             -1, info["embedding_dim"]
         )
 
@@ -870,84 +870,52 @@ class CodeEmbeddingTool:
 
         old_start = file_entry["start_idx"]
         old_end = file_entry["end_idx"]
-        old_count = old_end - old_start
 
-        # Tokenize new file content via temp file
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".py", delete=False, encoding="utf-8"
-        ) as tmp:
-            tmp.write("\n".join(new_lines))
-            tmp_path = tmp.name
-
-        try:
-            new_line_recs = tokenize_file(tmp_path, language_hint=language_hint)
-        finally:
-            Path(tmp_path).unlink(missing_ok=True)
-
-        # Ensure each record knows its file
+        # Tokenize new file content in-memory (no temp file)
+        new_line_recs = tokenize_string(
+            "\n".join(new_lines), language_hint=language_hint, filename_hint=rel_path
+        )
         for rec in new_line_recs:
             rec["file"] = rel_path
 
         new_count = len(new_line_recs)
         new_texts = [rec["text"] for rec in new_line_recs]
-        new_embeddings = self._embedder.encode(new_texts)
+        new_embeddings = self._embedder.encode(new_texts, batch_size=256)
 
         # Build new metadata list
         new_metadata = metadata[:old_start] + [
             {k: v for k, v in rec.items() if k != "embedding"}
             for rec in new_line_recs
-        ]
-        # Each new_line_rec doesn't have "embedding" key since tokenize_file doesn't
-        # produce it; but to be safe we strip it if present.
-        new_metadata += metadata[old_end:]
+        ] + metadata[old_end:]
 
-        # Build new embeddings array
-        new_emb_array = np.concatenate(
-            [
-                old_embeddings[:old_start],
-                new_embeddings,
-                old_embeddings[old_end:],
-            ]
-        )
-
-        # Update file_index: adjust this file and all subsequent files
-        delta = new_count - old_count
+        # Update file_index
+        delta = new_count - (old_end - old_start)
         file_index["files"][file_entry_idx]["end_idx"] = old_start + new_count
         for subsequent in file_index["files"][file_entry_idx + 1 :]:
             subsequent["start_idx"] += delta
             subsequent["end_idx"] += delta
 
-        # Flatten and persist
-        lines_data: list[dict[str, Any]] = []
-        for rec, emb in zip(new_line_recs, new_embeddings):
-            meta = dict(rec)
-            meta["embedding"] = emb
-            lines_data.append(meta)
+        # Read the head / tail slices from the memmap, then close it so we can
+        # rewrite the file safely on Windows.
+        old_total = old_emb.shape[0]
+        head_bytes = old_emb[:old_start].tobytes() if old_start > 0 else b""
+        tail_bytes = old_emb[old_end:].tobytes() if old_end < old_total else b""
+        del old_emb  # close memmap
 
-        # Rebuild the full lines_data for flattening
-        full_lines_data: list[dict[str, Any]] = []
-        for i, meta in enumerate(new_metadata):
-            if old_start <= i < old_start + new_count:
-                # From newly embedded region
-                rec = new_line_recs[i - old_start]
-                full_rec = dict(rec)
-                full_rec["embedding"] = new_embeddings[i - old_start]
-                full_lines_data.append(full_rec)
-            else:
-                # From old embeddings
-                full_rec = dict(meta)
-                full_rec["embedding"] = new_emb_array[i]
-                full_lines_data.append(full_rec)
+        # Persist embeddings by splicing head + new + tail (no giant intermediate array)
+        with data_path.open("wb") as fh:
+            fh.write(head_bytes)
+            fh.write(new_embeddings.tobytes())
+            fh.write(tail_bytes)
 
-        data_bytes, offsets_bytes, metadata_list = flatten_embeddings(
-            full_lines_data, info["embedding_dim"]
-        )
+        # Offsets are uniform
+        total_lines = old_total + delta
+        offsets = np.arange(total_lines, dtype=np.uint64) * (info["embedding_dim"] * 4)
+        offsets_path.write_bytes(offsets.tobytes())
 
-        data_path.write_bytes(data_bytes)
-        offsets_path.write_bytes(offsets_bytes)
-        save_metadata(meta_path, metadata_list)
-        index_path.write_text(
-            json.dumps(file_index, indent=2), encoding="utf-8"
+        save_metadata(meta_path, new_metadata, compact=True)
+        index_path.write_bytes(
+            json.dumps(file_index, separators=(",", ":")).encode("utf-8")
         )
 
         return {"status": "ok", "rebuilt_lines": new_count}
@@ -959,8 +927,10 @@ class CodeEmbeddingTool:
         return self._registry.get(buffer_id)
 
     def _save_registry(self) -> None:
-        with self._registry_path.open("w", encoding="utf-8") as fh:
-            json.dump(self._registry, fh, indent=2)
+        with self._registry_path.open("wb") as fh:
+            fh.write(
+                json.dumps(self._registry, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            )
 
     def _resolve_file(self, token_idx: int, file_index: list[dict[str, Any]]) -> str:
         for entry in file_index:

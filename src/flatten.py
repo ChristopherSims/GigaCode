@@ -66,32 +66,20 @@ def flatten_embeddings(
         ValueError: If an embedding length does not match *embedding_dim*.
     """
     if not lines_data:
-        empty_offsets = struct.pack(f"<{0}Q", *[])  # type: ignore[arg-type]
-        return b"", empty_offsets, []
+        return b"", b"", []
 
-    float32_size = 4
-    bytes_per_line = embedding_dim * float32_size
+    # Vectorised: stack all embeddings in one shot
+    embeddings = np.stack([rec["embedding"] for rec in lines_data], dtype=np.float32)
+    if embeddings.shape != (len(lines_data), embedding_dim):
+        raise ValueError(
+            f"Embedding shape {embeddings.shape} does not match expected "
+            f"({len(lines_data)}, {embedding_dim})"
+        )
 
-    offsets: list[int] = []
-    metadata_list: list[dict[str, Any]] = []
-    data_chunks: list[bytes] = []
+    metadata_list = [{k: v for k, v in rec.items() if k != "embedding"} for rec in lines_data]
+    data_bytes = embeddings.tobytes()
 
-    current_offset = 0
-    for record in lines_data:
-        emb = record["embedding"]
-        arr = np.asarray(emb, dtype=np.float32)
-        if arr.shape != (embedding_dim,):
-            raise ValueError(
-                f"Embedding shape {arr.shape} does not match expected ({embedding_dim},)"
-            )
-        offsets.append(current_offset)
-        data_chunks.append(arr.tobytes())
-        current_offset += bytes_per_line
-
-        # Build metadata (copy everything except the raw embedding to save memory)
-        meta = {k: v for k, v in record.items() if k != "embedding"}
-        metadata_list.append(meta)
-
-    data_bytes = b"".join(data_chunks)
-    offsets_bytes = struct.pack(f"<{len(offsets)}Q", *offsets)
+    # Uniform stride: every embedding is the same size
+    offsets = np.arange(len(lines_data), dtype=np.uint64) * (embedding_dim * 4)
+    offsets_bytes = offsets.tobytes()
     return data_bytes, offsets_bytes, metadata_list
