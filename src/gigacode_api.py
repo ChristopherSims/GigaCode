@@ -68,6 +68,10 @@ class ReadRequest(BaseModel):
     start_line: int = 1
     end_line: int | None = None
 
+class LookForFileRequest(BaseModel):
+    buffer_id: str
+    file_name: str
+
 class WriteRequest(BaseModel):
     buffer_id: str
     file: str
@@ -205,6 +209,13 @@ def create_app(tool: Any) -> FastAPI:
         result = tool.read_code(req.buffer_id, file=req.file, start_line=req.start_line, end_line=req.end_line)
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/look-for-file")
+    async def look_for_file(req: LookForFileRequest) -> dict[str, Any]:
+        result = tool.look_for_file(req.buffer_id, req.file_name)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=404, detail=result)
         return result
 
     @app.post("/write")
