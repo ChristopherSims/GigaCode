@@ -451,6 +451,76 @@ class CodeEmbeddingTool:
 
         return {"status": "ok", "matches": matches, "total": len(matches)}
 
+    def look_for_file(
+        self,
+        buffer_id: str,
+        file_name: str,
+    ) -> dict[str, Any]:
+        """Find the location of a file within an embedded buffer.
+
+        Tries exact match, then basename match, then partial substring match.
+        Returns the relative file path (within the buffer root) and the
+        absolute path on disk.
+
+        Args:
+            buffer_id: Buffer handle.
+            file_name: File name or path fragment to look for.
+
+        Returns:
+            Dict with ``status``, ``file_location``, ``absolute_path``,
+            ``match_type``, and optionally ``candidates``.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        snapshot = self._load_source_snapshot(buffer_id)
+        if snapshot is None:
+            return {"status": "error", "message": "Source snapshot missing."}
+
+        root = Path(info["root"])
+        files = list(snapshot.keys())
+
+        # 1) Exact relative-path match
+        if file_name in files:
+            return {
+                "status": "ok",
+                "file_location": file_name,
+                "absolute_path": str(root / file_name),
+                "match_type": "exact",
+            }
+
+        # 2) Basename exact match
+        for rel_path in files:
+            if Path(rel_path).name == file_name:
+                return {
+                    "status": "ok",
+                    "file_location": rel_path,
+                    "absolute_path": str(root / rel_path),
+                    "match_type": "basename",
+                }
+
+        # 3) Partial (substring) match
+        query_lower = file_name.lower()
+        candidates = [rel_path for rel_path in files if query_lower in rel_path.lower()]
+
+        if len(candidates) == 1:
+            return {
+                "status": "ok",
+                "file_location": candidates[0],
+                "absolute_path": str(root / candidates[0]),
+                "match_type": "partial",
+            }
+        if len(candidates) > 1:
+            return {
+                "status": "ok",
+                "candidates": candidates,
+                "match_type": "multiple",
+                "message": f"Found {len(candidates)} matching files.",
+            }
+
+        return {"status": "error", "message": f"File '{file_name}' not found in buffer."}
+
     # ------------------------------------------------------------------
     # Symbol search (name + semantic)
     # ------------------------------------------------------------------

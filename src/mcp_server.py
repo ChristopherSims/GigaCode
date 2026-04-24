@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from mcp.server import Server
+    from mcp.server.lowlevel.server import NotificationOptions
     from mcp.server.models import InitializationOptions
     from mcp.server.stdio import stdio_server
     from mcp.types import (
@@ -35,6 +36,7 @@ except ImportError as _mcp_err:
     _HAS_MCP = False
     Server = None  # type: ignore
     Tool = None  # type: ignore
+    NotificationOptions = None  # type: ignore
 
 
 def _result_to_text(result: dict[str, Any]) -> str:
@@ -78,7 +80,10 @@ async def _run_stdio(tool: Any) -> None:
             InitializationOptions(
                 server_name="gigacode",
                 server_version="1.1.0",
-                capabilities=server.get_capabilities(),
+                capabilities=server.get_capabilities(
+                    notification_options=NotificationOptions(),
+                    experimental_capabilities={},
+                ),
             ),
         )
 
@@ -104,7 +109,10 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
                 InitializationOptions(
                     server_name="gigacode",
                     server_version="1.1.0",
-                    capabilities=server.get_capabilities(),
+                    capabilities=server.get_capabilities(
+                        notification_options=NotificationOptions(),
+                        experimental_capabilities={},
+                    ),
                 ),
             )
 

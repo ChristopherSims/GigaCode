@@ -301,11 +301,11 @@ SEARCH_SYMBOLS_SCHEMA: dict[str, Any] = {
 }
 
 
-UPDATE_CODEBASE_SCHEMA: dict[str, Any] = {
-    "name": "update_codebase",
+RELOAD_CODEBASE_SCHEMA: dict[str, Any] = {
+    "name": "reload_codebase",
     "description": (
-        "Re-embed a single file and patch the existing buffer incrementally. "
-        "Only changed lines are re-embedded when possible."
+        "Reload a codebase buffer from disk, re-embedding only if file hashes changed. "
+        "Use this to refresh a buffer after external edits."
     ),
     "input_schema": {
         "type": "object",
@@ -314,23 +314,17 @@ UPDATE_CODEBASE_SCHEMA: dict[str, Any] = {
                 "type": "string",
                 "description": "Existing buffer handle.",
             },
-            "file_path": {
-                "type": "string",
-                "description": "Path to the file that changed.",
-            },
-            "language_hint": {
-                "type": "string",
-                "description": "Optional language override.",
-            },
         },
-        "required": ["buffer_id", "file_path"],
+        "required": ["buffer_id"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
             "status": {"type": "string", "enum": ["ok", "warning", "error"]},
+            "buffer_id": {"type": "string"},
+            "chunk_count": {"type": "integer"},
+            "size_bytes": {"type": "integer"},
             "message": {"type": "string"},
-            "changed_lines": {"type": "integer"},
         },
         "required": ["status"],
     },
@@ -469,6 +463,62 @@ READ_CODE_SCHEMA: dict[str, Any] = {
                     "type": "array",
                     "items": {"type": "string"},
                 },
+            },
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+LOOK_FOR_FILE_SCHEMA: dict[str, Any] = {
+    "name": "look_for_file",
+    "description": (
+        "Find the location of a file within an embedded buffer. "
+        "Tries exact match, then basename match, then partial substring match. "
+        "Returns the relative file path and the absolute path on disk."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "file_name": {
+                "type": "string",
+                "description": (
+                    "File name, relative path, or path fragment to look for. "
+                    "Examples: 'gigacode_tool.py', 'src/gigacode_tool.py', 'gigacode'"
+                ),
+            },
+        },
+        "required": ["buffer_id", "file_name"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": ["ok", "error"],
+                "description": "Result status.",
+            },
+            "file_location": {
+                "type": "string",
+                "description": "Relative path within the buffer root.",
+            },
+            "absolute_path": {
+                "type": "string",
+                "description": "Absolute path on disk.",
+            },
+            "match_type": {
+                "type": "string",
+                "enum": ["exact", "basename", "partial", "multiple"],
+                "description": "How the file was matched.",
+            },
+            "candidates": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Multiple candidate paths (only when match_type is 'multiple').",
             },
             "message": {"type": "string"},
         },
@@ -765,11 +815,12 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     CLUSTER_CODE_SCHEMA,
     FIND_DUPLICATES_SCHEMA,
     PACK_CONTEXT_SCHEMA,
-    UPDATE_CODEBASE_SCHEMA,
+    RELOAD_CODEBASE_SCHEMA,
     CHECK_CODEBASE_SCHEMA,
     LIST_BUFFERS_SCHEMA,
     DELETE_BUFFER_SCHEMA,
     READ_CODE_SCHEMA,
+    LOOK_FOR_FILE_SCHEMA,
     WRITE_CODE_SCHEMA,
     DIFF_SCHEMA,
     DISCARD_SCHEMA,
