@@ -17,10 +17,15 @@ from typing import Any
 import numpy as np
 
 from src.chunker import CodeChunk, chunk_file, chunk_text
+from src.context_packer import pack_context
 from src.diff_engine import compute_diff, hash_lines
+from src.duplicate_detector import find_duplicates
 from src.embedder import Embedder
 from src.gpu_index import GpuIndex
+from src.hybrid_search import reciprocal_rank_fusion
+from src.lexical_index import LexicalIndex
 from src.metadata_store import load_metadata, save_metadata
+from src.query_cache import QueryCache
 from src.size_guard import check_size
 
 logger = logging.getLogger(__name__)
@@ -65,6 +70,12 @@ class CodeEmbeddingTool:
 
         # In-memory index cache: buffer_id -> GpuIndex
         self._index_cache: dict[str, GpuIndex] = {}
+
+        # In-memory lexical index cache: buffer_id -> LexicalIndex
+        self._lexical_cache: dict[str, LexicalIndex] = {}
+
+        # Query result cache
+        self._query_cache = QueryCache(maxsize=256)
 
     # ------------------------------------------------------------------
     # Schema exposure
@@ -176,6 +187,12 @@ class CodeEmbeddingTool:
         ids = index.new_ids(len(all_chunks))
         index.add(ids, embeddings)
 
+        # Stage 3b: build lexical BM25 index
+        lexical = LexicalIndex()
+        for i, ch in enumerate(all_chunks):
+            lexical.add(i, ch.text)
+        self._lexical_cache[buffer_id] = lexical
+
         # Stage 4: persist
         buffer_id = str(uuid.uuid4())
         buffer_dir = self.work_dir / f"{buffer_id}.gcbuff"
@@ -265,10 +282,16 @@ class CodeEmbeddingTool:
         buffer_id: str,
         query: str,
         top_k: int = 5,
+        offset: int = 0,
     ) -> dict[str, Any]:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        cached = self._query_cache.get(buffer_id, query, top_k + offset, "semantic")
+        if cached is not None:
+            matches = cached["matches"][offset:offset + top_k]
+            return {"status": "ok", "matches": matches, "cached": True}
 
         index = self._get_index(buffer_id)
         chunks = self._load_chunks(buffer_id)
@@ -276,7 +299,7 @@ class CodeEmbeddingTool:
             return {"status": "error", "message": "Chunk metadata missing."}
 
         q_emb = self._embedder.encode([query], batch_size=1)
-        distances, indices = index.search(q_emb, top_k)
+        distances, indices = index.search(q_emb, top_k + offset)
 
         matches = []
         for score, idx in zip(distances[0], indices[0]):
@@ -290,9 +313,97 @@ class CodeEmbeddingTool:
                 "type": ch.type,
                 "name": ch.name,
                 "score": float(score),
+                "doc_id": int(idx),
             })
 
-        return {"status": "ok", "matches": matches}
+        self._query_cache.set(buffer_id, query, top_k + offset, "semantic", {"matches": matches})
+        return {"status": "ok", "matches": matches[offset:offset + top_k], "cached": False}
+
+    def hybrid_search(
+        self,
+        buffer_id: str,
+        query: str,
+        top_k: int = 5,
+        offset: int = 0,
+        semantic_weight: float = 1.0,
+        lexical_weight: float = 1.0,
+    ) -> dict[str, Any]:
+        """Combine FAISS semantic search with BM25 lexical search via RRF.
+
+        Args:
+            buffer_id: Buffer handle.
+            query: Natural language or keyword query.
+            top_k: Number of results to return.
+            offset: Pagination offset.
+            semantic_weight: Weight for semantic rank contribution.
+            lexical_weight: Weight for lexical rank contribution.
+
+        Returns:
+            Dict with ``status`` and ``matches``.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        cached = self._query_cache.get(buffer_id, query, top_k + offset, "hybrid")
+        if cached is not None:
+            matches = cached["matches"][offset:offset + top_k]
+            return {"status": "ok", "matches": matches, "cached": True}
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None:
+            return {"status": "error", "message": "Chunk metadata missing."}
+
+        # Semantic results
+        index = self._get_index(buffer_id)
+        q_emb = self._embedder.encode([query], batch_size=1)
+        distances, indices = index.search(q_emb, top_k * 4 + offset)
+        semantic_results: list[dict[str, Any]] = []
+        for score, idx in zip(distances[0], indices[0]):
+            if idx < 0 or idx >= len(chunks):
+                continue
+            semantic_results.append({
+                "doc_id": int(idx),
+                "score": float(score),
+            })
+
+        # Lexical results
+        lexical = self._lexical_cache.get(buffer_id)
+        if lexical is None:
+            # Rebuild lexical index from chunks if missing
+            lexical = LexicalIndex()
+            for i, ch in enumerate(chunks):
+                lexical.add(i, ch.text)
+            self._lexical_cache[buffer_id] = lexical
+        lexical_results = lexical.search(query, top_k=top_k * 4 + offset)
+
+        merged = reciprocal_rank_fusion(
+            semantic_results,
+            lexical_results,
+            semantic_weight=semantic_weight,
+            lexical_weight=lexical_weight,
+            top_k=top_k + offset,
+        )
+
+        # Enrich merged results with chunk metadata
+        matches = []
+        for m in merged:
+            idx = m["doc_id"]
+            ch = chunks[idx]
+            matches.append({
+                "file": ch.file,
+                "start_line": ch.start_line,
+                "end_line": ch.end_line,
+                "type": ch.type,
+                "name": ch.name,
+                "rrf_score": m.get("rrf_score", 0.0),
+                "semantic_rank": m.get("semantic_rank"),
+                "lexical_rank": m.get("lexical_rank"),
+                "doc_id": idx,
+            })
+
+        self._query_cache.set(buffer_id, query, top_k + offset, "hybrid", {"matches": matches})
+        return {"status": "ok", "matches": matches[offset:offset + top_k], "cached": False}
 
     # ------------------------------------------------------------------
     # Literal text search (grep-style)
@@ -489,6 +600,61 @@ class CodeEmbeddingTool:
                 })
 
         return {"status": "ok", "clusters": clusters}
+
+    def find_duplicates(
+        self,
+        buffer_id: str,
+        threshold: float = 0.85,
+    ) -> dict[str, Any]:
+        """Find near-duplicate code chunks within a buffer."""
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return {"status": "error", "message": "No chunks loaded."}
+
+        duplicates = find_duplicates(chunks, threshold=threshold)
+        return {"status": "ok", "duplicates": duplicates, "total": len(duplicates)}
+
+    def pack_context(
+        self,
+        buffer_id: str,
+        query: str,
+        max_tokens: int = 8192,
+        top_k: int = 20,
+    ) -> dict[str, Any]:
+        """Return an optimally packed set of chunks fitting within *max_tokens*.
+
+        Uses hybrid search to find the most relevant chunks, then greedily
+        packs them by score until the token budget is exhausted.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return {"status": "error", "message": "No chunks loaded."}
+
+        # Use hybrid search for relevance scoring
+        search_result = self.hybrid_search(buffer_id, query, top_k=top_k, offset=0)
+        if search_result.get("status") != "ok":
+            return search_result
+
+        matches = search_result.get("matches", [])
+        if not matches:
+            return {"status": "ok", "packed_chunks": [], "total_tokens": 0, "remaining_tokens": max_tokens, "count": 0}
+
+        # Build score map by doc_id
+        scores = [0.0] * len(chunks)
+        for m in matches:
+            did = m.get("doc_id")
+            if did is not None and 0 <= did < len(chunks):
+                scores[did] = m.get("rrf_score", m.get("score", 0.0))
+
+        return pack_context(chunks, scores, max_tokens=max_tokens)
 
     # ------------------------------------------------------------------
     # Read / Write / Commit (Agent editing workflow)
@@ -701,6 +867,8 @@ class CodeEmbeddingTool:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
         self._save_registry()
         self._index_cache.pop(buffer_id, None)
+        self._lexical_cache.pop(buffer_id, None)
+        self._query_cache.invalidate_buffer(buffer_id)
         shutil.rmtree(info["buffer_dir"], ignore_errors=True)
         return {"status": "ok", "message": f"Deleted buffer {buffer_id}"}
 
@@ -791,6 +959,13 @@ class CodeEmbeddingTool:
 
         # Persist
         self._save_buffer_state(buffer_dir, new_chunks, final_embeddings, index)
+
+        # Rebuild lexical index
+        lexical = LexicalIndex()
+        for i, ch in enumerate(new_chunks):
+            lexical.add(i, ch.text)
+        self._lexical_cache[buffer_id] = lexical
+        self._query_cache.invalidate_buffer(buffer_id)
 
     # ------------------------------------------------------------------
     # Persistence helpers

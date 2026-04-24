@@ -11,13 +11,36 @@ faiss-cpu>=1.8.0
 tree-sitter>=0.22.0
 tree-sitter-python>=0.21.0
 
-# Optional
-# tree-sitter-javascript
-# tree-sitter-rust
-# tree-sitter-cpp
-# tree-sitter-go
-# tree-sitter-java
-# tree-sitter-typescript
+# Multi-language tree-sitter grammars
+tree-sitter-javascript>=0.21.0
+tree-sitter-typescript>=0.21.0
+tree-sitter-rust>=0.21.0
+tree-sitter-cpp>=0.22.0
+tree-sitter-go>=0.21.0
+tree-sitter-java>=0.21.0
+tree-sitter-c>=0.21.0
+
+# Optional extras (uncomment as needed)
+# tree-sitter-ruby
+# tree-sitter-php
+# tree-sitter-c-sharp
+# tree-sitter-swift
+# tree-sitter-kotlin
+# tree-sitter-scala
+# tree-sitter-bash
+# tree-sitter-lua
+# tree-sitter-elixir
+
+# Server (optional — falls back to stdlib)
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.0.0
+
+# Optional utilities
+watchdog>=3.0.0
+
+# MCP (optional)
+mcp>=1.1.0
 
 # Dev / test
 pytest>=7.0.0

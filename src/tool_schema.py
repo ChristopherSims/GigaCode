@@ -625,6 +625,133 @@ COMMIT_SCHEMA: dict[str, Any] = {
     },
 }
 
+HYBRID_SEARCH_SCHEMA: dict[str, Any] = {
+    "name": "hybrid_search",
+    "description": (
+        "Combine FAISS semantic search with BM25 lexical search via Reciprocal Rank Fusion. "
+        "Returns file paths, line ranges, and merged relevance scores."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "query": {"type": "string", "description": "Natural language or keyword query."},
+            "top_k": {"type": "integer", "description": "Number of results to return.", "default": 5},
+            "offset": {"type": "integer", "description": "Pagination offset.", "default": 0},
+            "semantic_weight": {"type": "number", "description": "Weight for semantic rank contribution.", "default": 1.0},
+            "lexical_weight": {"type": "number", "description": "Weight for lexical rank contribution.", "default": 1.0},
+        },
+        "required": ["buffer_id", "query"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "matches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "start_line": {"type": "integer"},
+                        "end_line": {"type": "integer"},
+                        "type": {"type": "string"},
+                        "name": {"type": ["string", "null"]},
+                        "rrf_score": {"type": "number"},
+                        "semantic_rank": {"type": "integer"},
+                        "lexical_rank": {"type": "integer"},
+                        "doc_id": {"type": "integer"},
+                    },
+                },
+            },
+            "cached": {"type": "boolean"},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+FIND_DUPLICATES_SCHEMA: dict[str, Any] = {
+    "name": "find_duplicates",
+    "description": "Find near-duplicate code chunks within a buffer using MinHash + LSH.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "threshold": {"type": "number", "description": "Jaccard similarity threshold (0.0–1.0).", "default": 0.85},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "duplicates": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file_a": {"type": "string"},
+                        "start_line_a": {"type": "integer"},
+                        "end_line_a": {"type": "integer"},
+                        "file_b": {"type": "string"},
+                        "start_line_b": {"type": "integer"},
+                        "end_line_b": {"type": "integer"},
+                        "similarity": {"type": "number"},
+                    },
+                },
+            },
+            "total": {"type": "integer"},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+PACK_CONTEXT_SCHEMA: dict[str, Any] = {
+    "name": "pack_context",
+    "description": (
+        "Return an optimally packed set of chunks fitting within a token budget. "
+        "Uses hybrid search for relevance and greedily packs by score."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "query": {"type": "string", "description": "Query describing the context needed."},
+            "max_tokens": {"type": "integer", "description": "Target token budget.", "default": 8192},
+            "top_k": {"type": "integer", "description": "Number of candidate chunks from hybrid search.", "default": 20},
+        },
+        "required": ["buffer_id", "query"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "packed_chunks": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "start_line": {"type": "integer"},
+                        "end_line": {"type": "integer"},
+                        "name": {"type": ["string", "null"]},
+                        "type": {"type": "string"},
+                        "score": {"type": "number"},
+                        "tokens": {"type": "integer"},
+                    },
+                },
+            },
+            "total_tokens": {"type": "integer"},
+            "remaining_tokens": {"type": "integer"},
+            "count": {"type": "integer"},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
 
 # ---------------------------------------------------------------------------
 # Schema registry
@@ -632,9 +759,12 @@ COMMIT_SCHEMA: dict[str, Any] = {
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
+    HYBRID_SEARCH_SCHEMA,
     SEARCH_FOR_SCHEMA,
     SEARCH_SYMBOLS_SCHEMA,
     CLUSTER_CODE_SCHEMA,
+    FIND_DUPLICATES_SCHEMA,
+    PACK_CONTEXT_SCHEMA,
     UPDATE_CODEBASE_SCHEMA,
     CHECK_CODEBASE_SCHEMA,
     LIST_BUFFERS_SCHEMA,

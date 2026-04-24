@@ -14,19 +14,49 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Node types that define logical boundaries
+# Node types that define logical boundaries (language-agnostic fallback)
 _DEFINITION_TYPES = {
     "function_definition",
     "function_item",          # Rust
+    "function_declaration",   # C/Go/JS/TS
     "class_definition",
     "class_item",             # Rust
+    "class_declaration",      # JS/TS/Java
     "method_definition",
     "method_item",            # Rust
+    "method_declaration",     # Java/C#/Go
     "struct_item",            # Rust
     "impl_item",              # Rust
     "interface_definition",   # TypeScript / Java
+    "interface_declaration",  # Java
     "enum_item",              # Rust
+    "enum_declaration",       # Java/TS
     "trait_item",             # Rust
+    "constructor_declaration",# Java/C#
+    "arrow_function",         # JS/TS
+    "async_function_definition", # Python
+    "module",                 # Elixir
+}
+
+# Language-specific definition node types (takes precedence over global set)
+_DEFINITION_TYPES_BY_LANGUAGE: dict[str, set[str]] = {
+    "python": {"function_definition", "async_function_definition", "class_definition"},
+    "javascript": {"function_declaration", "method_definition", "arrow_function", "class_declaration"},
+    "typescript": {"function_declaration", "method_definition", "arrow_function", "class_declaration", "interface_declaration", "enum_declaration"},
+    "java": {"method_declaration", "constructor_declaration", "class_declaration", "interface_declaration", "enum_declaration"},
+    "c": {"function_definition"},
+    "cpp": {"function_definition", "class_specifier", "struct_specifier"},
+    "rust": {"function_item", "impl_item", "struct_item", "enum_item", "trait_item", "class_item"},
+    "go": {"function_declaration", "method_declaration", "type_declaration"},
+    "ruby": {"method", "singleton_method", "class", "module"},
+    "php": {"function_definition", "method_declaration", "class_declaration"},
+    "csharp": {"method_declaration", "constructor_declaration", "class_declaration", "interface_declaration", "enum_declaration"},
+    "swift": {"function_declaration", "class_declaration", "struct_declaration", "enum_declaration"},
+    "kotlin": {"function_declaration", "class_declaration", "object_declaration"},
+    "scala": {"function_definition", "class_definition", "trait_definition"},
+    "lua": {"function_declaration"},
+    "elixir": {"function", "module"},
+    "bash": {"function_definition"},
 }
 
 
@@ -76,9 +106,11 @@ def _get_grammar(language_hint: str | None) -> Any | None:
         "py": "python",
         "js": "javascript",
         "ts": "typescript",
+        "tsx": "typescript",
         "rs": "rust",
         "cpp": "cpp",
         "c++": "cpp",
+        "c": "c",
         "go": "go",
         "java": "java",
         "rb": "ruby",
@@ -95,6 +127,13 @@ def _get_grammar(language_hint: str | None) -> Any | None:
         grammar = Language(lang() if callable(lang) else lang)
         _grammar_cache[hint] = grammar
         return grammar
+    except ModuleNotFoundError:
+        logger.debug(
+            "Grammar package %s not installed. Install with: pip install %s",
+            pkg,
+            pkg.replace("_", "-")
+        )
+        return None
     except Exception as exc:
         logger.debug("Could not load grammar %s: %s", pkg, exc)
         return None
@@ -138,14 +177,27 @@ def _chunk_with_tree_sitter(text: str, language_hint: str | None, file_hint: str
     if not lines:
         return []
 
+    # Determine which node types to treat as boundaries for this language
+    normalized_hint = (language_hint or "").lower()
+    definition_types = _DEFINITION_TYPES_BY_LANGUAGE.get(normalized_hint, _DEFINITION_TYPES)
+
     # Collect definition nodes with their line ranges
     defs: list[tuple[int, int, str, str | None]] = []
     for node in _walk(root):
-        if node.type in _DEFINITION_TYPES:
+        if node.type in definition_types:
             start = node.start_point[0] + 1  # 0-index -> 1-index
             end = node.end_point[0] + 1
             name = _extract_name(node, source_bytes)
-            chunk_type = "class" if "class" in node.type else "function" if "function" in node.type else "method"
+            if "class" in node.type or node.type in ("struct_item", "struct_specifier", "object_declaration"):
+                chunk_type = "class"
+            elif node.type in ("method_declaration", "method_definition", "method_item"):
+                chunk_type = "method"
+            elif "function" in node.type or node.type in ("arrow_function", "function_item", "function_declaration"):
+                chunk_type = "function"
+            elif node.type == "module":
+                chunk_type = "module"
+            else:
+                chunk_type = "function"
             defs.append((start, end, chunk_type, name))
 
     if not defs:
