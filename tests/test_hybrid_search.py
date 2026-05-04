@@ -1,6 +1,6 @@
 """Tests for src.hybrid_search."""
 
-from src.hybrid_search import reciprocal_rank_fusion
+from gigacode.hybrid_search import reciprocal_rank_fusion
 
 
 def test_rrf_merge():

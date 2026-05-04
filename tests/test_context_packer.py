@@ -1,7 +1,7 @@
 """Tests for src.context_packer."""
 
-from src.context_packer import pack_context
-from src.chunker import CodeChunk
+from gigacode.context_packer import pack_context
+from gigacode.chunker import CodeChunk
 
 
 def test_pack_within_budget():

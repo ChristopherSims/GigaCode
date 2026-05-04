@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from src.file_watcher import BufferWatcher
+from gigacode.file_watcher import BufferWatcher
 
 
 class FakeTool:

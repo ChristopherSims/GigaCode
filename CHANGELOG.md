@@ -5,7 +5,7 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4] - 2024-04-24
+## [0.1] - 2024-04-24
 
 ### Added
 
@@ -63,10 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `semantic_search()` now returns `doc_id` and supports cache hits.
 - `src/gigacode_tool.py` now imports and manages lexical index + query cache instances per buffer.
 
-## [0.3] - 2024-04-23
-
-### Added
-
 - **Agent Read-Write-Commit Workflow** (`src/gigacode_tool.py`)
   - `read_code()`, `write_code()`, `commit()`, `discard()`, `diff()` for safe agent editing.
   - Hash-based safety checks prevent commits when files are modified externally.
@@ -100,10 +96,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README rewritten with architecture diagrams, usage examples, and troubleshooting guide.
 - Added MIT `LICENSE` file.
 
-## [0.2] - 2024-04-22
-
-### Added
-
 - **AST-Based Chunking** (`src/chunker.py`)
   - Tree-sitter parser for function/class/method boundary extraction.
   - Sliding-window fallback for unsupported languages or parse failures.
@@ -117,17 +109,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - File extension, special filename, and shebang-based language detection.
   - Tree-sitter package name resolution for 20+ languages.
 
-## [0.1] - 2024-04-21
-
-### Added
-
 - Initial implementation of GigaCode as a Vulkan GPU-accelerated code embedding agent tool.
 - Core modules: `chunker`, `embedder`, `gpu_index`, `diff_engine`, `metadata_store`.
 - Basic `CodeEmbeddingTool` class with `embed_codebase()`, `semantic_search()`, and `cluster_code()`.
-
----
-
-[0.4]: https://github.com/yourusername/gigacode/compare/v0.3...v0.4
-[0.3]: https://github.com/yourusername/gigacode/compare/v0.2...v0.3
-[0.2]: https://github.com/yourusername/gigacode/compare/v0.1...v0.2
-[0.1]: https://github.com/yourusername/gigacode/releases/tag/v0.1

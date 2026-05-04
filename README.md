@@ -1,7 +1,9 @@
 Noticed AI is slow at searching/parsing code so I made this.
 AI agents searching for code snippits is blazingly fast now with this tool/skill.
 
-Code benchmarks show that AI agent coding is 4x faster, however AI token rate will always be the bottleneck
+Code benchmarks show that AI agent coding is 4x faster, however AI token rate will always be the bottleneck.
+
+After releasing this tool I have noticed that some AI Agents now include semantic code searches. I will still develop this tool for open-source.
 # GigaCode
 
 **GPU-accelerated code embedding for AI agents.** Embed a codebase into searchable chunks, run semantic search and clustering, and edit code through a safe read-write-commit workflow.

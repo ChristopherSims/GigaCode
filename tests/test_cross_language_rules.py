@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.cross_language_rules import edit_file
+from gigacode.cross_language_rules import edit_file
 
 
 def test_python_bare_except_fix(tmp_path: Path) -> None:

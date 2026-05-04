@@ -13,7 +13,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from src.gigacode_tool import CodeEmbeddingTool
+from gigacode.gigacode_tool import CodeEmbeddingTool
 
 
 def _elapsed(start: float) -> float:

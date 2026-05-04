@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.diff_engine import compute_diff, hash_lines
+from gigacode.diff_engine import compute_diff, hash_lines
 
 
 def test_hash_lines() -> None:

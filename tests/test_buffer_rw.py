@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from src.gigacode_tool import CodeEmbeddingTool
+from gigacode.gigacode_tool import CodeEmbeddingTool
 
 
 def test_read_code_single_file(tmp_path: Path) -> None:

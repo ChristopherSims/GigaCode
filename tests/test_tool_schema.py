@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.tool_schema import (
+from gigacode.tool_schema import (
     ALL_SCHEMAS,
     get_schema,
     to_mcp_tools,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.size_guard import check_size
+from gigacode.size_guard import check_size
 
 
 def test_check_size_ok() -> None:

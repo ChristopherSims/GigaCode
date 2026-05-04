@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.metadata_store import load_metadata, save_metadata
+from gigacode.metadata_store import load_metadata, save_metadata
 
 
 def test_round_trip(tmp_path: Path) -> None:

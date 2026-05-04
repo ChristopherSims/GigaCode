@@ -1,7 +1,7 @@
 """Tests for src.duplicate_detector."""
 
-from src.duplicate_detector import find_duplicates
-from src.chunker import CodeChunk
+from gigacode.duplicate_detector import find_duplicates
+from gigacode.chunker import CodeChunk
 
 
 def test_exact_duplicate():

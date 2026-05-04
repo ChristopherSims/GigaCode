@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.language_detect import detect_language, get_tree_sitter_package
+from gigacode.language_detect import detect_language, get_tree_sitter_package
 
 
 def test_detect_from_extension(tmp_path: Path) -> None:

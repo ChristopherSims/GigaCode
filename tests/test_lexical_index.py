@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.lexical_index import LexicalIndex
+from gigacode.lexical_index import LexicalIndex
 
 
 def test_basic_search():
