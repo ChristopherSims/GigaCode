@@ -38,16 +38,18 @@ class Role(Enum):
     > User Role Categories.
     >
     > Each role represents a different level of access. Think of it like job titles:
-    > ADMIN is the manager, ANALYST does the work, READER watches, GUEST has minimal access.
+    > ADMIN is the manager, AGENT/ANALYST do the work, READER watches, GUEST has minimal access.
     >
     > Attributes:
     >     ADMIN: Can do everything - create, edit, delete, and view audit logs
+    >     AGENT: AI agent role with full operational access (same as ANALYST)
     >     ANALYST: Can create and edit their own buffers, search, and read code
     >     READER: Can only search and read code (no writing or creating)
     >     GUEST: Can search and read code with strict rate limits
     """
     
     ADMIN = "admin"        # Full access
+    AGENT = "agent"        # AI agent - can create/edit own buffers (same as ANALYST)
     ANALYST = "analyst"    # Can create/edit own buffers
     READER = "reader"      # Read-only access
     GUEST = "guest"        # Limited read with rate limiting
@@ -97,6 +99,17 @@ PERMISSION_MATRIX: Dict[Role, Set[Permission]] = {
         Permission.READ_CODE,
         Permission.EMBED_CODEBASE,
         Permission.VIEW_AUDIT_LOG,
+    },
+    Role.AGENT: {
+        Permission.CREATE_BUFFER,
+        Permission.DELETE_BUFFER,  # Own buffers only
+        Permission.WRITE_CODE,     # Own buffers only
+        Permission.COMMIT,         # Own buffers only
+        Permission.DISCARD,        # Own buffers only
+        Permission.RELOAD_CODEBASE,  # Own buffers only
+        Permission.SEARCH,
+        Permission.READ_CODE,
+        Permission.EMBED_CODEBASE,  # Own buffers only
     },
     Role.ANALYST: {
         Permission.CREATE_BUFFER,

@@ -47,7 +47,7 @@ from gigacode.retry_utils import retry_on_io_error
 from gigacode.size_guard import check_size
 from gigacode.operation_config import OperationType, OperationConfig
 from gigacode.health_status import HealthStatus, HealthStatusTracker
-from gigacode.access_control import User, AccessControl, Permission
+from gigacode.access_control import User, AccessControl, Permission, Role
 from gigacode.audit_logger import AuditLogger, AuditStatus
 from gigacode.rate_limiter import RateLimiter
 
@@ -195,6 +195,8 @@ class CodeEmbeddingTool:
         self._audit_logger = AuditLogger(self.work_dir / "audit.jsonl")
         self._rate_limiter = RateLimiter()
         self._current_user_id = "default"  # Default user for local development
+        # Register default user with AGENT role (full operational access for AI agents)
+        self._access_control.register_user("default", Role.AGENT)
 
         # Phase 4 Integration: Initialize the three manager layers
         # These provide separation of concerns for buffer mgmt, indexing, and search
