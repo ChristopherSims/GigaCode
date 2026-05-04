@@ -180,6 +180,50 @@ class CodeEmbeddingTool:
         # Phase 4: State manager for crash recovery and transaction safety
         # Enables write-ahead logging (WAL) for commit operations
         self._state_manager = StateManager(self.work_dir)
+
+        # Phase 4 Integration: Initialize the three manager layers
+        # These provide separation of concerns for buffer mgmt, indexing, and search
+        # Note: SearchService imports sklearn, which has Windows compatibility issues
+        # If sklearn fails, fall back to monolithic implementation gracefully
+        self._buffer_manager = None
+        self._index_manager = None
+        self._search_service = None
+        
+        try:
+            from gigacode.buffer_manager import BufferManager
+            from gigacode.index_manager import IndexManager
+            from gigacode.search_service import SearchService
+
+            self._buffer_manager = BufferManager(
+                work_dir=self.work_dir,
+                state_manager=self._state_manager,
+                embedding_dim=self._embedding_dim,
+                threshold_mb=threshold_mb,
+            )
+
+            self._index_manager = IndexManager(
+                embedder=self._embedder,
+                embedding_dim=self._embedding_dim,
+                max_buffers=max_buffers,
+                work_dir=self.work_dir,
+                use_gpu=use_gpu,
+                gpu_id=gpu_id,
+                prometheus_exporter=None,  # Will be set below if Prometheus is enabled
+            )
+
+            self._search_service = SearchService(
+                index_manager=self._index_manager,
+                embedder=self._embedder,
+                prometheus_exporter=None,  # Will be set below if Prometheus is enabled
+            )
+
+            logger.info("Phase 4 integration: BufferManager, IndexManager, SearchService initialized")
+        except (ImportError, OSError, RuntimeError) as e:
+            # OSError/RuntimeError catch sklearn Windows fatal exception (0xc0000139)
+            logger.warning(f"Phase 4 integration unavailable: {type(e).__name__}: {e}. Falling back to monolithic implementation.")
+            self._buffer_manager = None
+            self._index_manager = None
+            self._search_service = None
         
         # Phase 7: Prometheus metrics export via HTTP endpoint
         self._prometheus_exporter = None
@@ -190,6 +234,13 @@ class CodeEmbeddingTool:
                     start_server=True,
                 )
                 self._prometheus_exporter.set_embedding_dimension(self._embedding_dim)
+                
+                # Share Prometheus exporter with managers
+                if self._index_manager:
+                    self._index_manager._prometheus_exporter = self._prometheus_exporter
+                if self._search_service:
+                    self._search_service._prometheus_exporter = self._prometheus_exporter
+                
                 logger.info(f"Prometheus metrics endpoint enabled on port {prometheus_port}")
             except ImportError:
                 logger.warning(
