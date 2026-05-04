@@ -18,23 +18,18 @@ from typing import Any
 
 import numpy as np
 
-from gigacode.buffer_state import BufferState, BufferStateTransition
-from gigacode.chunker import CodeChunk, chunk_file, chunk_text
-from gigacode.context_packer import pack_context
-from gigacode.diff_engine import compute_diff, hash_lines
-from gigacode.duplicate_detector import find_duplicates
-from gigacode.embedder import Embedder
-from gigacode.gpu_index import GpuIndex
-from gigacode.hybrid_search import reciprocal_rank_fusion
-from gigacode.json_logger import StructuredJsonLogger
-from gigacode.lexical_index import LexicalIndex
-from gigacode.metadata_store import load_metadata, save_metadata
-from gigacode.metrics import get_metrics
-from gigacode.metrics_exporter import configure_prometheus
-from gigacode.query_cache import QueryCache
-from gigacode.snapshot_manager import SnapshotManager
-from gigacode.state_manager import StateManager
-from gigacode.response_types import (
+from src.chunker import CodeChunk, chunk_file, chunk_text
+from src.context_packer import pack_context
+from src.diff_engine import compute_diff, hash_lines
+from src.duplicate_detector import find_duplicates
+from src.embedder import Embedder
+from src.gpu_index import GpuIndex
+from src.hybrid_search import reciprocal_rank_fusion
+from src.lexical_index import LexicalIndex
+from src.metadata_store import load_metadata, save_metadata
+from src.metrics import get_metrics
+from src.query_cache import QueryCache
+from src.response_types import (
     SearchMatch,
     SearchResponse,
     ResponseStatus,
@@ -43,16 +38,12 @@ from gigacode.response_types import (
     ClusterItem,
     ErrorResponse,
 )
-from gigacode.retry_utils import retry_on_io_error
-from gigacode.size_guard import check_size
-from gigacode.operation_config import OperationType, OperationConfig
-from gigacode.health_status import HealthStatus, HealthStatusTracker
-from gigacode.access_control import User, AccessControl, Permission
-from gigacode.audit_logger import AuditLogger, AuditStatus
-from gigacode.rate_limiter import RateLimiter
+from src.size_guard import check_size
+from src.buffer_state import BufferState, BufferStateTransition
+from src.operation_config import OperationType, OperationConfig
+from src.health_status import HealthStatus, HealthStatusTracker
 
 logger = logging.getLogger(__name__)
-json_logger = StructuredJsonLogger('tool')
 
 _MAX_DIRTY_BEFORE_AUTO_REBUILD = 3
 
@@ -85,24 +76,13 @@ class LRUDict(OrderedDict):
             # Pop the oldest (first) item
             oldest_key = next(iter(self))
             self.pop(oldest_key)
-            json_logger.debug(
-                operation='lru_eviction',
-                details={'removed_key': oldest_key, 'new_size': len(self)},
-            )
+            logger.debug("LRU eviction: removed key=%s (size now %d)", oldest_key, len(self))
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get with default; moves to end if found."""
         if key in self:
             return self[key]
         return default
-
-    def stats(self) -> dict[str, Any]:
-        """Return cache statistics."""
-        return {
-            "size": len(self),
-            "maxsize": self.max_size,
-            "utilization": len(self) / self.max_size if self.max_size > 0 else 0
-        }
 
 
 
@@ -116,8 +96,6 @@ class CodeEmbeddingTool:
         threshold_mb: Size-guard threshold in megabytes.
         use_gpu: Whether to mirror the FAISS index to GPU when possible.
         max_buffers: Maximum number of in-memory indices to keep (LRU eviction).
-        enable_prometheus: Enable Prometheus metrics export (default False).
-        prometheus_port: Port for Prometheus metrics endpoint (default 9090).
     """
 
     def __init__(
@@ -127,29 +105,12 @@ class CodeEmbeddingTool:
         device: str | None = None,
         threshold_mb: float = 500.0,
         use_gpu: bool = True,
-        gpu_id: int = 0,
         max_buffers: int = 10,
-        enable_prometheus: bool = False,
-        prometheus_port: int = 9090,
     ) -> None:
-        """Initialize CodeEmbeddingTool.
-
-        Args:
-            work_dir: Working directory for embeddings and caches.
-            model_name: Sentence transformer model name (default: 'all-MiniLM-L6-v2').
-            device: PyTorch device ('cpu', 'cuda', 'cuda:0', etc.).
-            threshold_mb: Codebase size threshold (default 500 MB).
-            use_gpu: Enable GPU FAISS index mirroring (default True).
-            gpu_id: GPU device ID for FAISS (default 0). Only used if use_gpu=True.
-            max_buffers: Max embedded codebases in memory (LRU limit, default 10).
-            enable_prometheus: Enable Prometheus metrics export via HTTP (default False).
-            prometheus_port: Port for /metrics endpoint (default 9090).
-        """
         self.work_dir = Path(work_dir)
         self.work_dir.mkdir(parents=True, exist_ok=True)
         self.threshold_mb = threshold_mb
         self.use_gpu = use_gpu
-        self.gpu_id = gpu_id
         self.max_buffers = max_buffers
 
         self._embedder = Embedder(model_name=model_name, device=device)
@@ -162,9 +123,6 @@ class CodeEmbeddingTool:
             if self._registry_path.exists()
             else {}
         )
-        
-        # Audit log: append-only JSON lines file for operation tracking
-        self._audit_log_path = self.work_dir / "audit.jsonl"
 
         # In-memory index cache: buffer_id -> GpuIndex (LRU-bounded)
         self._index_cache: LRUDict = LRUDict(max_size=max_buffers)
@@ -172,170 +130,19 @@ class CodeEmbeddingTool:
         # In-memory lexical index cache: buffer_id -> LexicalIndex (LRU-bounded)
         self._lexical_cache: LRUDict = LRUDict(max_size=max_buffers)
 
-        # Query result cache with semantic similarity matching
-        self._query_cache = QueryCache(
-            maxsize=256,
-            embedder=self._embedder,
-            similarity_threshold=0.95,  # Catch paraphrased queries (e.g., "find add" vs "locate addition")
-        )
-
-        # Snapshot managers: buffer_id -> SnapshotManager (LRU-bounded, one per buffer)
-        # Caches instances to avoid repeated loads from disk
-        self._snapshot_managers: dict[str, SnapshotManager] = {}
-
-        # Phase 4: State manager for crash recovery and transaction safety
-        # Enables write-ahead logging (WAL) for commit operations
-        self._state_manager = StateManager(self.work_dir)
+        # Query result cache
+        self._query_cache = QueryCache(maxsize=256)
         
-        # Phase 6: Health status tracker for state-based access control
+        # Health status tracker (Phase 6)
         self._health_tracker = HealthStatusTracker()
-        
-        # Phase 7: RBAC, audit logging, and rate limiting
-        self._access_control = AccessControl()
-        self._audit_logger = AuditLogger(self.work_dir / "audit.jsonl")
-        self._rate_limiter = RateLimiter()
-        self._current_user_id = "default"  # Default user for local development
-
-        # Phase 4 Integration: Initialize the three manager layers
-        # These provide separation of concerns for buffer mgmt, indexing, and search
-        # Note: SearchService imports sklearn, which has Windows compatibility issues
-        # If sklearn fails, fall back to monolithic implementation gracefully
-        self._buffer_manager = None
-        self._index_manager = None
-        self._search_service = None
-        
-        try:
-            from gigacode.buffer_manager import BufferManager
-            from gigacode.index_manager import IndexManager
-            from gigacode.search_service import SearchService
-
-            self._buffer_manager = BufferManager(
-                work_dir=self.work_dir,
-                state_manager=self._state_manager,
-                embedding_dim=self._embedding_dim,
-                threshold_mb=threshold_mb,
-            )
-
-            self._index_manager = IndexManager(
-                embedder=self._embedder,
-                embedding_dim=self._embedding_dim,
-                max_buffers=max_buffers,
-                work_dir=self.work_dir,
-                use_gpu=use_gpu,
-                gpu_id=gpu_id,
-                prometheus_exporter=None,  # Will be set below if Prometheus is enabled
-            )
-
-            self._search_service = SearchService(
-                index_manager=self._index_manager,
-                embedder=self._embedder,
-                prometheus_exporter=None,  # Will be set below if Prometheus is enabled
-            )
-
-            logger.info("Phase 4 integration: BufferManager, IndexManager, SearchService initialized")
-        except (ImportError, OSError, RuntimeError) as e:
-            # OSError/RuntimeError catch sklearn Windows fatal exception (0xc0000139)
-            logger.warning(f"Phase 4 integration unavailable: {type(e).__name__}: {e}. Falling back to monolithic implementation.")
-            self._buffer_manager = None
-            self._index_manager = None
-            self._search_service = None
-        
-        # Phase 7: Prometheus metrics export via HTTP endpoint
-        self._prometheus_exporter = None
-        if enable_prometheus:
-            try:
-                self._prometheus_exporter = configure_prometheus(
-                    port=prometheus_port,
-                    start_server=True,
-                )
-                self._prometheus_exporter.set_embedding_dimension(self._embedding_dim)
-                
-                # Share Prometheus exporter with managers
-                if self._index_manager:
-                    self._index_manager._prometheus_exporter = self._prometheus_exporter
-                if self._search_service:
-                    self._search_service._prometheus_exporter = self._prometheus_exporter
-                
-                logger.info(f"Prometheus metrics endpoint enabled on port {prometheus_port}")
-            except ImportError:
-                logger.warning(
-                    "Prometheus metrics disabled: prometheus-client not installed. "
-                    "Install with: pip install prometheus-client"
-                )
-
-    # ------------------------------------------------------------------
-    # Audit logging
-    # ------------------------------------------------------------------
-    def _audit_log(self, operation: str, buffer_id: str | None = None, status: str = "ok", details: dict[str, Any] | None = None) -> None:
-        """Log an audit entry to the audit trail.
-        
-        Args:
-            operation: Operation name (e.g., 'embed_codebase', 'write_code', 'commit').
-            buffer_id: Buffer ID associated with the operation.
-            status: Status (e.g., 'ok', 'error', 'conflict').
-            details: Additional operation details (files, line counts, conflicts, etc.).
-        """
-        try:
-            entry = {
-                "timestamp": time.time(),
-                "operation": operation,
-                "buffer_id": buffer_id,
-                "status": status,
-            }
-            if details:
-                entry["details"] = details
-            
-            with self._audit_log_path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(entry) + "\n")
-        except Exception as exc:
-            json_logger.warning(
-                operation='audit_log',
-                status='error',
-                message=f'Could not write audit log: {exc}',
-            )
 
     # ------------------------------------------------------------------
     # Schema exposure
     # ------------------------------------------------------------------
     @staticmethod
     def get_tool_schemas() -> list[dict[str, Any]]:
-        from gigacode.tool_schema import get_all_schemas
+        from src.tool_schema import get_all_schemas
         return get_all_schemas()
-
-    @staticmethod
-    def validate_schemas() -> dict[str, Any]:
-        """Validate that hardcoded schemas match the actual CodeEmbeddingTool code.
-        
-        Returns a dict with:
-        - "valid": bool indicating if all schemas are valid
-        - "issues": dict mapping method name to list of validation issues
-        - "report": human-readable validation report
-        - "generated_count": number of schemas generated
-        - "validated_count": number of schemas validated
-        
-        Used to detect schema drift and ensure tool_schema.py stays in sync with implementation.
-        """
-        from gigacode.schema_generator import (
-            generate_all_schemas,
-            validate_schemas_against_code,
-            report_schema_validation,
-        )
-        from gigacode.tool_schema import ALL_SCHEMAS
-        
-        # Convert list of schemas to dict format for validation
-        hardcoded = {schema.get("name"): schema for schema in ALL_SCHEMAS}
-        
-        # Validate and report
-        issues = validate_schemas_against_code(CodeEmbeddingTool, hardcoded)
-        generated = generate_all_schemas(CodeEmbeddingTool)
-        
-        return {
-            "valid": len(issues) == 0,
-            "issues": issues,
-            "report": report_schema_validation(issues),
-            "generated_count": len(generated),
-            "validated_count": len(hardcoded),
-        }
 
     # ------------------------------------------------------------------
     # Input validation
@@ -381,161 +188,6 @@ class CodeEmbeddingTool:
         return None
 
     # ------------------------------------------------------------------
-    # Phase 5: Response adapters for manager delegation
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _adapt_search_response(
-        service_result: Any,
-        offset: int = 0,
-        top_k: int | None = None,
-    ) -> dict[str, Any]:
-        """Adapt SearchService response to CodeEmbeddingTool format.
-        
-        Args:
-            service_result: SearchService.SearchResponse or error dict
-            offset: Results offset for slicing
-            top_k: Number of results to return (if None, return all)
-        
-        Returns:
-            Dict in CodeEmbeddingTool response format
-        """
-        # If it's already an error dict, return as-is
-        if isinstance(service_result, dict) and service_result.get("status") == "error":
-            return service_result
-        
-        # Convert SearchService.SearchResponse to CodeEmbeddingTool format
-        if hasattr(service_result, "to_dict"):
-            service_dict = service_result.to_dict()
-        else:
-            service_dict = service_result
-        
-        # Extract matches and apply offset/slicing
-        matches = service_dict.get("matches", [])
-        if offset > 0 or top_k:
-            end = offset + top_k if top_k else None
-            matches = matches[offset:end]
-        
-        # Convert SearchService.SearchMatch to CodeEmbeddingTool.SearchMatch
-        converted_matches = []
-        for idx, match_dict in enumerate(matches):
-            if isinstance(match_dict, dict):
-                # Build CodeEmbeddingTool.SearchMatch
-                converted = SearchMatch(
-                    file=match_dict.get("file", ""),
-                    start_line=match_dict.get("start_line", 0),
-                    end_line=match_dict.get("end_line", 0),
-                    score=float(match_dict.get("score", 0.0)),
-                    doc_id=match_dict.get("doc_id", idx),  # Use index if no doc_id
-                    type=match_dict.get("type"),
-                    name=match_dict.get("name"),
-                    match_type=match_dict.get("match_type", "semantic"),
-                )
-                converted_matches.append(converted)
-            else:
-                # Already a SearchMatch object
-                converted_matches.append(match_dict)
-        
-        # Build response in CodeEmbeddingTool format
-        response = SearchResponse(
-            status=ResponseStatus.OK,
-            matches=converted_matches,
-            cached=service_dict.get("cache_hit", False),
-        )
-        return response.to_dict()
-
-    @staticmethod
-    def _adapt_file_response(
-        service_result: Any,
-    ) -> dict[str, Any]:
-        """Adapt SearchService look_for_file response to CodeEmbeddingTool format.
-        
-        SearchService returns: {"status", "files", "count", "pattern"}
-        CodeEmbeddingTool expects: {"status", "file_location", "absolute_path", "match_type"}
-        """
-        if isinstance(service_result, dict):
-            if service_result.get("status") == "error":
-                return service_result
-            
-            files = service_result.get("files", [])
-            if not files:
-                return {"status": "error", "message": "File not found"}
-            elif len(files) == 1:
-                # Single match
-                return {
-                    "status": "ok",
-                    "file_location": files[0],
-                    "match_type": "found",
-                }
-            else:
-                # Multiple matches
-                return {
-                    "status": "ok",
-                    "candidates": files,
-                    "match_type": "multiple",
-                    "message": f"Found {len(files)} matching files.",
-                }
-        return service_result
-
-    @staticmethod
-    def _adapt_cluster_response(
-        service_result: Any,
-    ) -> dict[str, Any]:
-        """Adapt SearchService ClusterResult to CodeEmbeddingTool format.
-        
-        SearchService returns ClusterResult with dict of clusters
-        CodeEmbeddingTool expects list of ClusterItem with file/start_line/end_line/size/avg_score
-        """
-        if isinstance(service_result, dict) and service_result.get("status") == "error":
-            return service_result
-        
-        # Convert ClusterResult to dict if needed
-        if hasattr(service_result, "to_dict"):
-            service_dict = service_result.to_dict()
-        else:
-            service_dict = service_result
-        
-        clusters_dict = service_dict.get("clusters", {})
-        cluster_list = []
-        
-        # Convert dict-based clusters to list format with aggregated metadata
-        for cluster_id, chunks in clusters_dict.items():
-            if chunks:
-                first_chunk = chunks[0]
-                last_chunk = chunks[-1]
-                cluster_list.append(ClusterItem(
-                    file=first_chunk.get("file", ""),
-                    start_line=first_chunk.get("start_line", 0),
-                    end_line=last_chunk.get("end_line", 0),
-                    size=len(chunks),
-                    avg_score=0.0,  # Would need more data to calculate
-                ))
-        
-        response = ClusterResponse(
-            status=ResponseStatus.OK,
-            clusters=cluster_list,
-        )
-        return response.to_dict()
-
-    @staticmethod
-    def _adapt_duplicate_response(
-        service_result: Any,
-    ) -> dict[str, Any]:
-        """Adapt SearchService DuplicateResult to CodeEmbeddingTool format.
-        
-        Both formats are similar, just ensure proper dict conversion.
-        """
-        if isinstance(service_result, dict):
-            if service_result.get("status") == "error":
-                return service_result
-            return service_result
-        
-        # Convert DuplicateResult to dict if needed
-        if hasattr(service_result, "to_dict"):
-            return service_result.to_dict()
-        
-        return service_result
-
-    # ------------------------------------------------------------------
     # Pre-flight size check
     # ------------------------------------------------------------------
     def check_codebase(
@@ -554,10 +206,7 @@ class CodeEmbeddingTool:
                 with f.open("r", encoding="utf-8", errors="replace") as fh:
                     total_lines += sum(1 for _ in fh)
             except Exception as exc:
-                json_logger.debug(
-                operation='chunk_file',
-                message=f'Could not count lines in {f}: {exc}',
-            )
+                logger.debug("Could not count lines in %s: %s", f, exc)
 
         estimated_tokens = total_lines * 8
         size_check = check_size(estimated_tokens, self._embedding_dim, self.threshold_mb)
@@ -608,10 +257,7 @@ class CodeEmbeddingTool:
             try:
                 chunks = chunk_file(f, language_hint=language_hint, sliding_window_size=sliding_window_size)
             except Exception as exc:
-                json_logger.warning(
-                    operation='chunk_file',
-                    message=f'Failed to chunk {f}: {exc}',
-                )
+                logger.warning("Failed to chunk %s: %s", f, exc)
                 continue
             rel = str(f.relative_to(root))
             file_chunks_map[rel] = []
@@ -641,42 +287,29 @@ class CodeEmbeddingTool:
         embeddings = self._embedder.encode(texts, batch_size=64)
 
         # Stage 3: build FAISS index
-        index = GpuIndex(self._embedding_dim, use_gpu=self.use_gpu, gpu_id=self.gpu_id)
+        index = GpuIndex(self._embedding_dim, use_gpu=self.use_gpu)
         ids = index.new_ids(len(all_chunks))
         index.add(ids, embeddings)
-        
-        # Pre-sync GPU to avoid lazy sync latency on first search (Phase 5 optimization)
-        index.sync_gpu()
 
         # Stage 4: persist  (buffer_id assigned here so later stages can reference it)
         buffer_id = str(uuid.uuid4())
         buffer_dir = self.work_dir / f"{buffer_id}.gcbuff"
         buffer_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create metadata-only snapshot (no full source code stored)
-        snapshot_mgr = SnapshotManager(buffer_dir)
-        files_dict = {str(f.relative_to(root)): f for f in files}
-        manifest = snapshot_mgr.create_snapshot(buffer_id, root, files_dict)
-
-        # Create initial source_snapshot.json (buffer state at embed time)
-        # This tracks buffer edits separately from the on-disk manifest
+        # Source snapshot (line-based, for read/write)
         source_snapshot: dict[str, list[str]] = {}
-        for rel_path, file_path in files_dict.items():
-            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-                source_snapshot[rel_path] = f.read().splitlines()
+        file_hashes: dict[str, str] = {}
+        for f in files:
+            rel = str(f.relative_to(root))
+            raw = f.read_text(encoding="utf-8", errors="replace")
+            normalized = "\n".join(raw.splitlines())
+            source_snapshot[rel] = normalized.splitlines()
+            file_hashes[rel] = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
         snapshot_path = buffer_dir / "source_snapshot.json"
         snapshot_path.write_bytes(
             json.dumps(source_snapshot, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         )
-
-        # Store file hashes from metadata for quick change detection
-        file_hashes: dict[str, str] = {
-            rel_path: meta.hash 
-            for rel_path, meta in manifest.files.items()
-        }
-
-        # Cache the snapshot manager for later use
-        self._snapshot_managers[buffer_id] = snapshot_mgr
 
         # Stage 5: register
         self._registry[buffer_id] = {
@@ -702,31 +335,9 @@ class CodeEmbeddingTool:
         
         # Persist all state including lexical index
         self._save_buffer_state(buffer_dir, all_chunks, embeddings, index, lexical_index=lexical, file_chunks_map=file_chunks_map)
-        
-        # Calculate elapsed time
-        elapsed = time.perf_counter() - t0
-        
-        # Phase 7: Record operation metrics for Prometheus
-        if self._prometheus_exporter:
-            self._prometheus_exporter.record_operation(
-                operation='embed_codebase',
-                duration_s=elapsed,
-                status='ok',
-                chunk_count=token_count,
-            )
-        
-        # Log embedding completion with JSON structure
-        json_logger.info(
-            operation='embed_codebase',
-            buffer_id=buffer_id,
-            elapsed_s=elapsed,
-            status='ok',
-            message=f'Embedded {token_count} chunks from {len(files)} files',
-            details={
-                'files_count': len(files),
-                'chunks_count': token_count,
-                'size_bytes': embeddings.nbytes,
-            },
+        logger.info(
+            "embed_codebase completed: buffer_id=%s chunks=%d files=%d elapsed=%.3fs",
+            buffer_id, token_count, len(files), elapsed,
         )
         metrics = get_metrics()
         metrics.record_histogram("embed_codebase_latency_s", elapsed)
@@ -740,63 +351,33 @@ class CodeEmbeddingTool:
             size_bytes=embeddings.nbytes,
             message=f"Embedded {token_count} chunks from {len(files)} files.",
         )
-        result = response.to_dict()
-        
-        # Audit log successful embedding
-        self._audit_log(
-            operation="embed_codebase",
-            buffer_id=buffer_id,
-            status="ok",
-            details={
-                "files_count": len(files),
-                "chunks_count": token_count,
-                "size_bytes": embeddings.nbytes,
-                "elapsed_s": elapsed,
-            }
-        )
-        
-        return result
+        return response.to_dict()
 
     # ------------------------------------------------------------------
     # Reload without re-embedding
     # ------------------------------------------------------------------
     def reload_codebase(self, buffer_id: str) -> dict[str, Any]:
-        """Reload codebase from disk (delegated to BufferManager)."""
-        # Delegation attempt
-        if self._buffer_manager:
-            try:
-                result = self._buffer_manager.reload_codebase(buffer_id, index_manager=self._index_manager)
-                return result
-            except Exception as e:
-                logger.warning(f"BufferManager.reload_codebase delegation failed: {e}. Falling back...")
-        
-        # Monolithic fallback
-        t0 = time.perf_counter()
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
 
         root = Path(info["root"])
-        
-        # Use SnapshotManager to detect external changes
-        snapshot_mgr = self._get_snapshot_manager(buffer_id)
-        if snapshot_mgr is None:
-            return {"status": "error", "message": "Snapshot not available"}
-        
-        changes = snapshot_mgr.detect_external_changes()
-        mismatched = changes["changed"] + changes["deleted"]
-        
+        pattern = info.get("pattern", "*.py")
+        files = [root] if root.is_file() else sorted(root.rglob(pattern))
+
+        old_hashes = info.get("file_hashes", {})
+        mismatched: list[str] = []
+        for f in files:
+            rel = str(f.relative_to(root))
+            raw = f.read_text(encoding="utf-8", errors="replace")
+            normalized = "\n".join(raw.splitlines())
+            current = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+            if old_hashes.get(rel) != current:
+                mismatched.append(rel)
+
         if not mismatched:
             # Warm index cache if cold
             self._get_index(buffer_id)
-            if self._prometheus_exporter:
-                elapsed = time.perf_counter() - t0
-                self._prometheus_exporter.record_operation(
-                    operation='reload_codebase',
-                    duration_s=elapsed,
-                    status='ok',
-                    chunk_count=info.get("chunk_count", 0),
-                )
             return {
                 "status": "ok",
                 "buffer_id": buffer_id,
@@ -805,38 +386,31 @@ class CodeEmbeddingTool:
                 "message": "All file hashes match; reloaded without re-embedding.",
             }
 
-        json_logger.info(
-            operation='reload_codebase',
-            buffer_id=buffer_id,
-            message=f'{len(mismatched)} file(s) changed on disk; re-embedding only changed files',
-            details={'changed_files': len(mismatched)},
+        logger.info(
+            "reload_codebase(%s): %d file(s) changed on disk; re-embedding only changed files.",
+            buffer_id,
+            len(mismatched),
         )
 
-        # Update snapshot and registry for changed files
-        pattern = info.get("pattern", "*.py")
-        files = [root] if root.is_file() else sorted(root.rglob(pattern))
-        
-        # Rebuild mismatched files
-        self._rebuild_files(buffer_id, mismatched)
-        
-        # Update file hashes in registry from updated snapshot manifest
+        # Update source snapshot and hashes for changed files before rebuilding
+        snapshot = self._load_source_snapshot(buffer_id) or {}
         new_hashes: dict[str, str] = {}
-        for rel_path, meta in snapshot_mgr.manifest.files.items():
-            if rel_path in mismatched:
-                new_hashes[rel_path] = meta.hash
-        
-        if new_hashes:
-            info.setdefault("file_hashes", {}).update(new_hashes)
-            self._save_registry()
+        for rel_path in mismatched:
+            f = root / rel_path
+            try:
+                raw = f.read_text(encoding="utf-8", errors="replace")
+            except OSError as exc:
+                logger.warning("reload_codebase: cannot read %s: %s", rel_path, exc)
+                continue
+            normalized = "\n".join(raw.splitlines())
+            snapshot[rel_path] = normalized.splitlines()
+            new_hashes[rel_path] = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
-        elapsed = time.perf_counter() - t0
-        if self._prometheus_exporter:
-            self._prometheus_exporter.record_operation(
-                operation='reload_codebase',
-                duration_s=elapsed,
-                status='ok',
-                chunk_count=len(mismatched),
-            )
+        self._save_source_snapshot(buffer_id, snapshot)
+        info.setdefault("file_hashes", {}).update(new_hashes)
+        self._save_registry()
+
+        self._rebuild_files(buffer_id, mismatched)
 
         return {
             "status": "ok",
@@ -856,38 +430,10 @@ class CodeEmbeddingTool:
         top_k: int = 5,
         offset: int = 0,
     ) -> dict[str, Any]:
-        """Semantic search via embeddings.
-        
-        Delegates to SearchService when available (Phase 5), otherwise uses monolithic implementation.
-        
-        Args:
-            buffer_id: Buffer ID to search
-            query: Search query
-            top_k: Number of top results to return
-            offset: Pagination offset
-            
-        Returns:
-            Dict with search results or error
-        """
-        # Validate parameters first (before delegation)
         err = self._validate_search_params(query, top_k=top_k)
         if err is not None:
             return err
-        
-        # Phase 5: Delegate to SearchService if available
-        if self._search_service:
-            try:
-                result = self._search_service.semantic_search(
-                    buffer_id=buffer_id,
-                    query=query,
-                    top_k=top_k + offset,
-                )
-                return self._adapt_search_response(result, offset=offset, top_k=top_k)
-            except Exception as e:
-                logger.warning(f"SearchService delegation failed: {e}. Falling back to monolithic implementation.")
-                # Fall through to monolithic implementation below
-        
-        # Monolithic implementation (fallback)
+
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="semantic_search")
@@ -917,6 +463,10 @@ class CodeEmbeddingTool:
         q_emb = self._embedder.encode([query], batch_size=1)
         distances, indices = index.search(q_emb, top_k + offset)
         elapsed = time.perf_counter() - t0
+        logger.debug(
+            "semantic_search: buffer_id=%s top_k=%d elapsed=%.3fs gpu=%s",
+            buffer_id, top_k, elapsed, index.is_gpu,
+        )
 
         matches_list: list[SearchMatch] = []
         for score, idx in zip(distances[0], indices[0]):
@@ -933,23 +483,6 @@ class CodeEmbeddingTool:
                 doc_id=int(idx),
                 match_type="semantic",
             ))
-
-        # Log search with JSON structure
-        json_logger.debug(
-            operation='semantic_search',
-            buffer_id=buffer_id,
-            elapsed_s=elapsed,
-            details={'top_k': top_k, 'gpu': index.is_gpu, 'matches': len(matches_list)},
-        )
-
-        # Phase 7: Record operation metrics for Prometheus
-        if self._prometheus_exporter:
-            self._prometheus_exporter.record_operation(
-                operation='semantic_search',
-                duration_s=elapsed,
-                status='ok',
-                chunk_count=len(matches_list),
-            )
 
         self._query_cache.set(buffer_id, query, top_k + offset, "semantic", {"matches": matches_list})
         metrics = get_metrics()
@@ -986,7 +519,6 @@ class CodeEmbeddingTool:
         Returns:
             Dict with ``status`` and ``matches``.
         """
-        # Validate parameters first
         err = self._validate_search_params(query, top_k=top_k)
         if err is not None:
             return err
@@ -995,22 +527,6 @@ class CodeEmbeddingTool:
         if info is None:
             return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="hybrid_search")
 
-        # Phase 5: Delegate to SearchService if available
-        if self._search_service:
-            try:
-                result = self._search_service.hybrid_search(
-                    buffer_id=buffer_id,
-                    query=query,
-                    top_k=top_k + offset,
-                    semantic_weight=semantic_weight,
-                    lexical_weight=lexical_weight,
-                )
-                return self._adapt_search_response(result, offset=offset, top_k=top_k)
-            except Exception as e:
-                logger.warning(f"SearchService delegation failed: {e}. Falling back to monolithic implementation.")
-                # Fall through to monolithic implementation below
-        
-        # Monolithic implementation (fallback)
         cached = self._query_cache.get(buffer_id, query, top_k + offset, "hybrid")
         if cached is not None:
             cached_matches = cached.get("matches", [])
@@ -1038,11 +554,9 @@ class CodeEmbeddingTool:
         q_emb = self._embedder.encode([query], batch_size=1)
         distances, indices = index.search(q_emb, top_k * 4 + offset)
         elapsed = time.perf_counter() - t0
-        json_logger.debug(
-            operation='hybrid_search_semantic',
-            buffer_id=buffer_id,
-            elapsed_s=elapsed,
-            details={'top_k': top_k, 'gpu': index.is_gpu},
+        logger.debug(
+            "hybrid_search semantic leg: buffer_id=%s top_k=%d elapsed=%.3fs gpu=%s",
+            buffer_id, top_k, elapsed, index.is_gpu,
         )
         semantic_results: list[dict[str, Any]] = []
         for score, idx in zip(distances[0], indices[0]):
@@ -1085,16 +599,6 @@ class CodeEmbeddingTool:
 
         self._query_cache.set(buffer_id, query, top_k + offset, "hybrid", {"matches": matches_list})
         elapsed_hybrid = time.perf_counter() - t0_hybrid
-        
-        # Phase 7: Record operation metrics for Prometheus
-        if self._prometheus_exporter:
-            self._prometheus_exporter.record_operation(
-                operation='hybrid_search',
-                duration_s=elapsed_hybrid,
-                status='ok',
-                chunk_count=len(matches_list),
-            )
-        
         metrics = get_metrics()
         metrics.record_cache_miss("hybrid_search_cache")
         metrics.record_histogram("hybrid_search_latency_s", elapsed_hybrid)
@@ -1117,7 +621,7 @@ class CodeEmbeddingTool:
         case_sensitive: bool = False,
         max_results: int = 50,
     ) -> dict[str, Any]:
-        """Find every occurrence of *query* in the buffered source code.
+        """Find every occurrence of *query* in the buffered source snapshot.
 
         Args:
             buffer_id: Buffer handle.
@@ -1128,7 +632,6 @@ class CodeEmbeddingTool:
         Returns:
             Dict with ``status``, ``matches`` (list of file/line/content), and ``total``.
         """
-        # Validate parameters first
         err = self._validate_search_params(query, max_results=max_results)
         if err is not None:
             return err
@@ -1136,46 +639,13 @@ class CodeEmbeddingTool:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-        
-        # Phase 5b: Delegate to SearchService if available
-        if self._search_service:
-            try:
-                result = self._search_service.search_for(
-                    buffer_id=buffer_id,
-                    query=query,
-                    case_sensitive=case_sensitive,
-                )
-                # Adapt SearchResponse to expected format
-                if hasattr(result, "to_dict"):
-                    result_dict = result.to_dict()
-                else:
-                    result_dict = result
-                
-                # Extract matches and limit to max_results
-                matches = result_dict.get("matches", [])
-                limited_matches = matches[:max_results]
-                return {"status": "ok", "matches": limited_matches, "total": len(limited_matches)}
-            except Exception as e:
-                logger.warning(f"SearchService delegation failed: {e}. Falling back to monolithic implementation.")
-                # Fall through to monolithic implementation below
-        
-        # Monolithic implementation (fallback)
-        snapshot_mgr = self._get_snapshot_manager(buffer_id)
-        if snapshot_mgr is None:
-            return {"status": "error", "message": "Snapshot not available."}
+        if snapshot is None:
+            return {"status": "error", "message": "Source snapshot missing."}
 
         matches: list[dict[str, Any]] = []
         target = query if case_sensitive else query.lower()
 
-        for rel_path in snapshot_mgr.manifest.files.keys():
-            lines = snapshot_mgr.read_lines(rel_path)
-            if lines is None:
-                json_logger.warning(
-                    operation='search_for',
-                    message=f'Failed to read file {rel_path}',
-                )
-                continue
-            
+        for rel_path, lines in snapshot.items():
             for line_no, raw_line in enumerate(lines, start=1):
                 haystack = raw_line if case_sensitive else raw_line.lower()
                 if target in haystack:
@@ -1212,19 +682,6 @@ class CodeEmbeddingTool:
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
 
-        # Phase 5b: Delegate to SearchService if available
-        if self._search_service:
-            try:
-                result = self._search_service.look_for_file(
-                    buffer_id=buffer_id,
-                    pattern=file_name,
-                )
-                return self._adapt_file_response(result)
-            except Exception as e:
-                logger.warning(f"SearchService delegation failed: {e}. Falling back to monolithic implementation.")
-                # Fall through to monolithic implementation below
-        
-        # Monolithic implementation (fallback)
         snapshot = self._load_source_snapshot(buffer_id)
         if snapshot is None:
             return {"status": "error", "message": "Source snapshot missing."}
@@ -1298,7 +755,6 @@ class CodeEmbeddingTool:
         Returns:
             SearchResponse with ``matches`` (list of SearchMatch objects with type, name, score).
         """
-        # Validate parameters first
         err = self._validate_search_params(query, top_k=top_k)
         if err is not None:
             return err
@@ -1307,20 +763,6 @@ class CodeEmbeddingTool:
         if info is None:
             return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="search_symbols")
 
-        # Phase 5b: Delegate to SearchService if available
-        if self._search_service:
-            try:
-                result = self._search_service.search_symbols(
-                    buffer_id=buffer_id,
-                    query=query,
-                    top_k=top_k,
-                )
-                return self._adapt_search_response(result, offset=0, top_k=top_k)
-            except Exception as e:
-                logger.warning(f"SearchService delegation failed: {e}. Falling back to monolithic implementation.")
-                # Fall through to monolithic implementation below
-        
-        # Monolithic implementation (fallback)
         chunks = self._load_chunks(buffer_id)
         if chunks is None:
             return self._make_error_response(
@@ -1440,19 +882,6 @@ class CodeEmbeddingTool:
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
 
-        # Phase 5b: Delegate to SearchService if available
-        if self._search_service:
-            try:
-                result = self._search_service.cluster_code(
-                    buffer_id=buffer_id,
-                    n_clusters=max(2, int(1.0 / (1.0 - threshold + 0.1))),  # Convert threshold to n_clusters estimate
-                )
-                return self._adapt_cluster_response(result)
-            except Exception as e:
-                logger.warning(f"SearchService delegation failed: {e}. Falling back to monolithic implementation.")
-                # Fall through to monolithic implementation below
-        
-        # Monolithic implementation (fallback)
         chunks = self._load_chunks(buffer_id)
         if chunks is None or not chunks:
             return {"status": "error", "message": "No chunks loaded."}
@@ -1540,19 +969,6 @@ class CodeEmbeddingTool:
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
 
-        # Phase 5b: Delegate to SearchService if available
-        if self._search_service:
-            try:
-                result = self._search_service.find_duplicates(
-                    buffer_id=buffer_id,
-                    threshold=threshold,
-                )
-                return self._adapt_duplicate_response(result)
-            except Exception as e:
-                logger.warning(f"SearchService delegation failed: {e}. Falling back to monolithic implementation.")
-                # Fall through to monolithic implementation below
-        
-        # Monolithic implementation (fallback)
         chunks = self._load_chunks(buffer_id)
         if chunks is None or not chunks:
             return {"status": "error", "message": "No chunks loaded."}
@@ -1608,106 +1024,39 @@ class CodeEmbeddingTool:
         start_line: int = 1,
         end_line: int | None = None,
     ) -> dict[str, Any]:
-        t0 = time.perf_counter()
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="read_code")
 
-        snapshot_mgr = self._get_snapshot_manager(buffer_id)
-        if snapshot_mgr is None:
+        snapshot = self._load_source_snapshot(buffer_id)
+        if snapshot is None:
             return self._make_error_response(
-                "Snapshot not available", buffer_id=buffer_id, operation="read_code",
-                context={"reason": "snapshot_load_failed"}
+                "Source snapshot missing", buffer_id=buffer_id, operation="read_code",
+                context={"reason": "snapshot_file_not_found"}
             )
 
         if file is not None:
-            if file not in snapshot_mgr.manifest.files:
+            if file not in snapshot:
                 return self._make_error_response(
                     f"File not in buffer: {file}", buffer_id=buffer_id, operation="read_code",
                     context={"requested_file": file}
                 )
-            
-            # Read file on-demand from disk
-            lines = snapshot_mgr.read_lines(file)
-            if lines is None:
-                return self._make_error_response(
-                    f"Failed to read file: {file}", buffer_id=buffer_id, operation="read_code",
-                    context={"requested_file": file}
-                )
-            
+            lines = snapshot[file]
             end = end_line if end_line is not None else len(lines) + 1
             selected = lines[start_line - 1:end - 1]
-            result = {
+            return {
                 "status": "ok",
                 "file": file,
                 "start_line": start_line,
                 "end_line": end,
                 "lines": selected,
             }
-            
-            # Audit log successful file read
-            self._audit_log(
-                operation="read_code",
-                buffer_id=buffer_id,
-                status="ok",
-                details={
-                    "file": file,
-                    "start_line": start_line,
-                    "end_line": end,
-                    "lines_count": len(selected),
-                }
-            )
-            
-            # Phase 7: Record operation metrics
-            elapsed = time.perf_counter() - t0
-            if self._prometheus_exporter:
-                self._prometheus_exporter.record_operation(
-                    operation='read_code',
-                    duration_s=elapsed,
-                    status='ok',
-                    chunk_count=len(selected),
-                )
-            
-            return result
 
-        # Read all files on-demand
         result: dict[str, list[str]] = {}
-        for fname in snapshot_mgr.manifest.files.keys():
-            lines = snapshot_mgr.read_lines(fname)
-            if lines is None:
-                json_logger.warning(
-                    operation='read_code',
-                    message=f'Failed to read file {fname}',
-                )
-                continue
+        for fname, lines in snapshot.items():
             end = end_line if end_line is not None else len(lines) + 1
             result[fname] = lines[start_line - 1:end - 1]
-        
-        final_result = {"status": "ok", "files": result}
-        
-        # Audit log successful read-all operation
-        self._audit_log(
-            operation="read_code",
-            buffer_id=buffer_id,
-            status="ok",
-            details={
-                "files_count": len(result),
-                "start_line": start_line,
-                "end_line": end_line,
-            }
-        )
-        
-        # Phase 7: Record operation metrics for read-all
-        elapsed = time.perf_counter() - t0
-        if self._prometheus_exporter:
-            self._prometheus_exporter.record_operation(
-                operation='read_code',
-                duration_s=elapsed,
-                status='ok',
-                chunk_count=sum(len(lines) for lines in result.values()),
-            )
-        
-        return final_result
+        return {"status": "ok", "files": result}
 
     def write_code(
         self,
@@ -1717,22 +1066,9 @@ class CodeEmbeddingTool:
         new_lines: list[str],
         end_line: int | None = None,
     ) -> dict[str, Any]:
-        t0 = time.perf_counter()
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-
-        # Check current buffer state - must be READY to write
-        try:
-            current_state = self._get_buffer_state(buffer_id)
-            if current_state != BufferState.READY:
-                return {
-                    "status": "error",
-                    "message": f"Cannot write code: buffer is in {current_state} state. "
-                               f"Valid transitions: {BufferStateTransition.VALID_TRANSITIONS.get(current_state, [])}"
-                }
-        except ValueError as e:
-            return {"status": "error", "message": str(e)}
 
         snapshot = self._load_source_snapshot(buffer_id)
         if snapshot is None:
@@ -1740,88 +1076,27 @@ class CodeEmbeddingTool:
         if file not in snapshot:
             return {"status": "error", "message": f"File not in buffer: {file}"}
 
-        # Phase 2: Detect 3-way merge conflicts before allowing write
-        snapshot_mgr = self._get_snapshot_manager(buffer_id)
-        if snapshot_mgr is not None:
-            # Get current buffer lines (before modification)
-            current_buffer_lines = snapshot[file]
-            
-            # Compute diff to detect conflicts
-            diff_result = snapshot_mgr.compute_diff(file, current_buffer_lines)
-            if diff_result.get("has_conflict", False):
-                # Conflict detected: both disk and buffer have diverged from snapshot
-                return {
-                    "status": "conflict",
-                    "file": file,
-                    "message": (
-                        f"Cannot write to {file}: both disk and buffer have been modified. "
-                        "Use reload_codebase() to sync with disk, or call diff() to review changes."
-                    ),
-                    "disk_lines": len(diff_result.get("disk_lines") or []),
-                    "buffer_lines": len(diff_result.get("buffer_lines") or []),
-                    "snapshot_line_count": diff_result.get("snapshot_line_count"),
-                }
-
         old_lines = snapshot[file]
         end = end_line if end_line is not None else len(old_lines) + 1
-        # Strip newlines from new_lines to be consistent with splitlines() format
-        sanitized_new_lines = [line.rstrip("\n\r") for line in new_lines]
-        # Replace lines from start_line to end_line (inclusive, 1-indexed)
-        # Keep lines before start_line, add new lines, keep lines after end_line
-        new_file_lines = old_lines[:start_line - 1] + sanitized_new_lines + old_lines[end:]
+        new_file_lines = old_lines[:start_line - 1] + new_lines + old_lines[end - 1:]
         snapshot[file] = new_file_lines
         self._save_source_snapshot(buffer_id, snapshot)
 
         dirty = info.setdefault("dirty_files", {})
         dirty[file] = True
         self._save_registry()
-        
-        # Transition state from READY → DIRTY if not already dirty
-        try:
-            if current_state == BufferState.READY:
-                self._set_buffer_state(buffer_id, BufferState.DIRTY)
-        except ValueError:
-            # State transition failed, but don't fail the write
-            logger.warning(f"Failed to transition buffer {buffer_id} to DIRTY state")
-
 
         # Auto-rebuild if too many dirty files
         if len(dirty) >= _MAX_DIRTY_BEFORE_AUTO_REBUILD:
             self._rebuild_dirty(buffer_id)
 
-        result = {
+        return {
             "status": "ok",
             "file": file,
-            "changed_lines": len(sanitized_new_lines),
+            "changed_lines": len(new_lines),
             "replaced_lines": end - start_line,
             "total_lines": len(new_file_lines),
         }
-        
-        # Audit log successful write
-        self._audit_log(
-            operation="write_code",
-            buffer_id=buffer_id,
-            status="ok",
-            details={
-                "file": file,
-                "start_line": start_line,
-                "end_line": end,
-                "changed_lines": len(sanitized_new_lines),
-                "replaced_lines": end - start_line,
-            }
-        )
-        
-        # Phase 7: Record operation metrics
-        elapsed = time.perf_counter() - t0
-        if self._prometheus_exporter:
-            self._prometheus_exporter.record_operation(
-                operation='write_code',
-                duration_s=elapsed,
-                status='ok',
-                chunk_count=len(sanitized_new_lines),
-            )
-        
-        return result
 
     def diff(self, buffer_id: str) -> dict[str, Any]:
         info = self._get_buffer_info(buffer_id)
@@ -1884,15 +1159,6 @@ class CodeEmbeddingTool:
         if reverted:
             self._rebuild_files(buffer_id, reverted)
 
-        # Transition to READY if all dirty files have been reverted
-        if not info.get("dirty_files"):
-            try:
-                current_state = self._get_buffer_state(buffer_id)
-                if current_state == BufferState.DIRTY:
-                    self._set_buffer_state(buffer_id, BufferState.READY)
-            except ValueError:
-                logger.warning(f"Failed to transition buffer {buffer_id} to READY state")
-
         return {"status": "ok", "reverted_files": reverted}
 
     def commit(
@@ -1900,30 +1166,6 @@ class CodeEmbeddingTool:
         buffer_id: str,
         dry_run: bool = False,
     ) -> dict[str, Any]:
-        """Commit buffer changes to disk with 3-way merge conflict handling and crash recovery.
-        
-        Phase 3: Uses SnapshotManager for merge conflicts.
-        Phase 4: Wraps with StateManager transactions for crash recovery.
-        
-        - If both buffer and disk modified: returns "conflict" status instead of aborting
-        - Rebuilds embeddings before writing
-        - Updates snapshot manifest after successful writes
-        - Returns detailed conflict information for user resolution
-        - Uses write-ahead logging (WAL) for crash recovery
-        
-        Args:
-            buffer_id: Buffer to commit
-            dry_run: If True, check what would be written without modifying files
-        
-        Returns:
-            Dict with:
-            - "status": "ok", "conflict", or "error"
-            - "written_files": List of successfully written files
-            - "conflict_files": List of dicts with conflict details (file, message, line counts)
-            - "dry_run": Whether this was a dry run
-            - "transaction_id": Transaction ID (for debugging)
-        """
-        t0 = time.perf_counter()
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
@@ -1935,190 +1177,55 @@ class CodeEmbeddingTool:
 
         dirty = info.get("dirty_files", {})
         if not dirty:
-            return {"status": "ok", "written_files": [], "conflict_files": [], "dry_run": dry_run, "transaction_id": None}
+            return {"status": "ok", "written_files": [], "dry_run": dry_run}
 
-        # Phase 4: Begin transaction for crash recovery
-        transaction_id = None
+        # Rebuild embeddings for dirty files before writing to disk
         if not dry_run:
-            transaction_id = self._state_manager.start_transaction(
-                operation="commit",
-                buffer_id=buffer_id,
-                file_path=",".join(dirty.keys()),  # Comma-separated list of files
-                start_line=0,
-                end_line=None,
-                new_lines=None
-            )
+            self._rebuild_dirty(buffer_id)
 
-        try:
-            # Rebuild embeddings for dirty files before writing to disk
+        written: list[str] = []
+        new_hashes: dict[str, str] = {}
+        for rel_path in dirty:
+            lines = snapshot.get(rel_path, [])
+            disk_path = root / rel_path
             if not dry_run:
-                self._rebuild_files(buffer_id, list(dirty.keys()))
-
-            # Phase 3: Use SnapshotManager for 3-way merge conflict handling
-            snapshot_mgr = self._get_snapshot_manager(buffer_id)
-            if snapshot_mgr is None:
-                if transaction_id:
-                    self._state_manager.rollback_transaction(transaction_id)
-                return {"status": "error", "message": "Snapshot manager not available"}
-
-            written: list[str] = []
-            conflicts: list[dict[str, Any]] = []
-            new_hashes: dict[str, str] = {}
-            updated_files: dict[str, Path] = {}
-
-            for rel_path in dirty:
-                lines = snapshot.get(rel_path, [])
-                disk_path = root / rel_path
-
-                if dry_run:
-                    # Dry run: just check for conflicts without writing
-                    diff_result = snapshot_mgr.compute_diff(rel_path, lines)
-                    if diff_result.get("has_conflict"):
-                        conflicts.append({
-                            "file": rel_path,
-                            "message": "3-way merge conflict: disk and buffer both modified",
-                        })
-                    else:
-                        written.append(rel_path)
-                else:
-                    # Real commit: use 3-way merge with conflict detection
-                    merge_result = snapshot_mgr.write_file_with_merge(rel_path, lines, allow_conflicts=False)
-                    
-                    if merge_result["status"] == "conflict":
-                        # Conflict detected - record it but continue processing other files
-                        diff_result = snapshot_mgr.compute_diff(rel_path, lines)
-                        conflicts.append({
-                            "file": rel_path,
-                            "message": merge_result.get("message", "3-way merge conflict"),
-                            "disk_lines": len(diff_result.get("disk_lines") or []),
-                            "buffer_lines": len(lines),
-                            "snapshot_line_count": diff_result.get("snapshot_line_count"),
-                        })
-                    elif merge_result["status"] == "ok":
-                        # Successfully written
-                        written.append(rel_path)
-                        updated_files[rel_path] = disk_path
-                        new_hashes[rel_path] = hashlib.sha256(
-                            "\n".join(lines).encode("utf-8")
-                        ).hexdigest()
-                    else:
-                        # Write error (not a conflict, but a real error)
-                        self._state_manager.rollback_transaction(transaction_id)
+                if disk_path.exists():
+                    raw_text = disk_path.read_text(encoding="utf-8", errors="replace")
+                    normalized = "\n".join(raw_text.splitlines())
+                    disk_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+                    old_hash = info.get("file_hashes", {}).get(rel_path)
+                    if old_hash is not None and disk_hash != old_hash:
                         return {
                             "status": "error",
-                            "message": f"Failed to write {rel_path}: {merge_result.get('message', 'Unknown error')}",
-                            "transaction_id": transaction_id
+                            "message": (
+                                f"File {rel_path} changed on disk since embedding "
+                                f"(hash mismatch). Aborting commit."
+                            ),
                         }
+                disk_path.parent.mkdir(parents=True, exist_ok=True)
+                disk_path.write_text("\n".join(lines), encoding="utf-8")
+                new_hashes[rel_path] = hashlib.sha256(
+                    "\n".join(lines).encode("utf-8")
+                ).hexdigest()
+            written.append(rel_path)
 
-            if not dry_run:
-                # Update registry with new hashes and clean up dirty files that were written
-                info["file_hashes"].update(new_hashes)
-                # Only clear dirty files that were successfully written (leave conflicted ones)
-                for f in written:
-                    info["dirty_files"].pop(f, None)
-                self._save_registry()
+        if not dry_run:
+            info["file_hashes"].update(new_hashes)
+            info["dirty_files"] = {}
+            self._save_registry()
 
-                # Update snapshot manifest for successfully written files
-                if updated_files:
-                    snapshot_mgr.update_manifest_after_commit(updated_files)
-
-                # Transition to READY if all files successfully written (no conflicts)
-                if not conflicts and info.get("dirty_files"):
-                    # Still have dirty files, stay in DIRTY state
-                    pass
-                elif not conflicts:
-                    # All files written, no conflicts - transition to READY
-                    try:
-                        current_state = self._get_buffer_state(buffer_id)
-                        if current_state == BufferState.DIRTY:
-                            self._set_buffer_state(buffer_id, BufferState.READY)
-                    except ValueError:
-                        logger.warning(f"Failed to transition buffer {buffer_id} to READY state")
-
-                # Phase 4: Commit transaction (WAL is updated)
-                self._state_manager.commit_transaction(transaction_id)
-                self._state_manager.save_registry()
-
-            result = {
-                "status": "conflict" if conflicts else "ok",
-                "written_files": written,
-                "conflict_files": conflicts,
-                "dry_run": dry_run,
-                "transaction_id": transaction_id,
-            }
-            
-            # Audit log commit operation (success or conflict)
-            status = "conflict" if conflicts else "ok"
-            self._audit_log(
-                operation="commit",
-                buffer_id=buffer_id,
-                status=status,
-                details={
-                    "dry_run": dry_run,
-                    "written_files_count": len(written),
-                    "conflict_files_count": len(conflicts),
-                    "transaction_id": transaction_id,
-                }
-            )
-            
-            # Phase 7: Record operation metrics for Prometheus
-            elapsed = time.perf_counter() - t0
-            if self._prometheus_exporter:
-                self._prometheus_exporter.record_operation(
-                    operation='commit',
-                    duration_s=elapsed,
-                    status='conflict' if conflicts else 'ok',
-                    chunk_count=len(written),
-                )
-            
-            return result
-
-        except Exception as e:
-            # Phase 4: Rollback on any error
-            if transaction_id:
-                json_logger.error(
-                    operation='commit',
-                    buffer_id=buffer_id,
-                    message=f'Commit failed with exception: {e}; rolling back transaction {transaction_id}',
-                )
-                self._state_manager.rollback_transaction(transaction_id)
-            raise
+        return {"status": "ok", "written_files": written, "dry_run": dry_run}
 
     # ------------------------------------------------------------------
     # Registry helpers
     # ------------------------------------------------------------------
     def list_buffers(self) -> dict[str, Any]:
-        """List all registered buffers (delegated to BufferManager)."""
-        # Delegation attempt
-        if self._buffer_manager:
-            try:
-                result = self._buffer_manager.list_buffers()
-                return result
-            except Exception as e:
-                logger.warning(f"BufferManager.list_buffers delegation failed: {e}. Falling back...")
-        
-        # Monolithic fallback
         return {
             "status": "ok",
             "buffers": [{"buffer_id": bid, **info} for bid, info in self._registry.items()],
         }
 
     def delete_buffer(self, buffer_id: str) -> dict[str, Any]:
-        """Delete a buffer (delegated to BufferManager)."""
-        # Delegation attempt
-        if self._buffer_manager:
-            try:
-                result = self._buffer_manager.delete_buffer(buffer_id)
-                # Also clean up manager caches
-                self._index_cache.pop(buffer_id, None)
-                self._lexical_cache.pop(buffer_id, None)
-                if self._index_manager:
-                    self._index_manager._query_cache.invalidate_buffer(buffer_id)
-                return result
-            except Exception as e:
-                logger.warning(f"BufferManager.delete_buffer delegation failed: {e}. Falling back...")
-        
-        # Monolithic fallback
         info = self._registry.pop(buffer_id, None)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
@@ -2206,27 +1313,12 @@ class CodeEmbeddingTool:
             next_id += 1
 
         # Generate new chunks for dirty files
-        snapshot_mgr = self._get_snapshot_manager(buffer_id)
-        if snapshot_mgr is None:
-            json_logger.error(
-                operation='_rebuild_files',
-                buffer_id=buffer_id,
-                message='Snapshot manager not found',
-            )
-            return
-        
+        snapshot = self._load_source_snapshot(buffer_id)
         language_hint = info.get("language_hint")
         sliding_window_size = info.get("sliding_window_size", 30)
         new_embeddings_list: list[np.ndarray] = []
         for rel_path in files:
-            lines = snapshot_mgr.read_lines(rel_path)
-            if lines is None:
-                json_logger.warning(
-                    operation='_rebuild_files',
-                    buffer_id=buffer_id,
-                    message=f'Could not read {rel_path}',
-                )
-                continue
+            lines = snapshot.get(rel_path, [])
             text = "\n".join(lines)
             file_chunks = chunk_text(text, language_hint=language_hint, filename_hint=rel_path, sliding_window_size=sliding_window_size)
             for ch in file_chunks:
@@ -2254,9 +1346,6 @@ class CodeEmbeddingTool:
         index.reset()
         ids = np.arange(len(new_chunks), dtype=np.int64)
         index.add(ids, final_embeddings)
-        
-        # Pre-sync GPU to avoid lazy sync latency on first search
-        index.sync_gpu()
 
         # Rebuild lexical index
         lexical = LexicalIndex()
@@ -2313,12 +1402,10 @@ class CodeEmbeddingTool:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             raise RuntimeError(f"Unknown buffer_id: {buffer_id}")
-        index = GpuIndex(info["embedding_dim"], use_gpu=self.use_gpu, gpu_id=self.gpu_id)
+        index = GpuIndex(info["embedding_dim"], use_gpu=self.use_gpu)
         index_path = Path(info["buffer_dir"]) / "index.faiss"
         if index_path.exists():
             index.load(index_path)
-        # Pre-sync GPU to avoid lazy sync latency on first search after load
-        index.sync_gpu()
         self._index_cache[buffer_id] = index
         return index
 
@@ -2353,10 +1440,7 @@ class CodeEmbeddingTool:
             data = json.loads(path.read_text(encoding="utf-8"))
             return LexicalIndex.from_dict(data)
         except Exception as exc:
-            json_logger.warning(
-                operation='_load_lexical_index',
-                message=f'Failed to load lexical index from {path}: {exc}',
-            )
+            logger.warning("Failed to load lexical index from %s: %s", path, exc)
             return None
 
     def _get_lexical_index(self, buffer_id: str) -> LexicalIndex:
@@ -2376,11 +1460,10 @@ class CodeEmbeddingTool:
         if chunks is None:
             raise RuntimeError(f"Cannot build lexical index for buffer_id={buffer_id}: chunks not found")
         
-        json_logger.warning(
-            operation='_get_lexical_index',
-            buffer_id=buffer_id,
-            message=f'Lexical index missing; building from {len(chunks)} chunks',
-            details={'chunks_count': len(chunks)},
+        logger.warning(
+            "Lexical index missing for buffer_id=%s; building from chunks "
+            "(%d items). Consider warmup via embed_codebase or commit.",
+            buffer_id, len(chunks),
         )
         lexical = LexicalIndex()
         for i, ch in enumerate(chunks):
@@ -2390,104 +1473,8 @@ class CodeEmbeddingTool:
 
     def _get_buffer_info(self, buffer_id: str) -> dict[str, Any] | None:
         return self._registry.get(buffer_id)
-    
-    def _get_buffer_state(self, buffer_id: str) -> BufferState:
-        """Get current buffer state from registry.
-        
-        Args:
-            buffer_id: Buffer ID
-            
-        Returns:
-            Current BufferState (defaults to READY if not set)
-        """
-        info = self._get_buffer_info(buffer_id)
-        if not info:
-            raise ValueError(f"Unknown buffer_id: {buffer_id}")
-        
-        state_str = info.get("state", BufferState.READY.value)
-        return BufferState(state_str)
-    
-    def _set_buffer_state(self, buffer_id: str, new_state: BufferState) -> None:
-        """Set buffer state with validation.
-        
-        Args:
-            buffer_id: Buffer ID
-            new_state: Desired new state
-            
-        Raises:
-            ValueError: If state transition is invalid
-        """
-        info = self._get_buffer_info(buffer_id)
-        if not info:
-            raise ValueError(f"Unknown buffer_id: {buffer_id}")
-        
-        current_state = self._get_buffer_state(buffer_id)
-        
-        # Validate transition
-        BufferStateTransition.validate_or_raise(current_state, new_state)
-        
-        # Update state and timestamp
-        info["state"] = new_state.value
-        info["state_changed_at"] = time.time()
-        
-        self._save_registry()
-        
-        # Update health tracker (Phase 6)
-        self._health_tracker.update_buffer_state(buffer_id, new_state)
-        
-        # Log state change
-        self._audit_log(
-            operation="state_transition",
-            buffer_id=buffer_id,
-            status="ok",
-            details={
-                "from_state": str(current_state),
-                "to_state": str(new_state),
-            }
-        )
 
-    def _get_snapshot_manager(self, buffer_id: str) -> SnapshotManager | None:
-        """Get or load SnapshotManager for buffer.
-        
-        Caches instances to avoid repeated loads from disk.
-        
-        Args:
-            buffer_id: Buffer identifier
-        
-        Returns:
-            SnapshotManager instance or None if buffer not found or snapshot invalid
-        """
-        if buffer_id in self._snapshot_managers:
-            return self._snapshot_managers[buffer_id]
-        
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return None
-        
-        buffer_dir = Path(info["buffer_dir"])
-        try:
-            snapshot_mgr = SnapshotManager(buffer_dir)
-            if snapshot_mgr.manifest is None:
-                json_logger.warning(
-                    operation='_get_snapshot_manager',
-                    buffer_id=buffer_id,
-                    message='Manifest is None',
-                )
-                return None
-            
-            self._snapshot_managers[buffer_id] = snapshot_mgr
-            return snapshot_mgr
-        except Exception as e:
-            json_logger.error(
-                operation='_get_snapshot_manager',
-                buffer_id=buffer_id,
-                message=f'Failed to load snapshot: {e}',
-            )
-            return None
-
-    @retry_on_io_error(max_attempts=3, delay_s=0.5)
     def _save_registry(self) -> None:
-        """Save registry to disk with retry on transient I/O errors."""
         with self._registry_path.open("wb") as fh:
             fh.write(
                 json.dumps(self._registry, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -2497,16 +1484,15 @@ class CodeEmbeddingTool:
     # Lifecycle
     # ------------------------------------------------------------------
     def get_cache_stats(self) -> dict[str, Any]:
-        """Return cache utilization statistics (delegated to IndexManager)."""
-        # Delegation attempt
-        if self._index_manager:
-            try:
-                result = self._index_manager.get_cache_stats()
-                return result
-            except Exception as e:
-                logger.warning(f"IndexManager.get_cache_stats delegation failed: {e}. Falling back...")
-        
-        # Monolithic fallback
+        """Return cache utilization statistics.
+
+        Returns a dict with:
+        - index_cache_size: Current number of cached indices
+        - index_cache_max: Maximum cached indices (LRU limit)
+        - lexical_cache_size: Current number of cached lexical indices
+        - lexical_cache_max: Maximum cached lexical indices (LRU limit)
+        - query_cache_stats: Hit/miss counts from query cache
+        """
         return {
             "index_cache_size": len(self._index_cache),
             "index_cache_max": self._index_cache.max_size,
@@ -2516,16 +1502,20 @@ class CodeEmbeddingTool:
         }
 
     def health_check(self) -> dict[str, Any]:
-        """Perform a health check and return system status (delegated to IndexManager)."""
-        # Delegation attempt
-        if self._index_manager:
-            try:
-                result = self._index_manager.health_check()
-                return result
-            except Exception as e:
-                logger.warning(f"IndexManager.health_check delegation failed: {e}. Falling back...")
-        
-        # Monolithic fallback
+        """Perform a health check and return system status.
+
+        Returns a dict with:
+        - status: "healthy" if all checks pass, "degraded" if warnings, "unhealthy" if critical issues
+        - timestamp: ISO 8601 timestamp of check
+        - buffers_registered: Number of embedded codebases in registry
+        - buffers_loaded: Number of indices currently in memory
+        - cache_utilization: Current cache usage as percentage
+        - embedder_ready: Whether embedder is initialized
+        - faiss_gpu_available: Whether GPU FAISS is available
+        - warnings: List of any warnings (e.g., high cache usage, GPU not available)
+
+        Can be called periodically (e.g., every 60 seconds) to monitor system health.
+        """
         import datetime
         
         warnings = []
@@ -2560,7 +1550,7 @@ class CodeEmbeddingTool:
             status = "degraded"
         
         # Check embedder
-        embedder_ready = self._embedder is not None and self._embedder._model is not None
+        embedder_ready = self._embedder is not None and self._embedder.model is not None
         if not embedder_ready:
             warnings.append("Embedder not initialized")
             status = "unhealthy"
@@ -2592,6 +1582,19 @@ class CodeEmbeddingTool:
         """
         return get_metrics().dump_metrics()
 
+    def close(self) -> None:
+        """Release all in-memory resources.
+
+        Clears the FAISS index cache (drops GPU VRAM), the lexical index
+        cache, and the query result cache.  The on-disk registry and buffer
+        files are left intact — they can be reloaded by constructing a new
+        ``CodeEmbeddingTool`` with the same *work_dir*.
+        """
+        self._index_cache.clear()
+        self._lexical_cache.clear()
+        self._query_cache.clear()
+        logger.debug("CodeEmbeddingTool closed; all in-memory caches released.")
+    
     # ------------------------------------------------------------------
     # Phase 6: State-Based Access Control
     # ------------------------------------------------------------------
@@ -2636,6 +1639,60 @@ class CodeEmbeddingTool:
                 return False, "Buffer is rebuilding indices. Please wait..."
         
         return False, f"Operation not allowed in {current_state.value} state"
+    
+    def _get_buffer_state(self, buffer_id: str) -> BufferState:
+        """Get current buffer state from registry.
+        
+        Args:
+            buffer_id: Buffer identifier
+        
+        Returns:
+            BufferState enum value
+        
+        Raises:
+            ValueError: If buffer_id not found
+        """
+        if buffer_id not in self._registry:
+            raise ValueError(f"Unknown buffer_id: {buffer_id}")
+        
+        info = self._registry[buffer_id]
+        state_str = info.get("state", BufferState.READY.value)
+        return BufferState(state_str)
+    
+    def _set_buffer_state(self, buffer_id: str, new_state: BufferState) -> None:
+        """Set buffer state with validation and logging.
+        
+        Args:
+            buffer_id: Buffer identifier
+            new_state: New buffer state
+        
+        Raises:
+            ValueError: If transition is invalid
+        """
+        if buffer_id not in self._registry:
+            raise ValueError(f"Unknown buffer_id: {buffer_id}")
+        
+        info = self._registry[buffer_id]
+        current_state_str = info.get("state", BufferState.READY.value)
+        current_state = BufferState(current_state_str)
+        
+        # Validate transition
+        BufferStateTransition.validate_or_raise(current_state, new_state)
+        
+        # Update registry
+        info["state"] = new_state.value
+        info["state_changed_at"] = time.time()
+        
+        # Persist registry
+        self._save_registry()
+        
+        # Update health tracker
+        self._health_tracker.update_buffer_state(buffer_id, new_state)
+        
+        # Log transition
+        logger.info(
+            f"Buffer state transition: {buffer_id} {current_state.value} → {new_state.value}"
+        )
     
     def _get_buffer_health(self, buffer_id: str) -> dict[str, Any]:
         """Get health status for a buffer.
@@ -2702,138 +1759,12 @@ class CodeEmbeddingTool:
             (allowed, reason) tuple
         """
         return self._check_state_for_operation(buffer_id, OperationType.REBUILD)
-
-    # ------------------------------------------------------------------
-    # Phase 7: RBAC, Audit Logging, and Rate Limiting
-    # ------------------------------------------------------------------
-
-    def set_user(self, user_id: str, role: str = "analyst") -> User:
-        """Set current user for operations.
-        
-        Args:
-            user_id: User identifier
-            role: User role ("admin", "analyst", "reader", "guest")
-            
-        Returns:
-            User object
-        """
-        from gigacode.access_control import Role
-        
-        # Convert role string to enum
-        role_enum = Role[role.upper()] if role else Role.ANALYST
-        self._current_user_id = user_id
-        return self._access_control.register_user(user_id, role_enum)
     
-    def _check_permission(
-        self,
-        operation: str,
-        buffer_owner: str | None = None,
-    ) -> tuple[bool, str]:
-        """Check if current user has permission for operation.
-        
-        Args:
-            operation: Operation name
-            buffer_owner: Buffer owner (for ownership checks)
-            
-        Returns:
-            (allowed, reason) tuple
-        """
-        allowed, reason = self._access_control.check_operation(
-            self._current_user_id,
-            operation,
-            buffer_owner,
-        )
-        
-        # Log denied operation
-        if not allowed:
-            self._audit_logger.log_denied(
-                operation=operation,
-                user_id=self._current_user_id,
-                role=self._access_control.get_user(self._current_user_id).role.value,
-                reason=reason,
-            )
-        
-        return allowed, reason
-    
-    def _check_rate_limit(self, buffer_id: str | None = None) -> tuple[bool, str | None]:
-        """Check if current user has rate limit available.
-        
-        Args:
-            buffer_id: Buffer identifier (optional)
-            
-        Returns:
-            (allowed, reason) tuple
-        """
-        user = self._access_control.get_user(self._current_user_id)
-        allowed, reason = self._rate_limiter.check_all_limits(
-            self._current_user_id,
-            user.role,
-            buffer_id,
-            operation_type="operations",
-        )
-        
-        return allowed, reason
-    
-    def get_audit_log(self, buffer_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
-        """Get audit log entries.
-        
-        Args:
-            buffer_id: Filter by buffer (optional)
-            limit: Max entries to return
-            
-        Returns:
-            List of audit log entries
-        """
-        # Check permission to view audit logs
-        allowed, reason = self._check_permission("view_audit_log")
-        if not allowed:
-            return []
-        
-        # Get entries
-        if buffer_id:
-            entries = self._audit_logger.get_buffer_history(buffer_id, limit)
-        else:
-            entries = self._audit_logger.query_logs(
-                user_id=self._current_user_id,
-                limit=limit,
-            )
-        
-        return [e.to_dict() for e in entries]
-    
-    def get_audit_stats(self) -> dict[str, Any]:
-        """Get audit log statistics.
-        
-        Returns:
-            Statistics dictionary
-        """
-        # Check permission
-        allowed, _ = self._check_permission("view_audit_log")
-        if not allowed:
-            return {}
-        
-        return self._audit_logger.stats()
-
-    def close(self) -> None:
-        """Release all in-memory resources.
-
-        Clears the FAISS index cache (drops GPU VRAM), the lexical index
-        cache, and the query result cache.  The on-disk registry and buffer
-        files are left intact — they can be reloaded by constructing a new
-        ``CodeEmbeddingTool`` with the same *work_dir*.
-        
-        Also stops the Prometheus metrics HTTP server if enabled.
-        """
-        self._index_cache.clear()
-        self._lexical_cache.clear()
-        self._query_cache.clear()
-        
-        # Stop Prometheus metrics server if running
-        if self._prometheus_exporter is not None:
-            self._prometheus_exporter.stop()
-        
-        json_logger.info(
-            operation='close',
-            message='CodeEmbeddingTool closed; all caches released',
+    def _save_registry(self) -> None:
+        """Save registry to disk."""
+        self._registry_path.write_text(
+            json.dumps(self._registry, separators=(",", ":"), indent=2),
+            encoding="utf-8",
         )
 
     def __enter__(self) -> CodeEmbeddingTool:

@@ -19,6 +19,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from gigacode.buffer_state import BufferState, BufferStateTransition
 from gigacode.chunker import CodeChunk, chunk_file, chunk_text
 from gigacode.json_logger import StructuredJsonLogger
 from gigacode.lexical_index import LexicalIndex
@@ -152,6 +153,77 @@ class BufferManager:
         except Exception as exc:
             logger.error(f"Failed to save registry: {exc}")
             raise
+    
+    # ------------------------------------------------------------------
+    # Buffer state machine management
+    # ------------------------------------------------------------------
+    def _get_buffer_state(self, buffer_id: str) -> BufferState:
+        """Get current buffer state.
+        
+        Args:
+            buffer_id: Buffer ID
+            
+        Returns:
+            Current BufferState (defaults to READY if not set)
+        """
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            raise ValueError(f"Unknown buffer_id: {buffer_id}")
+        
+        state_str = info.get("state", BufferState.READY.value)
+        return BufferState(state_str)
+    
+    def _set_buffer_state(self, buffer_id: str, new_state: BufferState) -> None:
+        """Set buffer state with validation.
+        
+        Args:
+            buffer_id: Buffer ID
+            new_state: Desired new state
+            
+        Raises:
+            ValueError: If state transition is invalid
+        """
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            raise ValueError(f"Unknown buffer_id: {buffer_id}")
+        
+        current_state = self._get_buffer_state(buffer_id)
+        
+        # Validate transition
+        BufferStateTransition.validate_or_raise(current_state, new_state)
+        
+        # Update state and timestamp
+        info["state"] = new_state.value
+        info["state_changed_at"] = time.time()
+        
+        self._save_registry()
+        
+        # Log state change
+        self._audit_log(
+            operation="state_transition",
+            buffer_id=buffer_id,
+            status="ok",
+            details={
+                "from_state": str(current_state),
+                "to_state": str(new_state),
+            }
+        )
+    
+    def _is_buffer_dirty(self, buffer_id: str) -> bool:
+        """Check if buffer has dirty files.
+        
+        Args:
+            buffer_id: Buffer ID
+            
+        Returns:
+            True if buffer has dirty files
+        """
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return False
+        
+        dirty_files = info.get("dirty_files", {})
+        return len(dirty_files) > 0
     
     def _load_source_snapshot(self, buffer_id: str) -> dict[str, list[str]] | None:
         """Load source code snapshot from disk."""
@@ -296,6 +368,8 @@ class BufferManager:
             "language_hint": language_hint,
             "sliding_window_size": sliding_window_size,
             "dirty_files": {},
+            "state": BufferState.READY.value,
+            "state_changed_at": time.time(),
         }
         
         self._snapshot_managers[buffer_id] = snapshot_mgr
