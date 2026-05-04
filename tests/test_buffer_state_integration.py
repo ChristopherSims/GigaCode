@@ -24,34 +24,34 @@ class TestStateMethodsOnCodeEmbeddingTool:
             work_dir.mkdir()
             
             with patch('gigacode.gigacode_tool.Embedder'):
-                with patch('gigacode.gigacode_tool.StateManager'):
-                    with patch.dict('sys.modules', {'gigacode.search_service': None}):
-                        from gigacode.gigacode_tool import CodeEmbeddingTool
-                        
-                        cet = CodeEmbeddingTool(work_dir=str(work_dir))
-                        
-                        # Create a test buffer in registry
-                        buffer_id = "test-buf-001"
-                        cet._registry[buffer_id] = {
-                            "root": "/source",
-                            "buffer_dir": str(work_dir / f"{buffer_id}.gcbuff"),
-                            "chunk_count": 10,
-                            "embedding_dim": 384,
-                            "size_bytes": 1000,
-                            "file_hashes": {},
-                            "pattern": "*.py",
-                            "language_hint": "python",
-                            "sliding_window_size": 100,
-                            "dirty_files": {},
-                            "state": BufferState.READY.value,
-                            "state_changed_at": 1234567890.0,
-                        }
-                        cet._save_registry()
-                        
-                        yield {
-                            "cet": cet,
-                            "buffer_id": buffer_id,
-                        }
+                # Don't mock StateManager - we need real registry management
+                with patch.dict('sys.modules', {'gigacode.search_service': None}):
+                    from gigacode.gigacode_tool import CodeEmbeddingTool
+                    
+                    cet = CodeEmbeddingTool(work_dir=str(work_dir))
+                    
+                    # Create a test buffer in registry
+                    buffer_id = "test-buf-001"
+                    cet._registry[buffer_id] = {
+                        "root": "/source",
+                        "buffer_dir": str(work_dir / f"{buffer_id}.gcbuff"),
+                        "chunk_count": 10,
+                        "embedding_dim": 384,
+                        "size_bytes": 1000,
+                        "file_hashes": {},
+                        "pattern": "*.py",
+                        "language_hint": "python",
+                        "sliding_window_size": 100,
+                        "dirty_files": {},
+                        "state": BufferState.READY.value,
+                        "state_changed_at": 1234567890.0,
+                    }
+                    cet._save_registry()
+                    
+                    yield {
+                        "cet": cet,
+                        "buffer_id": buffer_id,
+                    }
     
     def test_get_buffer_state_works(self, setup):
         """Test _get_buffer_state method exists and works."""

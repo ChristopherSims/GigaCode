@@ -210,9 +210,9 @@ class TestStateGuardsInCodeEmbeddingTool:
     def _create_cet(tmpdir):
         """Create a CodeEmbeddingTool with mocked dependencies."""
         with patch('gigacode.gigacode_tool.Embedder'):
-            with patch('gigacode.gigacode_tool.StateManager'):
-                with patch.dict(sys.modules, {'gigacode.search_service': None}):
-                    return CodeEmbeddingTool(work_dir=tmpdir)
+            # Don't mock StateManager - we need real registry management
+            with patch.dict(sys.modules, {'gigacode.search_service': None}):
+                return CodeEmbeddingTool(work_dir=tmpdir)
     
     def test_check_state_for_query_ready(self):
         """Test query allowed in READY state."""
@@ -340,9 +340,9 @@ class TestGetBufferState:
     def _create_cet(tmpdir):
         """Create a CodeEmbeddingTool with mocked dependencies."""
         with patch('gigacode.gigacode_tool.Embedder'):
-            with patch('gigacode.gigacode_tool.StateManager'):
-                with patch.dict(sys.modules, {'gigacode.search_service': None}):
-                    return CodeEmbeddingTool(work_dir=tmpdir)
+            # Don't mock StateManager - we need real registry management
+            with patch.dict(sys.modules, {'gigacode.search_service': None}):
+                return CodeEmbeddingTool(work_dir=tmpdir)
     
     def test_get_buffer_state_ready(self):
         """Test retrieving READY state."""
@@ -401,9 +401,9 @@ class TestSetBufferState:
     def _create_cet(tmpdir):
         """Create a CodeEmbeddingTool with mocked dependencies."""
         with patch('gigacode.gigacode_tool.Embedder'):
-            with patch('gigacode.gigacode_tool.StateManager'):
-                with patch.dict(sys.modules, {'gigacode.search_service': None}):
-                    return CodeEmbeddingTool(work_dir=tmpdir)
+            # Don't mock StateManager - we need real registry management
+            with patch.dict(sys.modules, {'gigacode.search_service': None}):
+                return CodeEmbeddingTool(work_dir=tmpdir)
     
     def test_set_buffer_state_ready_to_dirty(self):
         """Test transition from READY to DIRTY."""
@@ -487,9 +487,9 @@ class TestGetBufferHealth:
     def _create_cet(tmpdir):
         """Create a CodeEmbeddingTool with mocked dependencies."""
         with patch('gigacode.gigacode_tool.Embedder'):
-            with patch('gigacode.gigacode_tool.StateManager'):
-                with patch.dict(sys.modules, {'gigacode.search_service': None}):
-                    return CodeEmbeddingTool(work_dir=tmpdir)
+            # Don't mock StateManager - we need real registry management
+            with patch.dict(sys.modules, {'gigacode.search_service': None}):
+                return CodeEmbeddingTool(work_dir=tmpdir)
     
     def test_get_buffer_health_ok(self):
         """Test health status for clean buffer."""
@@ -542,9 +542,9 @@ class TestStateGuardsIntegration:
     def _create_cet(tmpdir):
         """Create a CodeEmbeddingTool with mocked dependencies."""
         with patch('gigacode.gigacode_tool.Embedder'):
-            with patch('gigacode.gigacode_tool.StateManager'):
-                with patch.dict(sys.modules, {'gigacode.search_service': None}):
-                    return CodeEmbeddingTool(work_dir=tmpdir)
+            # Don't mock StateManager - we need real registry management
+            with patch.dict(sys.modules, {'gigacode.search_service': None}):
+                return CodeEmbeddingTool(work_dir=tmpdir)
     
     def test_state_operations_workflow(self):
         """Test complete state operation workflow."""
