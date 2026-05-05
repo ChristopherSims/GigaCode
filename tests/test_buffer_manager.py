@@ -29,12 +29,17 @@ def state_manager(temp_work_dir):
 
 @pytest.fixture
 def buffer_manager(temp_work_dir, state_manager):
-    """Create BufferManager instance."""
+    """Create BufferManager instance with AuditLogger."""
+    from gigacode.audit_logger import AuditLogger
+    
+    audit_logger = AuditLogger(temp_work_dir / "audit.jsonl")
     return BufferManager(
         work_dir=temp_work_dir,
         state_manager=state_manager,
         embedding_dim=384,
         threshold_mb=500.0,
+        audit_logger=audit_logger,
+        user_id="test_user",
     )
 
 
@@ -79,7 +84,8 @@ class TestAuditLogging:
             details={"key": "value"}
         )
         
-        audit_log_path = buffer_manager._audit_log_path
+        # Check that audit logger's log file was created
+        audit_log_path = buffer_manager._audit_logger.log_file
         assert audit_log_path.exists()
         
         lines = audit_log_path.read_text().strip().split("\n")
@@ -88,7 +94,7 @@ class TestAuditLogging:
         entry = json.loads(lines[0])
         assert entry["operation"] == "test_op"
         assert entry["buffer_id"] == "test_id"
-        assert entry["status"] == "ok"
+        assert entry["status"] == "success"
         assert entry["details"]["key"] == "value"
     
     def test_audit_log_handles_errors_gracefully(self, buffer_manager):
@@ -184,7 +190,8 @@ class TestBufferLifecycle:
         
         buffer_manager.delete_buffer("buf1")
         
-        audit_path = buffer_manager._audit_log_path
+        # Check that audit logger wrote an entry
+        audit_path = buffer_manager._audit_logger.log_file
         assert audit_path.exists()
         
         lines = audit_path.read_text().strip().split("\n")

@@ -251,8 +251,8 @@ class TestPhase5bResponseAdapters:
             "status": "ok",
             "clusters": {
                 0: [
-                    {"file": "test.py", "start_line": 10, "end_line": 20},
-                    {"file": "test.py", "start_line": 30, "end_line": 40},
+                    {"file": "test.py", "start_line": 10, "end_line": 20, "score": 0.9},
+                    {"file": "test.py", "start_line": 30, "end_line": 40, "score": 0.8},
                 ]
             },
         }
@@ -262,6 +262,9 @@ class TestPhase5bResponseAdapters:
         assert result["status"] == "ok"
         assert "clusters" in result
         assert isinstance(result["clusters"], list)
+        assert len(result["clusters"]) == 1
+        # Verify avg_score is calculated (not hardcoded to 0.0)
+        assert abs(result["clusters"][0]["avg_score"] - 0.85) < 0.0001  # (0.9 + 0.8) / 2
 
     def test_adapt_duplicate_response(self, cet_with_service):
         """Test duplicate response adaptation."""

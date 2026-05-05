@@ -17,7 +17,10 @@ import shutil
 import time
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gigacode.audit_logger import AuditLogger
 
 from gigacode.buffer_state import BufferState, BufferStateTransition
 from gigacode.chunker import CodeChunk, chunk_file, chunk_text
@@ -57,13 +60,26 @@ class BufferManager:
         state_manager: StateManager,
         embedding_dim: int,
         threshold_mb: float = 500.0,
+        audit_logger: Optional['AuditLogger'] = None,
+        user_id: str = "default",
     ) -> None:
-        """Initialize BufferManager."""
+        """Initialize BufferManager.
+        
+        Args:
+            work_dir: Directory for buffer storage and registry
+            state_manager: StateManager for crash recovery
+            embedding_dim: Embedding dimension for size checks
+            threshold_mb: Size guard threshold in MB
+            audit_logger: Optional AuditLogger for structured operation logging
+            user_id: User ID for audit logging context
+        """
         self.work_dir = Path(work_dir)
         self.work_dir.mkdir(parents=True, exist_ok=True)
         self._state_manager = state_manager
         self._embedding_dim = embedding_dim
         self.threshold_mb = threshold_mb
+        self._audit_logger = audit_logger
+        self._user_id = user_id
         
         # Registry of embedded codebases: buffer_id -> metadata dict
         self._registry_path = self.work_dir / "registry.json"
@@ -72,9 +88,6 @@ class BufferManager:
             if self._registry_path.exists()
             else {}
         )
-        
-        # Audit log: append-only JSON lines file for operation tracking
-        self._audit_log_path = self.work_dir / "audit.jsonl"
         
         # Snapshot managers: buffer_id -> SnapshotManager (one per buffer)
         self._snapshot_managers: dict[str, SnapshotManager] = {}
@@ -89,26 +102,41 @@ class BufferManager:
         status: str = "ok",
         details: dict[str, Any] | None = None,
     ) -> None:
-        """Log an audit entry to the audit trail.
+        """Log an operation to the audit logger.
+        
+        Delegates to AuditLogger if available; otherwise skips (minimal footprint).
         
         Args:
-            operation: Operation name (e.g., 'embed_codebase', 'write_code').
-            buffer_id: Buffer ID associated with operation.
-            status: Status (e.g., 'ok', 'error', 'conflict').
-            details: Additional operation-specific metadata.
+            operation: Operation name (e.g., 'embed_codebase', 'write_code')
+            buffer_id: Buffer ID associated with operation
+            status: Status (e.g., 'ok', 'error', 'conflict')
+            details: Additional operation-specific metadata
         """
+        if not self._audit_logger:
+            return
+        
         try:
-            entry = {
-                "timestamp": time.time(),
-                "operation": operation,
-                "buffer_id": buffer_id,
-                "status": status,
-            }
-            if details:
-                entry["details"] = details
+            # Map status to AuditStatus
+            from gigacode.audit_logger import AuditStatus
             
-            with self._audit_log_path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(entry) + "\n")
+            if status == "error":
+                error_msg = details.get("error", "Unknown error") if details else "Unknown error"
+                self._audit_logger.log_failure(
+                    operation=operation,
+                    user_id=self._user_id,
+                    role="AGENT",  # BufferManager operations run as AGENT
+                    error_message=error_msg,
+                    buffer_id=buffer_id,
+                    details=details or {},
+                )
+            else:
+                self._audit_logger.log_success(
+                    operation=operation,
+                    user_id=self._user_id,
+                    role="AGENT",
+                    buffer_id=buffer_id,
+                    details=details or {},
+                )
         except Exception as exc:
             json_logger.warning(
                 operation='audit_log',
@@ -974,3 +1002,84 @@ class BufferManager:
                 }
         
         return {"status": "ok", "rebuilt": False}
+    
+    def embed_file_with_streaming(
+        self,
+        file_path: str | Path,
+        language_hint: str | None = None,
+        streaming_threshold_mb: int = 50,
+    ) -> list[CodeChunk]:
+        """Chunk a file using streaming for large files.
+        
+        Automatically detects large files and uses streaming to avoid OOM.
+        For small files, uses standard chunking.
+        
+        Args:
+            file_path: Path to file to chunk
+            language_hint: Programming language hint for chunking
+            streaming_threshold_mb: Size threshold for streaming (default 50MB)
+        
+        Returns:
+            List of CodeChunk objects
+        """
+        from gigacode.streaming_support import StreamingChunker, supports_streaming
+        
+        file_path = Path(file_path)
+        file_size = file_path.stat().st_size if file_path.exists() else 0
+        
+        # For small files, use standard chunking
+        if not supports_streaming(file_size, threshold_mb=streaming_threshold_mb):
+            try:
+                return chunk_file(file_path, language_hint=language_hint)
+            except Exception as e:
+                json_logger.warning(
+                    operation='embed_file_with_streaming',
+                    message=f'Failed to chunk {file_path}: {e}',
+                )
+                return []
+        
+        # For large files, use streaming
+        json_logger.info(
+            operation='embed_file_with_streaming',
+            message=f'Using streaming for {file_size / 1024 / 1024:.1f}MB file',
+            file=str(file_path),
+        )
+        
+        chunker = StreamingChunker(
+            max_chunk_bytes=1024 * 1024,  # 1MB chunks
+            language=language_hint or "python",
+        )
+        
+        all_chunks: list[CodeChunk] = []
+        
+        def process_chunk(content: str, start_line: int, end_line: int) -> None:
+            """Process a file chunk using standard chunking."""
+            try:
+                chunks = chunk_text(
+                    content,
+                    file_path=str(file_path),
+                    language_hint=language_hint,
+                    line_offset=start_line - 1,
+                )
+                for chunk in chunks:
+                    all_chunks.append(chunk)
+            except Exception as e:
+                json_logger.warning(
+                    operation='embed_file_with_streaming',
+                    message=f'Failed to chunk text block {start_line}-{end_line}: {e}',
+                )
+        
+        try:
+            chunker.stream_chunks(str(file_path), process_chunk)
+        except Exception as e:
+            json_logger.error(
+                operation='embed_file_with_streaming',
+                message=f'Streaming failed for {file_path}: {e}',
+            )
+            # Fall back to standard chunking
+            try:
+                return chunk_file(file_path, language_hint=language_hint)
+            except Exception:
+                return []
+        
+        return all_chunks

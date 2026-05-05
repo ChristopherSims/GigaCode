@@ -1,0 +1,292 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Services &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Contributing" href="../contributing.html" />
+    <link rel="prev" title="Managers" href="managers.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Services</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-services">Core Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#phase-3-integration">Phase 3 Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Services</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-services">Core Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#phase-3-integration">Phase 3 Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Services</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/services.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="services">
+<h1>Services<a class="headerlink" href="#services" title="Link to this heading"></a></h1>
+<p>Service classes for search, duplicate detection, and language detection.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>Services provide higher-level functionality:</p>
+<ul class="simple">
+<li><p><strong>SearchService</strong>: All search operations (semantic, lexical, hybrid)</p></li>
+<li><p><strong>DuplicateDetector</strong>: Find and cluster similar code</p></li>
+<li><p><strong>HybridSearcher</strong>: Combined semantic + lexical search</p></li>
+<li><p><strong>LanguageDetector</strong>: Detect programming language</p></li>
+</ul>
+</section>
+<section id="core-services">
+<h2>Core Services<a class="headerlink" href="#core-services" title="Link to this heading"></a></h2>
+<p><strong>SearchService</strong> (<code class="docutils literal notranslate"><span class="pre">search_service.py</span></code>)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.search_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">SearchService</span>
+
+<span class="n">service</span> <span class="o">=</span> <span class="n">SearchService</span><span class="p">(</span>
+    <span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span><span class="p">,</span>
+    <span class="n">index_manager</span><span class="o">=</span><span class="n">index_manager</span>
+<span class="p">)</span>
+
+<span class="c1"># Semantic search</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find database operations&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span>
+<span class="p">)</span>
+
+<span class="c1"># Lexical search</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">lexical_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;def connect&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span>
+<span class="p">)</span>
+
+<span class="c1"># Hybrid search</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">hybrid_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;database operations&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">semantic_weight</span><span class="o">=</span><span class="mf">0.7</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>DuplicateDetector</strong> (<code class="docutils literal notranslate"><span class="pre">duplicate_detector.py</span></code>)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.duplicate_detector</span><span class="w"> </span><span class="kn">import</span> <span class="n">DuplicateDetector</span>
+
+<span class="n">detector</span> <span class="o">=</span> <span class="n">DuplicateDetector</span><span class="p">()</span>
+
+<span class="c1"># Find duplicates</span>
+<span class="n">duplicates</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">find_duplicates</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.95</span>
+<span class="p">)</span>
+
+<span class="c1"># Cluster similar code</span>
+<span class="n">clusters</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">cluster_code</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">n_clusters</span><span class="o">=</span><span class="mi">10</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>LanguageDetector</strong> (<code class="docutils literal notranslate"><span class="pre">language_detect.py</span></code>)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.language_detect</span><span class="w"> </span><span class="kn">import</span> <span class="n">LanguageDetector</span>
+
+<span class="n">detector</span> <span class="o">=</span> <span class="n">LanguageDetector</span><span class="p">()</span>
+
+<span class="c1"># Detect language</span>
+<span class="n">language</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">detect</span><span class="p">(</span><span class="n">file_path</span><span class="o">=</span><span class="s2">&quot;example.py&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Language: </span><span class="si">{</span><span class="n">language</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># &quot;python&quot;</span>
+
+<span class="c1"># Get language for extension</span>
+<span class="n">language</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">get_language_for_extension</span><span class="p">(</span><span class="s2">&quot;.py&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Language: </span><span class="si">{</span><span class="n">language</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># &quot;python&quot;</span>
+</pre></div>
+</div>
+<p><strong>HybridSearcher</strong> (<code class="docutils literal notranslate"><span class="pre">hybrid_search.py</span></code>)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.hybrid_search</span><span class="w"> </span><span class="kn">import</span> <span class="n">HybridSearcher</span>
+
+<span class="n">searcher</span> <span class="o">=</span> <span class="n">HybridSearcher</span><span class="p">(</span>
+    <span class="n">semantic_search_fn</span><span class="o">=</span><span class="n">service</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">,</span>
+    <span class="n">lexical_search_fn</span><span class="o">=</span><span class="n">service</span><span class="o">.</span><span class="n">lexical_search</span>
+<span class="p">)</span>
+
+<span class="c1"># Combine results</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">searcher</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find error handling&quot;</span><span class="p">,</span>
+    <span class="n">semantic_weight</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
+    <span class="n">lexical_weight</span><span class="o">=</span><span class="mf">0.4</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="phase-3-integration">
+<h2>Phase 3 Integration<a class="headerlink" href="#phase-3-integration" title="Link to this heading"></a></h2>
+<p><strong>SearchService</strong> integrates Phase 3 optimizations:</p>
+<ol class="arabic simple">
+<li><p><strong>SemanticQueryCache</strong>: Automatic query caching</p></li>
+<li><p><strong>FAISS Optimization</strong>: Auto-selected index types</p></li>
+</ol>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">service</span> <span class="o">=</span> <span class="n">SearchService</span><span class="p">(</span>
+    <span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span><span class="p">,</span>
+    <span class="n">index_manager</span><span class="o">=</span><span class="n">index_manager</span><span class="p">,</span>
+    <span class="n">semantic_cache_max_entries</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+    <span class="n">semantic_cache_threshold</span><span class="o">=</span><span class="mf">0.95</span>
+<span class="p">)</span>
+
+<span class="c1"># First search: computes embedding</span>
+<span class="c1"># Subsequent similar searches: cached (100x faster)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
+<p>Services are automatically configured by CodeEmbeddingTool, but you can customize:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.search_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">SearchService</span>
+
+<span class="n">service</span> <span class="o">=</span> <span class="n">SearchService</span><span class="p">(</span>
+    <span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span><span class="p">,</span>
+    <span class="n">index_manager</span><span class="o">=</span><span class="n">index_manager</span><span class="p">,</span>
+    <span class="n">semantic_cache_max_entries</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+    <span class="n">semantic_cache_threshold</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
+    <span class="n">use_gpu</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="search_service.html"><span class="doc">Search Service</span></a> - Detailed SearchService docs</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.duplicate_detector.DuplicateDetector</span></code> - Duplicate detection</p></li>
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.language_detect.LanguageDetector</span></code> - Language detection</p></li>
+<li><p><a class="reference internal" href="../tutorials/search_workflows.html"><span class="doc">Search Workflows</span></a> - Search examples</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="managers.html" class="btn btn-neutral float-left" title="Managers" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../contributing.html" class="btn btn-neutral float-right" title="Contributing" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

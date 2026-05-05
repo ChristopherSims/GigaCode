@@ -1,0 +1,1256 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gigacode.buffer_manager &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gigacode.buffer_manager</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gigacode.buffer_manager</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Buffer management layer for CodeEmbeddingTool.</span>
+
+<span class="sd">Handles:</span>
+<span class="sd">- Buffer registry (metadata for embedded codebases)</span>
+<span class="sd">- Buffer lifecycle (embed, reload, delete)</span>
+<span class="sd">- Snapshot management (external change detection, 3-way merge)</span>
+<span class="sd">- File read/write/commit operations</span>
+<span class="sd">- Audit logging</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.audit_logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">AuditLogger</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.buffer_state</span><span class="w"> </span><span class="kn">import</span> <span class="n">BufferState</span><span class="p">,</span> <span class="n">BufferStateTransition</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.chunker</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeChunk</span><span class="p">,</span> <span class="n">chunk_file</span><span class="p">,</span> <span class="n">chunk_text</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.json_logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">StructuredJsonLogger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.lexical_index</span><span class="w"> </span><span class="kn">import</span> <span class="n">LexicalIndex</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.metadata_store</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_metadata</span><span class="p">,</span> <span class="n">save_metadata</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.size_guard</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_size</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.snapshot_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">SnapshotManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.state_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">StateManager</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">json_logger</span> <span class="o">=</span> <span class="n">StructuredJsonLogger</span><span class="p">(</span><span class="s1">&#39;buffer_manager&#39;</span><span class="p">)</span>
+
+<span class="n">_MAX_DIRTY_BEFORE_AUTO_REBUILD</span> <span class="o">=</span> <span class="mi">3</span>
+
+
+<div class="viewcode-block" id="BufferManager">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BufferManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Manages buffer registry, persistence, and file I/O operations.</span>
+<span class="sd">    </span>
+<span class="sd">    Responsibilities:</span>
+<span class="sd">    - Maintain registry of embedded codebases</span>
+<span class="sd">    - Manage buffer lifecycle (create, reload, delete)</span>
+<span class="sd">    - Handle file read/write/commit with 3-way merge</span>
+<span class="sd">    - Snapshot management for change detection</span>
+<span class="sd">    - Audit logging for compliance</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        work_dir: Directory where buffers and registry are persisted.</span>
+<span class="sd">        state_manager: StateManager for crash recovery and transactions.</span>
+<span class="sd">        embedding_dim: Dimension of embeddings (for size checks).</span>
+<span class="sd">        threshold_mb: Size-guard threshold in megabytes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+<div class="viewcode-block" id="BufferManager.__init__">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">work_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">state_manager</span><span class="p">:</span> <span class="n">StateManager</span><span class="p">,</span>
+        <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">threshold_mb</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">500.0</span><span class="p">,</span>
+        <span class="n">audit_logger</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="s1">&#39;AuditLogger&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">user_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize BufferManager.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            work_dir: Directory for buffer storage and registry</span>
+<span class="sd">            state_manager: StateManager for crash recovery</span>
+<span class="sd">            embedding_dim: Embedding dimension for size checks</span>
+<span class="sd">            threshold_mb: Size guard threshold in MB</span>
+<span class="sd">            audit_logger: Optional AuditLogger for structured operation logging</span>
+<span class="sd">            user_id: User ID for audit logging context</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">work_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state_manager</span> <span class="o">=</span> <span class="n">state_manager</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_embedding_dim</span> <span class="o">=</span> <span class="n">embedding_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threshold_mb</span> <span class="o">=</span> <span class="n">threshold_mb</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_audit_logger</span> <span class="o">=</span> <span class="n">audit_logger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_user_id</span> <span class="o">=</span> <span class="n">user_id</span>
+        
+        <span class="c1"># Registry of embedded codebases: buffer_id -&gt; metadata dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">/</span> <span class="s2">&quot;registry.json&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry_path</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span>
+            <span class="k">else</span> <span class="p">{}</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Snapshot managers: buffer_id -&gt; SnapshotManager (one per buffer)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_managers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">SnapshotManager</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span></div>
+
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Audit logging</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_audit_log</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">status</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+        <span class="n">details</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Log an operation to the audit logger.</span>
+<span class="sd">        </span>
+<span class="sd">        Delegates to AuditLogger if available; otherwise skips (minimal footprint).</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            operation: Operation name (e.g., &#39;embed_codebase&#39;, &#39;write_code&#39;)</span>
+<span class="sd">            buffer_id: Buffer ID associated with operation</span>
+<span class="sd">            status: Status (e.g., &#39;ok&#39;, &#39;error&#39;, &#39;conflict&#39;)</span>
+<span class="sd">            details: Additional operation-specific metadata</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_audit_logger</span><span class="p">:</span>
+            <span class="k">return</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Map status to AuditStatus</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.audit_logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">AuditStatus</span>
+            
+            <span class="k">if</span> <span class="n">status</span> <span class="o">==</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span>
+                <span class="n">error_msg</span> <span class="o">=</span> <span class="n">details</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;Unknown error&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">details</span> <span class="k">else</span> <span class="s2">&quot;Unknown error&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_audit_logger</span><span class="o">.</span><span class="n">log_failure</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="n">operation</span><span class="p">,</span>
+                    <span class="n">user_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_user_id</span><span class="p">,</span>
+                    <span class="n">role</span><span class="o">=</span><span class="s2">&quot;AGENT&quot;</span><span class="p">,</span>  <span class="c1"># BufferManager operations run as AGENT</span>
+                    <span class="n">error_message</span><span class="o">=</span><span class="n">error_msg</span><span class="p">,</span>
+                    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                    <span class="n">details</span><span class="o">=</span><span class="n">details</span> <span class="ow">or</span> <span class="p">{},</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_audit_logger</span><span class="o">.</span><span class="n">log_success</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="n">operation</span><span class="p">,</span>
+                    <span class="n">user_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_user_id</span><span class="p">,</span>
+                    <span class="n">role</span><span class="o">=</span><span class="s2">&quot;AGENT&quot;</span><span class="p">,</span>
+                    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                    <span class="n">details</span><span class="o">=</span><span class="n">details</span> <span class="ow">or</span> <span class="p">{},</span>
+                <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;audit_log&#39;</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="s1">&#39;error&#39;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Could not write audit log: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="p">)</span>
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Registry helpers</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_buffer_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get buffer metadata from registry.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_snapshot_manager</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SnapshotManager</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get or load SnapshotManager for a buffer.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">buffer_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_managers</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_managers</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span>
+        
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">info</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="n">buffer_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;buffer_dir&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="c1"># Load snapshot manager from disk</span>
+        <span class="n">snapshot_mgr</span> <span class="o">=</span> <span class="n">SnapshotManager</span><span class="p">(</span><span class="n">buffer_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_managers</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">snapshot_mgr</span>
+        <span class="k">return</span> <span class="n">snapshot_mgr</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_save_registry</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Atomically save registry to disk.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">temp_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">.tmp&quot;</span>
+            <span class="n">temp_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+                <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span>
+            <span class="p">)</span>
+            <span class="n">temp_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_registry_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to save registry: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span>
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Buffer state machine management</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_buffer_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">BufferState</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get current buffer state.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Current BufferState (defaults to READY if not set)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">info</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">state_str</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;state&quot;</span><span class="p">,</span> <span class="n">BufferState</span><span class="o">.</span><span class="n">READY</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">BufferState</span><span class="p">(</span><span class="n">state_str</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_buffer_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">new_state</span><span class="p">:</span> <span class="n">BufferState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set buffer state with validation.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID</span>
+<span class="sd">            new_state: Desired new state</span>
+<span class="sd">            </span>
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If state transition is invalid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">info</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">current_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_state</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        
+        <span class="c1"># Validate transition</span>
+        <span class="n">BufferStateTransition</span><span class="o">.</span><span class="n">validate_or_raise</span><span class="p">(</span><span class="n">current_state</span><span class="p">,</span> <span class="n">new_state</span><span class="p">)</span>
+        
+        <span class="c1"># Update state and timestamp</span>
+        <span class="n">info</span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_state</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">info</span><span class="p">[</span><span class="s2">&quot;state_changed_at&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_registry</span><span class="p">()</span>
+        
+        <span class="c1"># Log state change</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_audit_log</span><span class="p">(</span>
+            <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;state_transition&quot;</span><span class="p">,</span>
+            <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;from_state&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">current_state</span><span class="p">),</span>
+                <span class="s2">&quot;to_state&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">new_state</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_buffer_dirty</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if buffer has dirty files.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            True if buffer has dirty files</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">info</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        
+        <span class="n">dirty_files</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dirty_files&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">dirty_files</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_source_snapshot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load source code snapshot from disk.&quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">info</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="n">snapshot_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;buffer_dir&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="s2">&quot;source_snapshot.json&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">snapshot_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">snapshot_path</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load source snapshot: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_save_source_snapshot</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">snapshot</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save source code snapshot to disk.&quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">info</span><span class="p">:</span>
+            <span class="k">return</span>
+        
+        <span class="n">snapshot_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;buffer_dir&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="s2">&quot;source_snapshot.json&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">snapshot_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span> <span class="s2">&quot;:&quot;</span><span class="p">)),</span>
+                <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to save source snapshot: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Buffer lifecycle</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+<div class="viewcode-block" id="BufferManager.embed_codebase">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.embed_codebase">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">embed_codebase</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">language_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;*.py&quot;</span><span class="p">,</span>
+        <span class="n">sliding_window_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="n">Path</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Embed a codebase and return buffer_id, chunks, and file list.</span>
+<span class="sd">        </span>
+<span class="sd">        This method handles chunking and basic validation, but delegates</span>
+<span class="sd">        actual index/embedding to IndexManager.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            (buffer_id, chunks, files) - Use to pass to IndexManager</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">]</span> <span class="k">if</span> <span class="n">root</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span> <span class="k">else</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">root</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="n">pattern</span><span class="p">))</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No files matched &#39;</span><span class="si">{</span><span class="n">pattern</span><span class="si">}</span><span class="s2">&#39; in </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Size-guard check</span>
+        <span class="n">preflight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_codebase</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">pattern</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">preflight</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;exceeds_threshold&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Codebase too large (</span><span class="si">{</span><span class="n">preflight</span><span class="p">[</span><span class="s1">&#39;estimated_mb&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MB &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;exceeds threshold </span><span class="si">{</span><span class="n">preflight</span><span class="p">[</span><span class="s1">&#39;threshold_mb&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MB)&quot;</span>
+            <span class="p">)</span>
+        
+        <span class="c1"># Chunk all files</span>
+        <span class="n">all_chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">file_chunks_map</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">chunks</span> <span class="o">=</span> <span class="n">chunk_file</span><span class="p">(</span>
+                    <span class="n">f</span><span class="p">,</span>
+                    <span class="n">language_hint</span><span class="o">=</span><span class="n">language_hint</span><span class="p">,</span>
+                    <span class="n">sliding_window_size</span><span class="o">=</span><span class="n">sliding_window_size</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;chunk_file&#39;</span><span class="p">,</span>
+                    <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to chunk </span><span class="si">{</span><span class="n">f</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+            
+            <span class="n">rel</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">root</span><span class="p">))</span>
+            <span class="n">file_chunks_map</span><span class="p">[</span><span class="n">rel</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">ch</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+                <span class="n">ch</span><span class="o">.</span><span class="n">file</span> <span class="o">=</span> <span class="n">rel</span>
+                <span class="n">file_chunks_map</span><span class="p">[</span><span class="n">rel</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">all_chunks</span><span class="p">))</span>
+                <span class="n">all_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">all_chunks</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No chunks extracted from input files.&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Size check</span>
+        <span class="n">token_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_chunks</span><span class="p">)</span>
+        <span class="n">size_check</span> <span class="o">=</span> <span class="n">check_size</span><span class="p">(</span><span class="n">token_count</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_embedding_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_mb</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">size_check</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;exceeds_threshold&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Codebase too large (</span><span class="si">{</span><span class="n">size_check</span><span class="p">[</span><span class="s1">&#39;estimated_mb&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MB &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;exceeds threshold </span><span class="si">{</span><span class="n">size_check</span><span class="p">[</span><span class="s1">&#39;threshold_mb&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MB)&quot;</span>
+            <span class="p">)</span>
+        
+        <span class="c1"># Create buffer directory and register</span>
+        <span class="n">buffer_id</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+        <span class="n">buffer_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">.gcbuff&quot;</span>
+        <span class="n">buffer_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        
+        <span class="c1"># Create snapshot</span>
+        <span class="n">snapshot_mgr</span> <span class="o">=</span> <span class="n">SnapshotManager</span><span class="p">(</span><span class="n">buffer_dir</span><span class="p">)</span>
+        <span class="n">files_dict</span> <span class="o">=</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">relative_to</span><span class="p">(</span><span class="n">root</span><span class="p">)):</span> <span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">}</span>
+        <span class="n">manifest</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">create_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">files_dict</span><span class="p">)</span>
+        
+        <span class="c1"># Create source snapshot</span>
+        <span class="n">source_snapshot</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">rel_path</span><span class="p">,</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">files_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">source_snapshot</span><span class="p">[</span><span class="n">rel_path</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+        
+        <span class="n">snapshot_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;source_snapshot.json&quot;</span>
+        <span class="n">snapshot_path</span><span class="o">.</span><span class="n">write_bytes</span><span class="p">(</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">source_snapshot</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span> <span class="s2">&quot;:&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Get file hashes</span>
+        <span class="n">file_hashes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">rel_path</span><span class="p">:</span> <span class="n">meta</span><span class="o">.</span><span class="n">hash</span>
+            <span class="k">for</span> <span class="n">rel_path</span><span class="p">,</span> <span class="n">meta</span> <span class="ow">in</span> <span class="n">manifest</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">}</span>
+        
+        <span class="c1"># Register buffer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;root&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">root</span><span class="p">),</span>
+            <span class="s2">&quot;buffer_dir&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">buffer_dir</span><span class="p">),</span>
+            <span class="s2">&quot;chunk_count&quot;</span><span class="p">:</span> <span class="n">token_count</span><span class="p">,</span>
+            <span class="s2">&quot;embedding_dim&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_embedding_dim</span><span class="p">,</span>
+            <span class="s2">&quot;size_bytes&quot;</span><span class="p">:</span> <span class="n">token_count</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_embedding_dim</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span>
+            <span class="s2">&quot;file_hashes&quot;</span><span class="p">:</span> <span class="n">file_hashes</span><span class="p">,</span>
+            <span class="s2">&quot;pattern&quot;</span><span class="p">:</span> <span class="n">pattern</span><span class="p">,</span>
+            <span class="s2">&quot;language_hint&quot;</span><span class="p">:</span> <span class="n">language_hint</span><span class="p">,</span>
+            <span class="s2">&quot;sliding_window_size&quot;</span><span class="p">:</span> <span class="n">sliding_window_size</span><span class="p">,</span>
+            <span class="s2">&quot;dirty_files&quot;</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s2">&quot;state&quot;</span><span class="p">:</span> <span class="n">BufferState</span><span class="o">.</span><span class="n">READY</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>
+            <span class="s2">&quot;state_changed_at&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span>
+        <span class="p">}</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_managers</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">snapshot_mgr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_registry</span><span class="p">()</span>
+        
+        <span class="k">return</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">all_chunks</span><span class="p">,</span> <span class="n">files</span></div>
+
+    
+<div class="viewcode-block" id="BufferManager.check_codebase">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.check_codebase">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_codebase</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;*.py&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if codebase is within size threshold.&quot;&quot;&quot;</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">]</span> <span class="k">if</span> <span class="n">root</span><span class="o">.</span><span class="n">is_file</span><span class="p">()</span> <span class="k">else</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">root</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="n">pattern</span><span class="p">))</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;file_count&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s2">&quot;estimated_mb&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s2">&quot;threshold_mb&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_mb</span><span class="p">,</span>
+            <span class="p">}</span>
+        
+        <span class="c1"># Rough estimate: average source file is ~10KB</span>
+        <span class="n">total_size_bytes</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">is_file</span><span class="p">())</span>
+        <span class="n">total_size_mb</span> <span class="o">=</span> <span class="n">total_size_bytes</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">/</span> <span class="mi">1024</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;exceeds_threshold&quot;</span> <span class="k">if</span> <span class="n">total_size_mb</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_mb</span> <span class="k">else</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;file_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">),</span>
+            <span class="s2">&quot;estimated_mb&quot;</span><span class="p">:</span> <span class="n">total_size_mb</span><span class="p">,</span>
+            <span class="s2">&quot;threshold_mb&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold_mb</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="BufferManager.list_buffers">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.list_buffers">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_buffers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;List all registered buffers.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;buffers&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">bid</span><span class="p">,</span> <span class="o">**</span><span class="n">info</span><span class="p">}</span> <span class="k">for</span> <span class="n">bid</span><span class="p">,</span> <span class="n">info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">items</span><span class="p">()],</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="BufferManager.delete_buffer">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.delete_buffer">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delete a buffer and its data.&quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_registry</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_snapshot_managers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;buffer_dir&quot;</span><span class="p">],</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_audit_log</span><span class="p">(</span>
+            <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;delete_buffer&quot;</span><span class="p">,</span>
+            <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="s2">&quot;ok&quot;</span>
+        <span class="p">)</span>
+        
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Deleted buffer </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span></div>
+
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Read/Write/Commit operations</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+<div class="viewcode-block" id="BufferManager.read_code">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.read_code">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_code</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">start_line</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">end_line</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read file contents from buffer.&quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+        
+        <span class="n">snapshot_mgr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_snapshot_manager</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot_mgr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Snapshot not available.&quot;</span><span class="p">}</span>
+        
+        <span class="k">if</span> <span class="n">file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">file</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">manifest</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;File not in buffer: </span><span class="si">{</span><span class="n">file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+            
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">read_lines</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">lines</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Failed to read file: </span><span class="si">{</span><span class="n">file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+            
+            <span class="n">end</span> <span class="o">=</span> <span class="n">end_line</span> <span class="k">if</span> <span class="n">end_line</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">selected</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">start_line</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span><span class="n">end</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">file</span><span class="p">,</span>
+                <span class="s2">&quot;start_line&quot;</span><span class="p">:</span> <span class="n">start_line</span><span class="p">,</span>
+                <span class="s2">&quot;end_line&quot;</span><span class="p">:</span> <span class="n">end</span><span class="p">,</span>
+                <span class="s2">&quot;lines&quot;</span><span class="p">:</span> <span class="n">selected</span><span class="p">,</span>
+            <span class="p">}</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">_audit_log</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;read_code&quot;</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                <span class="n">details</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">file</span><span class="p">,</span>
+                    <span class="s2">&quot;start_line&quot;</span><span class="p">:</span> <span class="n">start_line</span><span class="p">,</span>
+                    <span class="s2">&quot;end_line&quot;</span><span class="p">:</span> <span class="n">end</span><span class="p">,</span>
+                    <span class="s2">&quot;lines_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">selected</span><span class="p">),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            
+            <span class="k">return</span> <span class="n">result</span>
+        
+        <span class="c1"># Read all files</span>
+        <span class="n">result_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">manifest</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">read_lines</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">lines</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;read_code&#39;</span><span class="p">,</span>
+                    <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to read file </span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">end</span> <span class="o">=</span> <span class="n">end_line</span> <span class="k">if</span> <span class="n">end_line</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">result_dict</span><span class="p">[</span><span class="n">fname</span><span class="p">]</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">start_line</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span><span class="n">end</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        
+        <span class="n">final_result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;files&quot;</span><span class="p">:</span> <span class="n">result_dict</span><span class="p">}</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_audit_log</span><span class="p">(</span>
+            <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;read_code&quot;</span><span class="p">,</span>
+            <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;files_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">result_dict</span><span class="p">),</span>
+                <span class="s2">&quot;start_line&quot;</span><span class="p">:</span> <span class="n">start_line</span><span class="p">,</span>
+                <span class="s2">&quot;end_line&quot;</span><span class="p">:</span> <span class="n">end_line</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">final_result</span></div>
+
+    
+<div class="viewcode-block" id="BufferManager.write_code">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.write_code">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write_code</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">start_line</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">new_lines</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">end_line</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Write code to buffer (in-memory, not yet committed).&quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+        
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_source_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Source snapshot missing.&quot;</span><span class="p">}</span>
+        <span class="k">if</span> <span class="n">file</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">snapshot</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;File not in buffer: </span><span class="si">{</span><span class="n">file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+        
+        <span class="c1"># Check for conflicts</span>
+        <span class="n">snapshot_mgr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_snapshot_manager</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot_mgr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">current_buffer_lines</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="n">file</span><span class="p">]</span>
+            <span class="n">diff_result</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">compute_diff</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">current_buffer_lines</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;has_conflict&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;conflict&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">file</span><span class="p">,</span>
+                    <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Cannot write to </span><span class="si">{</span><span class="n">file</span><span class="si">}</span><span class="s2">: both disk and buffer have been modified. &quot;</span>
+                        <span class="s2">&quot;Use reload_codebase() to sync with disk.&quot;</span>
+                    <span class="p">),</span>
+                    <span class="s2">&quot;disk_lines&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;disk_lines&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]),</span>
+                    <span class="s2">&quot;buffer_lines&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;buffer_lines&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]),</span>
+                <span class="p">}</span>
+        
+        <span class="c1"># Apply changes</span>
+        <span class="n">old_lines</span> <span class="o">=</span> <span class="n">snapshot</span><span class="p">[</span><span class="n">file</span><span class="p">]</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="n">end_line</span> <span class="k">if</span> <span class="n">end_line</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="n">old_lines</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">sanitized_new_lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n\r</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">new_lines</span><span class="p">]</span>
+        <span class="n">new_file_lines</span> <span class="o">=</span> <span class="n">old_lines</span><span class="p">[:</span><span class="n">start_line</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">sanitized_new_lines</span> <span class="o">+</span> <span class="n">old_lines</span><span class="p">[</span><span class="n">end</span><span class="p">:]</span>
+        <span class="n">snapshot</span><span class="p">[</span><span class="n">file</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_file_lines</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_source_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">)</span>
+        
+        <span class="n">dirty</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;dirty_files&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">dirty</span><span class="p">[</span><span class="n">file</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_registry</span><span class="p">()</span>
+        
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">file</span><span class="p">,</span>
+            <span class="s2">&quot;changed_lines&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">sanitized_new_lines</span><span class="p">),</span>
+            <span class="s2">&quot;replaced_lines&quot;</span><span class="p">:</span> <span class="n">end</span> <span class="o">-</span> <span class="n">start_line</span><span class="p">,</span>
+            <span class="s2">&quot;total_lines&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_file_lines</span><span class="p">),</span>
+        <span class="p">}</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_audit_log</span><span class="p">(</span>
+            <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;write_code&quot;</span><span class="p">,</span>
+            <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">file</span><span class="p">,</span>
+                <span class="s2">&quot;start_line&quot;</span><span class="p">:</span> <span class="n">start_line</span><span class="p">,</span>
+                <span class="s2">&quot;end_line&quot;</span><span class="p">:</span> <span class="n">end</span><span class="p">,</span>
+                <span class="s2">&quot;changed_lines&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">sanitized_new_lines</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">result</span></div>
+
+    
+<div class="viewcode-block" id="BufferManager.commit">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.commit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">commit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">index_manager</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>  <span class="c1"># Avoid circular import</span>
+        <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Commit changes to disk with 3-way merge and crash recovery.&quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+        
+        <span class="n">root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;root&quot;</span><span class="p">])</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_source_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Source snapshot missing.&quot;</span><span class="p">}</span>
+        
+        <span class="n">dirty</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dirty_files&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dirty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;written_files&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                <span class="s2">&quot;conflict_files&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                <span class="s2">&quot;dry_run&quot;</span><span class="p">:</span> <span class="n">dry_run</span><span class="p">,</span>
+                <span class="s2">&quot;transaction_id&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">}</span>
+        
+        <span class="c1"># Begin transaction</span>
+        <span class="n">transaction_id</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dry_run</span><span class="p">:</span>
+            <span class="n">transaction_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state_manager</span><span class="o">.</span><span class="n">start_transaction</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;commit&quot;</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">file_path</span><span class="o">=</span><span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirty</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
+                <span class="n">start_line</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">end_line</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">new_lines</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="p">)</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Rebuild embeddings for dirty files</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">dry_run</span> <span class="ow">and</span> <span class="n">index_manager</span><span class="p">:</span>
+                <span class="n">index_manager</span><span class="o">.</span><span class="n">_rebuild_files</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">dirty</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+            
+            <span class="c1"># Get snapshot manager</span>
+            <span class="n">snapshot_mgr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_snapshot_manager</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">snapshot_mgr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">transaction_id</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_state_manager</span><span class="o">.</span><span class="n">rollback_transaction</span><span class="p">(</span><span class="n">transaction_id</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Snapshot manager not available&quot;</span><span class="p">}</span>
+            
+            <span class="n">written</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">conflicts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">new_hashes</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">updated_files</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            
+            <span class="k">for</span> <span class="n">rel_path</span> <span class="ow">in</span> <span class="n">dirty</span><span class="p">:</span>
+                <span class="n">lines</span> <span class="o">=</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">rel_path</span><span class="p">,</span> <span class="p">[])</span>
+                <span class="n">disk_path</span> <span class="o">=</span> <span class="n">root</span> <span class="o">/</span> <span class="n">rel_path</span>
+                
+                <span class="k">if</span> <span class="n">dry_run</span><span class="p">:</span>
+                    <span class="n">diff_result</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">compute_diff</span><span class="p">(</span><span class="n">rel_path</span><span class="p">,</span> <span class="n">lines</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;has_conflict&quot;</span><span class="p">):</span>
+                        <span class="n">conflicts</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">rel_path</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;3-way merge conflict&quot;</span><span class="p">})</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">written</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rel_path</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">merge_result</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">write_file_with_merge</span><span class="p">(</span><span class="n">rel_path</span><span class="p">,</span> <span class="n">lines</span><span class="p">,</span> <span class="n">allow_conflicts</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    
+                    <span class="k">if</span> <span class="n">merge_result</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;conflict&quot;</span><span class="p">:</span>
+                        <span class="n">diff_result</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">compute_diff</span><span class="p">(</span><span class="n">rel_path</span><span class="p">,</span> <span class="n">lines</span><span class="p">)</span>
+                        <span class="n">conflicts</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                            <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">rel_path</span><span class="p">,</span>
+                            <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;3-way merge conflict&quot;</span><span class="p">,</span>
+                        <span class="p">})</span>
+                    <span class="k">elif</span> <span class="n">merge_result</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ok&quot;</span><span class="p">:</span>
+                        <span class="n">written</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rel_path</span><span class="p">)</span>
+                        <span class="n">updated_files</span><span class="p">[</span><span class="n">rel_path</span><span class="p">]</span> <span class="o">=</span> <span class="n">disk_path</span>
+                        <span class="n">new_hashes</span><span class="p">[</span><span class="n">rel_path</span><span class="p">]</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span>
+                            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+                        <span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">transaction_id</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_state_manager</span><span class="o">.</span><span class="n">rollback_transaction</span><span class="p">(</span><span class="n">transaction_id</span><span class="p">)</span>
+                        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Failed to write </span><span class="si">{</span><span class="n">rel_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">dry_run</span><span class="p">:</span>
+                <span class="n">info</span><span class="p">[</span><span class="s2">&quot;file_hashes&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">new_hashes</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">written</span><span class="p">:</span>
+                    <span class="n">info</span><span class="p">[</span><span class="s2">&quot;dirty_files&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_save_registry</span><span class="p">()</span>
+                
+                <span class="k">if</span> <span class="n">updated_files</span><span class="p">:</span>
+                    <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">update_manifest_after_commit</span><span class="p">(</span><span class="n">updated_files</span><span class="p">)</span>
+                
+                <span class="k">if</span> <span class="n">transaction_id</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_state_manager</span><span class="o">.</span><span class="n">commit_transaction</span><span class="p">(</span><span class="n">transaction_id</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_state_manager</span><span class="o">.</span><span class="n">save_registry</span><span class="p">()</span>
+            
+            <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;conflict&quot;</span> <span class="k">if</span> <span class="n">conflicts</span> <span class="k">else</span> <span class="s2">&quot;ok&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_audit_log</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;commit&quot;</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+                <span class="n">details</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;dry_run&quot;</span><span class="p">:</span> <span class="n">dry_run</span><span class="p">,</span>
+                    <span class="s2">&quot;written_files_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">written</span><span class="p">),</span>
+                    <span class="s2">&quot;conflict_files_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">conflicts</span><span class="p">),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">index_manager</span><span class="p">:</span>
+                <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span>
+                <span class="k">if</span> <span class="n">index_manager</span><span class="o">.</span><span class="n">_prometheus_exporter</span><span class="p">:</span>
+                    <span class="n">index_manager</span><span class="o">.</span><span class="n">_prometheus_exporter</span><span class="o">.</span><span class="n">record_operation</span><span class="p">(</span>
+                        <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;commit&#39;</span><span class="p">,</span>
+                        <span class="n">duration_s</span><span class="o">=</span><span class="n">elapsed</span><span class="p">,</span>
+                        <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+                        <span class="n">chunk_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">written</span><span class="p">),</span>
+                    <span class="p">)</span>
+            
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+                <span class="s2">&quot;written_files&quot;</span><span class="p">:</span> <span class="n">written</span><span class="p">,</span>
+                <span class="s2">&quot;conflict_files&quot;</span><span class="p">:</span> <span class="n">conflicts</span><span class="p">,</span>
+                <span class="s2">&quot;dry_run&quot;</span><span class="p">:</span> <span class="n">dry_run</span><span class="p">,</span>
+                <span class="s2">&quot;transaction_id&quot;</span><span class="p">:</span> <span class="n">transaction_id</span><span class="p">,</span>
+            <span class="p">}</span>
+        
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">transaction_id</span><span class="p">:</span>
+                <span class="n">json_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;commit&#39;</span><span class="p">,</span>
+                    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                    <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Commit failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">; rolling back&#39;</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_state_manager</span><span class="o">.</span><span class="n">rollback_transaction</span><span class="p">(</span><span class="n">transaction_id</span><span class="p">)</span>
+            <span class="k">raise</span></div>
+
+    
+<div class="viewcode-block" id="BufferManager.discard">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.discard">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">discard</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Discard unsaved changes to buffer.&quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+        
+        <span class="c1"># Reload source snapshot from disk</span>
+        <span class="n">buffer_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;buffer_dir&quot;</span><span class="p">])</span>
+        <span class="n">snapshot_mgr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_snapshot_manager</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot_mgr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Snapshot not available&quot;</span><span class="p">}</span>
+        
+        <span class="c1"># Reset dirty files</span>
+        <span class="n">dirty</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dirty_files&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">discarded_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dirty</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        
+        <span class="c1"># Reload snapshot from disk</span>
+        <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">discarded_files</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">read_lines</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">lines</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">source_snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_source_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">source_snapshot</span><span class="p">:</span>
+                    <span class="n">source_snapshot</span><span class="p">[</span><span class="n">fname</span><span class="p">]</span> <span class="o">=</span> <span class="n">lines</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_save_source_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">source_snapshot</span><span class="p">)</span>
+        
+        <span class="n">info</span><span class="p">[</span><span class="s2">&quot;dirty_files&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_registry</span><span class="p">()</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_audit_log</span><span class="p">(</span>
+            <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;discard&quot;</span><span class="p">,</span>
+            <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;discarded_files_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">discarded_files</span><span class="p">)}</span>
+        <span class="p">)</span>
+        
+        <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;discarded_files&quot;</span><span class="p">:</span> <span class="n">discarded_files</span><span class="p">,</span>
+            <span class="s2">&quot;elapsed_s&quot;</span><span class="p">:</span> <span class="n">elapsed</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="BufferManager.diff">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.diff">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">diff</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Show diff between buffer and disk versions.&quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+        
+        <span class="n">snapshot_mgr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_snapshot_manager</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot_mgr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Snapshot not available&quot;</span><span class="p">}</span>
+        
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_source_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Source snapshot missing&quot;</span><span class="p">}</span>
+        
+        <span class="n">diffs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        
+        <span class="k">if</span> <span class="n">file</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">file</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">snapshot</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;File not in buffer: </span><span class="si">{</span><span class="n">file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+            
+            <span class="n">diff_result</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">compute_diff</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">[</span><span class="n">file</span><span class="p">])</span>
+            <span class="n">diffs</span><span class="p">[</span><span class="n">file</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;has_conflict&quot;</span><span class="p">:</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;has_conflict&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                <span class="s2">&quot;added_lines&quot;</span><span class="p">:</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;added_lines&quot;</span><span class="p">,</span> <span class="p">[]),</span>
+                <span class="s2">&quot;removed_lines&quot;</span><span class="p">:</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;removed_lines&quot;</span><span class="p">,</span> <span class="p">[]),</span>
+                <span class="s2">&quot;disk_lines&quot;</span><span class="p">:</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;disk_lines&quot;</span><span class="p">,</span> <span class="p">[]),</span>
+                <span class="s2">&quot;buffer_lines&quot;</span><span class="p">:</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;buffer_lines&quot;</span><span class="p">,</span> <span class="p">[]),</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">snapshot</span><span class="p">:</span>
+                <span class="n">diff_result</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">compute_diff</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">[</span><span class="n">fname</span><span class="p">])</span>
+                <span class="n">diffs</span><span class="p">[</span><span class="n">fname</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;has_conflict&quot;</span><span class="p">:</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;has_conflict&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+                    <span class="s2">&quot;added_lines&quot;</span><span class="p">:</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;added_lines&quot;</span><span class="p">,</span> <span class="p">[]),</span>
+                    <span class="s2">&quot;removed_lines&quot;</span><span class="p">:</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;removed_lines&quot;</span><span class="p">,</span> <span class="p">[]),</span>
+                <span class="p">}</span>
+        
+        <span class="n">has_conflicts</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;has_conflict&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">diffs</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;conflict&quot;</span> <span class="k">if</span> <span class="n">has_conflicts</span> <span class="k">else</span> <span class="s2">&quot;ok&quot;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_audit_log</span><span class="p">(</span>
+            <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;diff&quot;</span><span class="p">,</span>
+            <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+        <span class="p">)</span>
+        
+        <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+            <span class="s2">&quot;diffs&quot;</span><span class="p">:</span> <span class="n">diffs</span><span class="p">,</span>
+            <span class="s2">&quot;has_conflicts&quot;</span><span class="p">:</span> <span class="n">has_conflicts</span><span class="p">,</span>
+            <span class="s2">&quot;elapsed_s&quot;</span><span class="p">:</span> <span class="n">elapsed</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="BufferManager.reload_codebase">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.reload_codebase">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reload_codebase</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">index_manager</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># Avoid circular import</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reload buffer from disk, detecting external changes.</span>
+<span class="sd">        </span>
+<span class="sd">        This performs a 3-way merge if both buffer and disk have changed:</span>
+<span class="sd">        1. Compare disk version with last snapshot</span>
+<span class="sd">        2. Compare buffer version with last snapshot</span>
+<span class="sd">        3. Merge if no conflicts, otherwise report conflict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+        
+        <span class="n">snapshot_mgr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_snapshot_manager</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot_mgr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Snapshot not available&quot;</span><span class="p">}</span>
+        
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_source_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Source snapshot missing&quot;</span><span class="p">}</span>
+        
+        <span class="c1"># Check for external changes</span>
+        <span class="n">diffs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">merge_results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">manifest</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">diff_result</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">compute_diff</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="p">[]))</span>
+            <span class="n">diffs</span><span class="p">[</span><span class="n">fname</span><span class="p">]</span> <span class="o">=</span> <span class="n">diff_result</span>
+            
+            <span class="k">if</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;has_conflict&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="n">merge_results</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">fname</span><span class="p">,</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;conflict&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;3-way merge conflict between disk and buffer changes&quot;</span><span class="p">,</span>
+                <span class="p">})</span>
+            <span class="k">elif</span> <span class="n">diff_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;external_changes&quot;</span><span class="p">):</span>
+                <span class="c1"># Load disk version</span>
+                <span class="n">disk_lines</span> <span class="o">=</span> <span class="n">snapshot_mgr</span><span class="o">.</span><span class="n">read_lines</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">disk_lines</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">snapshot</span><span class="p">[</span><span class="n">fname</span><span class="p">]</span> <span class="o">=</span> <span class="n">disk_lines</span>
+                    <span class="n">merge_results</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                        <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">fname</span><span class="p">,</span>
+                        <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;merged&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Loaded disk version&quot;</span><span class="p">,</span>
+                    <span class="p">})</span>
+        
+        <span class="c1"># Save merged snapshot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_source_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">)</span>
+        
+        <span class="c1"># Clear dirty flags for merged files</span>
+        <span class="n">dirty</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dirty_files&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">merge_results</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;merged&quot;</span><span class="p">:</span>
+                <span class="n">dirty</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;file&quot;</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span>
+        
+        <span class="n">info</span><span class="p">[</span><span class="s2">&quot;dirty_files&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dirty</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_registry</span><span class="p">()</span>
+        
+        <span class="c1"># Rebuild indices if needed</span>
+        <span class="k">if</span> <span class="n">index_manager</span> <span class="ow">and</span> <span class="n">merge_results</span><span class="p">:</span>
+            <span class="n">rebuilt_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;file&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">merge_results</span> <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;merged&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">rebuilt_files</span><span class="p">:</span>
+                <span class="n">index_manager</span><span class="o">.</span><span class="n">_rebuild_files</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">rebuilt_files</span><span class="p">)</span>
+        
+        <span class="n">has_conflicts</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;conflict&quot;</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">merge_results</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;conflict&quot;</span> <span class="k">if</span> <span class="n">has_conflicts</span> <span class="k">else</span> <span class="s2">&quot;ok&quot;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_audit_log</span><span class="p">(</span>
+            <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;reload_codebase&quot;</span><span class="p">,</span>
+            <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+            <span class="n">details</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;merged_files&quot;</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">merge_results</span> <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;merged&quot;</span><span class="p">),</span>
+                <span class="s2">&quot;conflict_files&quot;</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">merge_results</span> <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;conflict&quot;</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">index_manager</span><span class="p">:</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span>
+            <span class="k">if</span> <span class="n">index_manager</span><span class="o">.</span><span class="n">_prometheus_exporter</span><span class="p">:</span>
+                <span class="n">index_manager</span><span class="o">.</span><span class="n">_prometheus_exporter</span><span class="o">.</span><span class="n">record_operation</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;reload_codebase&#39;</span><span class="p">,</span>
+                    <span class="n">duration_s</span><span class="o">=</span><span class="n">elapsed</span><span class="p">,</span>
+                    <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+                <span class="p">)</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+            <span class="s2">&quot;merge_results&quot;</span><span class="p">:</span> <span class="n">merge_results</span><span class="p">,</span>
+            <span class="s2">&quot;elapsed_s&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_rebuild_files</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">embeddings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Rebuild embeddings for specific files (called by IndexManager).</span>
+<span class="sd">        </span>
+<span class="sd">        This is an internal method called by IndexManager after file changes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Unknown buffer_id: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+        
+        <span class="c1"># Update hash for rebuilt files</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_source_snapshot</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">snapshot</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">}</span>
+        
+        <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+            <span class="n">file_hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">content</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+            <span class="n">info</span><span class="p">[</span><span class="s2">&quot;file_hashes&quot;</span><span class="p">][</span><span class="n">fname</span><span class="p">]</span> <span class="o">=</span> <span class="n">file_hash</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save_registry</span><span class="p">()</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;rebuilt_files&quot;</span><span class="p">:</span> <span class="n">files</span><span class="p">,</span>
+        <span class="p">}</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_rebuild_dirty</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">index_manager</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Auto-rebuild dirty files if count exceeds threshold.&quot;&quot;&quot;</span>
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_buffer_info</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;rebuilt&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+        
+        <span class="n">dirty_files</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dirty_files&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dirty_files</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">_MAX_DIRTY_BEFORE_AUTO_REBUILD</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">index_manager</span><span class="p">:</span>
+                <span class="n">index_manager</span><span class="o">.</span><span class="n">_rebuild_files</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">dirty_files</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+                <span class="n">dirty_files</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_save_registry</span><span class="p">()</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;rebuilt&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                    <span class="s2">&quot;rebuilt_files_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">dirty_files</span><span class="p">),</span>
+                <span class="p">}</span>
+        
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;rebuilt&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+    
+<div class="viewcode-block" id="BufferManager.embed_file_with_streaming">
+<a class="viewcode-back" href="../../api/buffer_manager.html#gigacode.buffer_manager.BufferManager.embed_file_with_streaming">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">embed_file_with_streaming</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">language_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">streaming_threshold_mb</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Chunk a file using streaming for large files.</span>
+<span class="sd">        </span>
+<span class="sd">        Automatically detects large files and uses streaming to avoid OOM.</span>
+<span class="sd">        For small files, uses standard chunking.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            file_path: Path to file to chunk</span>
+<span class="sd">            language_hint: Programming language hint for chunking</span>
+<span class="sd">            streaming_threshold_mb: Size threshold for streaming (default 50MB)</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of CodeChunk objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.streaming_support</span><span class="w"> </span><span class="kn">import</span> <span class="n">StreamingChunker</span><span class="p">,</span> <span class="n">supports_streaming</span>
+        
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+        <span class="n">file_size</span> <span class="o">=</span> <span class="n">file_path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span> <span class="k">if</span> <span class="n">file_path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">else</span> <span class="mi">0</span>
+        
+        <span class="c1"># For small files, use standard chunking</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">supports_streaming</span><span class="p">(</span><span class="n">file_size</span><span class="p">,</span> <span class="n">threshold_mb</span><span class="o">=</span><span class="n">streaming_threshold_mb</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">chunk_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">language_hint</span><span class="o">=</span><span class="n">language_hint</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;embed_file_with_streaming&#39;</span><span class="p">,</span>
+                    <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to chunk </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">return</span> <span class="p">[]</span>
+        
+        <span class="c1"># For large files, use streaming</span>
+        <span class="n">json_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;embed_file_with_streaming&#39;</span><span class="p">,</span>
+            <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Using streaming for </span><span class="si">{</span><span class="n">file_size</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="si">:</span><span class="s1">.1f</span><span class="si">}</span><span class="s1">MB file&#39;</span><span class="p">,</span>
+            <span class="n">file</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span>
+        <span class="p">)</span>
+        
+        <span class="n">chunker</span> <span class="o">=</span> <span class="n">StreamingChunker</span><span class="p">(</span>
+            <span class="n">max_chunk_bytes</span><span class="o">=</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span>  <span class="c1"># 1MB chunks</span>
+            <span class="n">language</span><span class="o">=</span><span class="n">language_hint</span> <span class="ow">or</span> <span class="s2">&quot;python&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        
+        <span class="n">all_chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="k">def</span><span class="w"> </span><span class="nf">process_chunk</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">start_line</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">end_line</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Process a file chunk using standard chunking.&quot;&quot;&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">chunks</span> <span class="o">=</span> <span class="n">chunk_text</span><span class="p">(</span>
+                    <span class="n">content</span><span class="p">,</span>
+                    <span class="n">file_path</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span>
+                    <span class="n">language_hint</span><span class="o">=</span><span class="n">language_hint</span><span class="p">,</span>
+                    <span class="n">line_offset</span><span class="o">=</span><span class="n">start_line</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+                    <span class="n">all_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;embed_file_with_streaming&#39;</span><span class="p">,</span>
+                    <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to chunk text block </span><span class="si">{</span><span class="n">start_line</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">end_line</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+                <span class="p">)</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">chunker</span><span class="o">.</span><span class="n">stream_chunks</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span> <span class="n">process_chunk</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;embed_file_with_streaming&#39;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Streaming failed for </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="c1"># Fall back to standard chunking</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">chunk_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">language_hint</span><span class="o">=</span><span class="n">language_hint</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">[]</span>
+        
+        <span class="k">return</span> <span class="n">all_chunks</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

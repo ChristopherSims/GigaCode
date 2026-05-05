@@ -46,20 +46,19 @@ from gigacode.access_control import Role
 
 
 class RateLimitError(Exception):
-    """
-    > Exception thrown when rate limit is exceeded.
-    >
-    > This exception is raised when a user has run out of tokens and
-    > is trying to do too many operations too quickly.
-    >
-    > Attributes:
-    >     retry_after_seconds: How many seconds to wait before trying again
-    >
-    > Example:
-    >     >>> try:
-    >     ...     check_limit(user_id)
-    >     ... except RateLimitError as e:
-    >     ...     print(f"Wait {e.retry_after_seconds} seconds")
+    """Exception thrown when rate limit is exceeded.
+    
+    This exception is raised when a user has run out of tokens and
+    is trying to do too many operations too quickly.
+    
+    Attributes:
+        retry_after_seconds: How many seconds to wait before trying again
+    
+    Example:
+        >>> try:
+        ...     check_limit(user_id)
+        ... except RateLimitError as e:
+        ...     print(f"Wait {e.retry_after_seconds} seconds")
     """
     
     def __init__(self, retry_after_seconds: float):
@@ -69,27 +68,26 @@ class RateLimitError(Exception):
 
 @dataclass
 class TokenBucket:
-    """
-    > A Container of Tokens for Rate Limiting.
-    >
-    > This is like a water bucket that slowly fills up. Each operation costs
-    > one token. As time passes, the bucket is refilled with new tokens.
-    > When the bucket is empty, you have to wait for new tokens to be added.
-    >
-    > Attributes:
-    >     capacity: Maximum tokens the bucket can hold (e.g., 60)
-    >     refill_rate: Tokens added per second (e.g., 1 token/sec = 60/minute)
-    >     tokens: Current tokens in bucket (starts full)
-    >     last_refill: When we last added tokens
-    >
-    > Example:
-    >     >>> bucket = TokenBucket(capacity=60, refill_rate=1.0)
-    >     >>> # Try to use 1 token
-    >     >>> bucket.consume(1)
-    >     True  # Success, 1 token used
-    >     >>> # Check how long until next token
-    >     >>> bucket.time_to_next_token()
-    >     0.5  # Wait 0.5 seconds for next token
+    """A Container of Tokens for Rate Limiting.
+    
+    This is like a water bucket that slowly fills up. Each operation costs
+    one token. As time passes, the bucket is refilled with new tokens.
+    When the bucket is empty, you have to wait for new tokens to be added.
+    
+    Attributes:
+        capacity: Maximum tokens the bucket can hold (e.g., 60)
+        refill_rate: Tokens added per second (e.g., 1 token/sec = 60/minute)
+        tokens: Current tokens in bucket (starts full)
+        last_refill: When we last added tokens
+    
+    Example:
+        >>> bucket = TokenBucket(capacity=60, refill_rate=1.0)
+        >>> # Try to use 1 token
+        >>> bucket.consume(1)
+        True  # Success, 1 token used
+        >>> # Check how long until next token
+        >>> bucket.time_to_next_token()
+        0.5  # Wait 0.5 seconds for next token
     """
     
     capacity: int
@@ -102,17 +100,16 @@ class TokenBucket:
         self.tokens = float(self.capacity)
     
     def _refill(self):
-        """
-        > Add tokens to the bucket based on elapsed time.
-        >
-        > This is called automatically before every operation to calculate
-        > how many new tokens should be added since the last refill.
-        >
-        > How It Works:
-        >     1. Calculate seconds elapsed since last refill
-        >     2. Add (elapsed_seconds * refill_rate) tokens
-        >     3. Cap at maximum capacity so bucket doesn't overflow
-        >     4. Record the refill time for next calculation
+        """Add tokens to the bucket based on elapsed time.
+        
+        This is called automatically before every operation to calculate
+        how many new tokens should be added since the last refill.
+        
+        How It Works:
+            1. Calculate seconds elapsed since last refill
+            2. Add (elapsed_seconds * refill_rate) tokens
+            3. Cap at maximum capacity so bucket doesn't overflow
+            4. Record the refill time for next calculation
         """
         now = time.time()
         elapsed = now - self.last_refill
@@ -120,25 +117,24 @@ class TokenBucket:
         self.last_refill = now
     
     def consume(self, tokens: int = 1) -> bool:
-        """
-        > Try to use tokens from the bucket.
-        >
-        > This checks if there are enough tokens, and if so, removes them.
-        > This is called when the user wants to do an operation.
-        >
-        > Args:
-        >     tokens: How many tokens to use (default: 1 for one operation)
-        >
-        > Returns:
-        >     bool: True if successful (tokens were available and removed),
-        >           False if not enough tokens (operation blocked)
-        >
-        > Example:
-        >     >>> bucket = TokenBucket(capacity=10, refill_rate=1.0)
-        >     >>> bucket.consume()  # Use 1 token
-        >     True
-        >     >>> bucket.consume(20)  # Try to use 20 tokens
-        >     False  # Not enough tokens
+        """Try to use tokens from the bucket.
+        
+        This checks if there are enough tokens, and if so, removes them.
+        This is called when the user wants to do an operation.
+        
+        Args:
+            tokens: How many tokens to use (default: 1 for one operation)
+        
+        Returns:
+            bool: True if successful (tokens were available and removed),
+                  False if not enough tokens (operation blocked)
+        
+        Example:
+            >>> bucket = TokenBucket(capacity=10, refill_rate=1.0)
+            >>> bucket.consume()  # Use 1 token
+            True
+            >>> bucket.consume(20)  # Try to use 20 tokens
+            False  # Not enough tokens
         """
         self._refill()
         
@@ -149,21 +145,20 @@ class TokenBucket:
         return False
     
     def time_to_next_token(self) -> float:
-        """
-        > Calculate how long to wait for the next available token.
-        >
-        > This tells you how many seconds to wait before another token
-        > will be available. Useful for telling users when to retry.
-        >
-        > Returns:
-        >     float: Seconds until next token is available. 0.0 if tokens
-        >            are already available.
-        >
-        > Example:
-        >     >>> bucket = TokenBucket(capacity=60, refill_rate=1.0)
-        >     >>> bucket.consume(60)  # Use all tokens
-        >     >>> bucket.time_to_next_token()
-        >     1.0  # Wait 1 second for next token
+        """Calculate how long to wait for the next available token.
+        
+        This tells you how many seconds to wait before another token
+        will be available. Useful for telling users when to retry.
+        
+        Returns:
+            float: Seconds until next token is available. 0.0 if tokens
+                   are already available.
+        
+        Example:
+            >>> bucket = TokenBucket(capacity=60, refill_rate=1.0)
+            >>> bucket.consume(60)  # Use all tokens
+            >>> bucket.time_to_next_token()
+            1.0  # Wait 1 second for next token
         """
         self._refill()
         
@@ -198,68 +193,60 @@ DEFAULT_LIMITS = {
 
 
 class RateLimiter:
-    """
-    > Rate Limiter Manager - The Gatekeeper of Operations.
-    >
-    > This class manages all the token buckets for all users and all buffers.
-    > It's responsible for checking if someone can do an operation before they
-    > do it. Different users get different rate limits based on their role.
-    >
-    > Rate limits prevent someone from:
-    >     - Running too many queries at once (avoids crashes)
-    >     - Overloading the system with requests
-    >     - Denying service to other users
-    >
-    > Example:
-    >     >>> limiter = RateLimiter()
-    >     >>> allowed, msg = limiter.check_user_limit(
-    >     ...     user_id="alice",
-    >     ...     role=Role.ANALYST
-    >     ... )
-    >     >>> if not allowed:
-    >     ...     print(msg)  # "Wait X seconds before trying again"
-    >
-    > How Limits Work:
-    >     ADMIN gets 300 ops/minute (very fast, can do lots)
-    >     ANALYST gets 60 ops/minute (normal, for regular work)
-    >     READER gets 30 ops/minute (slower, read-only)
-    >     GUEST gets 10 ops/minute (very slow, limited access)
+    """Rate Limiter Manager - The Gatekeeper of Operations.
+    
+    This class manages all the token buckets for all users and all buffers.
+    It's responsible for checking if someone can do an operation before they
+    do it. Different users get different rate limits based on their role.
+    
+    Rate limits prevent someone from:
+        - Running too many queries at once (avoids crashes)
+        - Overloading the system with requests
+        - Denying service to other users
+    
+    Example:
+        >>> limiter = RateLimiter()
+        >>> allowed, msg = limiter.check_user_limit(
+        ...     user_id="alice",
+        ...     role=Role.ANALYST
+        ... )
+        >>> if not allowed:
+        ...     print(msg)  # "Wait X seconds before trying again"
+    
+    How Limits Work:
+        ADMIN gets 300 ops/minute (very fast, can do lots)
+        ANALYST gets 60 ops/minute (normal, for regular work)
+        READER gets 30 ops/minute (slower, read-only)
+        GUEST gets 10 ops/minute (very slow, limited access)
     """
     
     def __init__(self):
-        """
-        > Initialize the Rate Limiter.
-        >
-        > This sets up empty buckets for users and buffers. Buckets are
-        > created on-demand when a user first tries an operation.
+        """Initialize the Rate Limiter.
+        
+        This sets up empty buckets for users and buffers. Buckets are
+        created on-demand when a user first tries an operation.
         """
         self.user_buckets: Dict[str, Dict[str, TokenBucket]] = {}
         self.buffer_buckets: Dict[str, Dict[str, TokenBucket]] = {}
     
     def get_user_limit(self, user_id: str, role: Role, limit_type: str = "operations") -> TokenBucket:
-        """
-        > Get or Create a Token Bucket for a User.
-        >
-        > This finds the user's bucket (or creates it if new). Different
-        > types of operations can have different limits (general ops vs queries).
-        >
-        > Args:
-        >     user_id: Who the limit is for (e.g., "alice@example.com")
-        >     role: User's role, determines their limits
-        >     limit_type: What kind of operation: "operations" or "queries"
-        >
-        > Returns:
-        >     TokenBucket: The user's bucket for this operation type
-        >
-        > Example:
-        >     >>> limiter = RateLimiter()
-        >     >>> bucket = limiter.get_user_limit("alice", Role.ANALYST)
-        >     >>> # alice now has 60 operations/minute limit
-            role: User's role
-            limit_type: "operations" or "queries"
-            
+        """Get or Create a Token Bucket for a User.
+        
+        This finds the user's bucket (or creates it if new). Different
+        types of operations can have different limits (general ops vs queries).
+        
+        Args:
+            user_id: Who the limit is for (e.g., "alice@example.com")
+            role: User's role, determines their limits
+            limit_type: What kind of operation: "operations" or "queries"
+        
         Returns:
-            TokenBucket for this user
+            TokenBucket: The user's bucket for this operation type
+        
+        Example:
+            >>> limiter = RateLimiter()
+            >>> bucket = limiter.get_user_limit("alice", Role.ANALYST)
+            >>> # alice now has 60 operations/minute limit
         """
         if user_id not in self.user_buckets:
             self.user_buckets[user_id] = {}
@@ -312,30 +299,29 @@ class RateLimiter:
         operation_type: str = "operations",
         tokens: int = 1,
     ) -> tuple[bool, Optional[str]]:
-        """
-        > Check if User Has Enough Tokens for an Operation.
-        >
-        > This is the main method you call before allowing a user to do something.
-        > It checks if they have tokens available, and if so, removes them.
-        >
-        > Args:
-        >     user_id: Who is trying to do the operation
-        >     role: Their role (determines their limits)
-        >     operation_type: What kind of operation ("operations" or "queries")
-        >     tokens: How many tokens it costs (default 1)
-        >
-        > Returns:
-        >     tuple: (allowed, error_message)
-        >            - allowed: True if operation is allowed, False if blocked
-        >            - error_message: If blocked, tells user when to retry
-        >
-        > Example:
-        >     >>> allowed, msg = limiter.check_user_limit(
-        >     ...     user_id="alice",
-        >     ...     role=Role.ANALYST,
-        >     ... )
-        >     >>> if not allowed:
-        >     ...     return {"error": msg}  # Tell user to wait
+        """Check if User Has Enough Tokens for an Operation.
+        
+        This is the main method you call before allowing a user to do something.
+        It checks if they have tokens available, and if so, removes them.
+        
+        Args:
+            user_id: Who is trying to do the operation
+            role: Their role (determines their limits)
+            operation_type: What kind of operation ("operations" or "queries")
+            tokens: How many tokens it costs (default 1)
+        
+        Returns:
+            tuple: (allowed, error_message)
+                   - allowed: True if operation is allowed, False if blocked
+                   - error_message: If blocked, tells user when to retry
+        
+        Example:
+            >>> allowed, msg = limiter.check_user_limit(
+            ...     user_id="alice",
+            ...     role=Role.ANALYST,
+            ... )
+            >>> if not allowed:
+            ...     return {"error": msg}  # Tell user to wait
         """
         bucket = self.get_user_limit(user_id, role, operation_type)
         

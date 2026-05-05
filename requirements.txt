@@ -1,46 +1,41 @@
 # Core dependencies for GigaCode GPU-accelerated code embedding
-numpy>=1.24.0
-torch>=2.0.0
-sentence-transformers>=2.2.0
+# Pin minor versions for reproducibility while allowing patch updates
+numpy~=1.24.0
+torch~=2.0.0
+sentence-transformers~=2.2.0
+transformers~=4.37.0
 
-# Vector search — install faiss-gpu for CUDA, faiss-cpu for CPU-only
-# faiss-gpu>=1.8.0
-faiss-cpu>=1.8.0
+# Vector search — install faiss-gpu for CUDA, faiss-cpu for CPU-only (default)
+# For GPU support, run: pip install ".[gpu]" or pip install faiss-gpu~=1.8.0
+faiss-cpu~=1.8.0
 
-# Code parsing
-tree-sitter>=0.22.0
-tree-sitter-python>=0.21.0
+# Code parsing and AST chunking
+tree-sitter~=0.22.0
+tree-sitter-python~=0.21.0
 
-# Multi-language tree-sitter grammars
-tree-sitter-javascript>=0.21.0
-tree-sitter-typescript>=0.21.0
-tree-sitter-rust>=0.21.0
-tree-sitter-cpp>=0.22.0
-tree-sitter-go>=0.21.0
-tree-sitter-java>=0.21.0
-tree-sitter-c>=0.21.0
-
-# Optional extras (uncomment as needed)
-# tree-sitter-ruby
-# tree-sitter-php
-# tree-sitter-c-sharp
-# tree-sitter-swift
-# tree-sitter-kotlin
-# tree-sitter-scala
-# tree-sitter-bash
-# tree-sitter-lua
-# tree-sitter-elixir
+# Multi-language tree-sitter grammars for AST-based chunking
+tree-sitter-javascript~=0.21.0
+tree-sitter-typescript~=0.21.0
+tree-sitter-rust~=0.21.0
+tree-sitter-cpp~=0.22.0
+tree-sitter-go~=0.21.0
+tree-sitter-java~=0.21.0
+tree-sitter-c~=0.21.0
 
 # Server (optional — falls back to stdlib)
-fastapi>=0.110.0
-uvicorn[standard]>=0.29.0
-pydantic>=2.0.0
+fastapi~=0.110.0
+uvicorn[standard]~=0.29.0
+pydantic~=2.0.0
 
 # Optional utilities
-watchdog>=3.0.0
+watchdog~=3.0.0
 
 # MCP (optional)
-mcp>=1.1.0
+mcp~=1.1.0
 
 # Dev / test
-pytest>=7.0.0
+pytest~=7.0.0
+pytest-cov~=4.1.0
+black~=24.1.0
+ruff~=0.2.0
+mypy~=1.8.0

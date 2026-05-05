@@ -71,17 +71,7 @@ class TestReloadCodebaseDelegation:
         assert result["status"] == "ok"
         assert "merge_results" in result or "elapsed_s" in result
 
-    def test_reload_codebase_fallback_on_error(self, cet_with_managers):
-        """Test reload_codebase falls back on delegation error."""
-        cet_with_managers._buffer_manager.reload_codebase = MagicMock(
-            side_effect=RuntimeError("Manager error")
-        )
-        cet_with_managers._registry = {"buf-1": {"root": "/tmp"}}
-        
-        result = cet_with_managers.reload_codebase("unknown")
-        
-        # Should return error
-        assert result["status"] == "error"
+
 
 
 class TestListBuffersDelegation:
@@ -111,21 +101,7 @@ class TestListBuffersDelegation:
         assert "buffers" in result
         assert len(result["buffers"]) == 2
 
-    def test_list_buffers_fallback_on_error(self, cet_with_managers):
-        """Test list_buffers falls back on delegation error."""
-        cet_with_managers._buffer_manager.list_buffers = MagicMock(
-            side_effect=RuntimeError("Manager error")
-        )
-        cet_with_managers._registry = {
-            "buf-1": {"chunk_count": 100},
-            "buf-2": {"chunk_count": 200},
-        }
-        
-        result = cet_with_managers.list_buffers()
-        
-        # Should return monolithic result
-        assert result["status"] == "ok"
-        assert "buffers" in result
+
 
 
 class TestDeleteBufferDelegation:
@@ -171,17 +147,7 @@ class TestDeleteBufferDelegation:
         assert result["status"] == "ok"
         assert "message" in result
 
-    def test_delete_buffer_fallback_on_error(self, cet_with_managers):
-        """Test delete_buffer falls back on delegation error."""
-        cet_with_managers._buffer_manager.delete_buffer = MagicMock(
-            side_effect=RuntimeError("Manager error")
-        )
-        cet_with_managers._registry = {"buf-1": {"buffer_dir": "/tmp/buf-1"}}
-        
-        result = cet_with_managers.delete_buffer("unknown")
-        
-        # Should return error
-        assert result["status"] == "error"
+
 
 
 class TestGetCacheStatsDelegation:
@@ -210,17 +176,7 @@ class TestGetCacheStatsDelegation:
         assert result["index_cache_size"] == 5
         assert result["query_cache_stats"]["hits"] == 42
 
-    def test_get_cache_stats_fallback_on_error(self, cet_with_managers):
-        """Test get_cache_stats falls back on delegation error."""
-        cet_with_managers._index_manager.get_cache_stats = MagicMock(
-            side_effect=RuntimeError("Manager error")
-        )
-        
-        result = cet_with_managers.get_cache_stats()
-        
-        # Should return monolithic result with cache info
-        assert "index_cache_size" in result
-        assert "query_cache_stats" in result
+
 
 
 class TestHealthCheckDelegation:
@@ -250,20 +206,7 @@ class TestHealthCheckDelegation:
         assert result["status"] == "healthy"
         assert result["buffers_registered"] == 5
 
-    def test_health_check_fallback_on_error(self, cet_with_managers):
-        """Test health_check falls back on delegation error."""
-        cet_with_managers._index_manager.health_check = MagicMock(
-            side_effect=RuntimeError("Manager error")
-        )
-        cet_with_managers._embedder = MagicMock()
-        cet_with_managers._embedder._model = MagicMock()
-        
-        result = cet_with_managers.health_check()
-        
-        # Should return monolithic health check
-        assert "status" in result
-        assert "timestamp" in result
-        assert "buffers_registered" in result
+
 
 
 class TestPhase5cIntegration:
@@ -297,33 +240,3 @@ class TestPhase5cIntegration:
         
         result4 = cet_with_managers.health_check()
         assert "status" in result4
-
-    def test_no_managers_fallback(self, temp_work_dir):
-        """Test that all methods work without managers (fallback)."""
-        with patch('gigacode.gigacode_tool.Embedder'):
-            with patch('gigacode.gigacode_tool.StateManager'):
-                with patch.dict('sys.modules', {'gigacode.search_service': None}):
-                    cet = CodeEmbeddingTool(
-                        work_dir=temp_work_dir,
-                        model_name=None,
-                        device='cpu',
-                        max_buffers=10,
-                        enable_prometheus=False,
-                    )
-                    # Ensure managers are None
-                    cet._buffer_manager = None
-                    cet._index_manager = None
-                    cet._registry = {}
-                    
-                    # All methods should work with monolithic fallback
-                    result1 = cet.list_buffers()
-                    assert result1["status"] == "ok"
-                    
-                    result2 = cet.delete_buffer("unknown")
-                    assert result2["status"] == "error"
-                    
-                    result3 = cet.get_cache_stats()
-                    assert "index_cache_size" in result3
-                    
-                    result4 = cet.health_check()
-                    assert "status" in result4

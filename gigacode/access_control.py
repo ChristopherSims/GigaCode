@@ -34,18 +34,17 @@ from typing import Optional, Dict, Set
 
 
 class Role(Enum):
-    """
-    > User Role Categories.
-    >
-    > Each role represents a different level of access. Think of it like job titles:
-    > ADMIN is the manager, AGENT/ANALYST do the work, READER watches, GUEST has minimal access.
-    >
-    > Attributes:
-    >     ADMIN: Can do everything - create, edit, delete, and view audit logs
-    >     AGENT: AI agent role with full operational access (same as ANALYST)
-    >     ANALYST: Can create and edit their own buffers, search, and read code
-    >     READER: Can only search and read code (no writing or creating)
-    >     GUEST: Can search and read code with strict rate limits
+    """User Role Categories.
+    
+    Each role represents a different level of access. Think of it like job titles:
+    ADMIN is the manager, AGENT/ANALYST do the work, READER watches, GUEST has minimal access.
+    
+    Attributes:
+        ADMIN: Can do everything - create, edit, delete, and view audit logs
+        AGENT: AI agent role with full operational access (same as ANALYST)
+        ANALYST: Can create and edit their own buffers, search, and read code
+        READER: Can only search and read code (no writing or creating)
+        GUEST: Can search and read code with strict rate limits
     """
     
     ADMIN = "admin"        # Full access
@@ -56,22 +55,21 @@ class Role(Enum):
 
 
 class Permission(Enum):
-    """
-    > Individual Permissions (Actions You Can Do).
-    >
-    > Each permission represents one specific action. Before you can do any action,
-    > the system checks if your role allows it.
-    >
-    > Common Permissions:
-    >     CREATE_BUFFER: Make a new code buffer
-    >     WRITE_CODE: Modify code in a buffer
-    >     SEARCH: Look for code using search
-    >     DELETE_BUFFER: Remove a buffer
-    >     COMMIT: Save changes to a buffer
-    >
-    > Admin Permissions:
-    >     RELOAD_CODEBASE: Re-read all code files from disk
-    >     VIEW_AUDIT_LOG: See who did what and when
+    """Individual Permissions (Actions You Can Do).
+    
+    Each permission represents one specific action. Before you can do any action,
+    the system checks if your role allows it.
+    
+    Common Permissions:
+        CREATE_BUFFER: Make a new code buffer
+        WRITE_CODE: Modify code in a buffer
+        SEARCH: Look for code using search
+        DELETE_BUFFER: Remove a buffer
+        COMMIT: Save changes to a buffer
+    
+    Admin Permissions:
+        RELOAD_CODEBASE: Re-read all code files from disk
+        VIEW_AUDIT_LOG: See who did what and when
     """
     
     CREATE_BUFFER = "create_buffer"
@@ -135,23 +133,22 @@ PERMISSION_MATRIX: Dict[Role, Set[Permission]] = {
 
 @dataclass
 class User:
-    """
-    > Represents a User with Their Role and Permissions.
-    >
-    > A User is a person who has a specific role. The role determines what
-    > permissions they have. Think of it like a badge that lets them do certain things.
-    >
-    > Attributes:
-    >     user_id (str): Unique identifier for the user (e.g., "alice@example.com")
-    >     role (Role): What type of user they are (ADMIN, ANALYST, READER, GUEST)
-    >     buffer_owner (str): Who owns the buffer (used to check if they can edit it)
-    >
-    > Example:
-    >     >>> analyst = User("alice", Role.ANALYST)
-    >     >>> analyst.has_permission(Permission.SEARCH)
-    >     True  # ANALYST can search
-    >     >>> analyst.has_permission(Permission.DELETE_BUFFER)
-    >     True  # ANALYST can delete (their own buffers)
+    """Represents a User with Their Role and Permissions.
+    
+    A User is a person who has a specific role. The role determines what
+    permissions they have. Think of it like a badge that lets them do certain things.
+    
+    Attributes:
+        user_id (str): Unique identifier for the user (e.g., "alice@example.com")
+        role (Role): What type of user they are (ADMIN, ANALYST, READER, GUEST)
+        buffer_owner (str): Who owns the buffer (used to check if they can edit it)
+    
+    Example:
+        >>> analyst = User("alice", Role.ANALYST)
+        >>> analyst.has_permission(Permission.SEARCH)
+        True  # ANALYST can search
+        >>> analyst.has_permission(Permission.DELETE_BUFFER)
+        True  # ANALYST can delete (their own buffers)
     """
     
     user_id: str
@@ -159,49 +156,47 @@ class User:
     buffer_owner: Optional[str] = None  # For "own buffers only" checks
     
     def has_permission(self, permission: Permission) -> bool:
-        """
-        > Check if this user can do a specific action.
-        >
-        > This looks up the user's role in the permission matrix and checks if
-        > that role is allowed to do the requested action.
-        >
-        > Args:
-        >     permission: The action to check (Permission enum value)
-        >
-        > Returns:
-        >     bool: True if allowed, False if not allowed
-        >
-        > Example:
-        >     >>> user = User("alice", Role.ANALYST)
-        >     >>> user.has_permission(Permission.WRITE_CODE)
-        >     True
-        >     >>> user.has_permission(Permission.VIEW_AUDIT_LOG)
-        >     False  # Only ADMIN can view audit logs
+        """Check if this user can do a specific action.
+        
+        This looks up the user's role in the permission matrix and checks if
+        that role is allowed to do the requested action.
+        
+        Args:
+            permission: The action to check (Permission enum value)
+        
+        Returns:
+            bool: True if allowed, False if not allowed
+        
+        Example:
+            >>> user = User("alice", Role.ANALYST)
+            >>> user.has_permission(Permission.WRITE_CODE)
+            True
+            >>> user.has_permission(Permission.VIEW_AUDIT_LOG)
+            False  # Only ADMIN can view audit logs
         """
         return permission in PERMISSION_MATRIX.get(self.role, set())
     
     def can_access_buffer(self, buffer_id: str, buffer_owner: str) -> bool:
-        """
-        > Check if this user can access a specific buffer.
-        >
-        > This enforces the "own buffers only" rule for ANALYST users:
-        > - ADMIN and READER can access any buffer
-        > - ANALYST can only access their own buffers
-        > - GUEST can access any buffer (but rate-limited)
-        >
-        > Args:
-        >     buffer_id: Which buffer to check access for
-        >     buffer_owner: Who owns the buffer
-        >
-        > Returns:
-        >     bool: True if they can access, False otherwise
-        >
-        > Example:
-        >     >>> alice = User("alice", Role.ANALYST)
-        >     >>> alice.can_access_buffer("buf-123", "alice")
-        >     True  # Alice can access her own buffer
-        >     >>> alice.can_access_buffer("buf-456", "bob")
-        >     False  # Alice cannot access Bob's buffer
+        """Check if this user can access a specific buffer.
+        
+        This enforces the "own buffers only" rule for ANALYST users:
+        - ADMIN and READER can access any buffer
+        - ANALYST can only access their own buffers
+        - GUEST can access any buffer (but rate-limited)
+        
+        Args:
+            buffer_id: Which buffer to check access for
+            buffer_owner: Who owns the buffer
+        
+        Returns:
+            bool: True if they can access, False otherwise
+        
+        Example:
+            >>> alice = User("alice", Role.ANALYST)
+            >>> alice.can_access_buffer("buf-123", "alice")
+            True  # Alice can access her own buffer
+            >>> alice.can_access_buffer("buf-456", "bob")
+            False  # Alice cannot access Bob's buffer
         """
         # ADMINs can access all buffers
         if self.role == Role.ADMIN:
@@ -228,36 +223,34 @@ class User:
 
 
 class AccessControl:
-    """
-    > Access Control Manager - The Gatekeeper.
-    >
-    > This class is responsible for enforcing all permission checks. It maintains
-    > a registry of users and their roles, and answers the question: "Is user X
-    > allowed to do action Y?"
-    >
-    > It's like a security guard who checks credentials and permissions before
-    > letting anyone do anything important.
-    >
-    > Example:
-    >     >>> ac = AccessControl()
-    >     >>> ac.register_user("alice", Role.ANALYST)
-    >     >>> allowed, reason = ac.check_permission(
-    >     ...     user_id="alice",
-    >     ...     permission=Permission.WRITE_CODE,
-    >     ...     buffer_owner="alice"
-    >     ... )
-    >     >>> if allowed:
-    >     ...     # Do the write operation
-    >     ... else:
-    >     ...     # Deny and show reason to user
+    """Access Control Manager - The Gatekeeper.
+    
+    This class is responsible for enforcing all permission checks. It maintains
+    a registry of users and their roles, and answers the question: "Is user X
+    allowed to do action Y?"
+    
+    It's like a security guard who checks credentials and permissions before
+    letting anyone do anything important.
+    
+    Example:
+        >>> ac = AccessControl()
+        >>> ac.register_user("alice", Role.ANALYST)
+        >>> allowed, reason = ac.check_permission(
+        ...     user_id="alice",
+        ...     permission=Permission.WRITE_CODE,
+        ...     buffer_owner="alice"
+        ... )
+        >>> if allowed:
+        ...     # Do the write operation
+        ... else:
+        ...     # Deny and show reason to user
     """
     
     def __init__(self):
-        """
-        > Initialize the Access Control system.
-        >
-        > This sets up the permission system and creates a default user
-        > for local development.
+        """Initialize the Access Control system.
+        
+        This sets up the permission system and creates a default user
+        for local development.
         """
         self.users: Dict[str, User] = {}
         self._register_default_user()

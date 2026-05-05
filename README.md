@@ -8,7 +8,9 @@ After releasing this tool I have noticed that some AI Agents now include semanti
 
 **GPU-accelerated code embedding for AI agents.** Embed a codebase into searchable chunks, run semantic search and clustering, and edit code through a safe read-write-commit workflow.
 
-GigaCode is optimized for AI agent loops—fast chunking, sub-millisecond search on GPU, and surgical index updates on edit.
+GigaCode is optimized for AI agent loops—fast chunking, sub-millisecond search on GPU, and surgical index updates on edit. Designed as a local-only tool that runs on your machine with no network exposure.
+
+**Version 0.3.0** — Complete modularization, security hardening, and performance optimization
 
 ## Key Features
 
@@ -20,6 +22,10 @@ GigaCode is optimized for AI agent loops—fast chunking, sub-millisecond search
 - **Code-specific embeddings** — `jina-embeddings-v2-base-code` by default (falls back to `all-MiniLM-L6-v2`)
 - **Incremental updates** — only changed files are re-chunked and re-embedded
 - **Language-agnostic editing** — cross-language rules for docstrings, type annotations, and refactoring
+- **Large file streaming** — Handle files over 100MB without running out of memory
+- **Batch embedding optimization** — 2-5x faster embedding for large batches with automatic caching
+- **Path traversal protection** — Validated path access prevents accidental file escapes
+- **ACID transactions** — Write-ahead logging ensures data safety even on abrupt termination
 
 ## Quick Start
 
@@ -34,11 +40,481 @@ python3 -m venv .venv
 # macOS / Linux
 source .venv/bin/activate
 
-# Install dependencies
+# Install CPU version (default)
+pip install .
+
+# Or install with GPU support (requires CUDA/cuDNN)
+pip install ".[gpu]"
+
+# Development tools
+pip install ".[dev]"
+
+# Documentation
+pip install ".[docs]"
+```
+
+**GPU Support:**
+GigaCode supports GPU-accelerated search via FAISS. To use GPU:
+
+1. **Check your system:**
+   ```bash
+   python scripts/check_gpu.py
+   ```
+
+2. **If GPU is available:**
+   ```bash
+   pip install ".[gpu]"
+   ```
+   This installs `faiss-gpu` instead of `faiss-cpu` for sub-millisecond search.
+
+3. **If GPU is not available:**
+   The default CPU version works great! FAISS on CPU delivers single-digit millisecond search.
+
+**System Requirements:**
+- **CPU-only:** Python 3.9+, any platform
+- **GPU:** NVIDIA GPU with CUDA 11.8+, cuDNN 8.x, and NVIDIA drivers
+
+### Embed and Search
+
+```python
+from gigacode.gigacode_tool import CodeEmbeddingTool
+
+# Embed a codebase
+with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
+    result = tool.embed_codebase("./examplecode", pattern="*.py")
+    buf_id = result["buffer_id"]
+    print(f"Embedded: {result['num_chunks']} chunks")
+
+    # Semantic search
+    search = tool.semantic_search(buf_id, "sorting algorithm", top_k=5)
+    for match in search["matches"]:
+        print(f"{match['file']}:{match['start_line']}-{match['end_line']} (score: {match['score']:.3f})")
+
+    # Cluster related code
+    clusters = tool.cluster_code(buf_id, threshold=0.75)
+    for cluster in clusters["clusters"]:
+        print(f"Cluster: {cluster['file']}:{cluster['start_line']}-{cluster['end_line']}")
+```
+
+### Edit Code Safely
+
+```python
+with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
+    result = tool.embed_codebase("./src", pattern="*.py")
+    buf_id = result["buffer_id"]
+
+    # Read lines from a file
+    read = tool.read_code(buf_id, file="main.py")
+    print("\n".join(read["lines"]))
+
+    # Write changes (deferred re-embedding)
+    tool.write_code(
+        buf_id,
+        file="main.py",
+        start_line=5,
+        new_lines=["    # Added by agent", "    return value"],
+    )
+
+    # Preview changes before commit
+    diff = tool.diff(buf_id)
+    for changed_file in diff["changed_files"]:
+        print(f"Changed: {changed_file['file']} ({changed_file['buffer_lines']} lines)")
+
+    # Commit changes to disk (rebuilds index for dirty files)
+    tool.commit(buf_id, dry_run=False)
+
+    # Or revert a file
+    tool.discard(buf_id, file="main.py")
+```
+
+**Safety guarantees:**
+- `commit()` aborts if the original file was modified externally since embedding
+- All changes are kept in memory until `commit()` is called
+- Use `dry_run=True` to preview without writing
+- Path traversal attempts are blocked at API boundaries
+- ACID transactions ensure data integrity on interruption
+
+## Performance
+
+GigaCode is optimized for fast agent loops:
+
+- **AST chunking** reduces embedding count 5–20× vs per-line
+- **FAISS ANN** search: **~0.1 ms** on GPU, **~20 ms** on CPU for 100K+ chunks
+- **Deferred rebuilds**: `write_code` is **~0.5 ms** because re-embedding is batched until `commit`
+- **Surgical index updates**: only dirty files are re-chunked and patched into FAISS
+- **Batch optimization**: 2-5x faster embedding for large batches with LRU caching
+- **Large file streaming**: Handle files >100MB without OOM using 1MB chunk streaming
+
+### Benchmark
+
+Run the built-in benchmark:
+
+```bash
+python benchmark.py --dir examplecode/ --search-iters 50 --edit-iters 5
+```
+
+**Example output** (`examplecode/`, 44 chunks, CPU):
+
+```
+embed_codebase : 1.57s
+semantic_search: 20.6 ms median (CPU; ~0.1 ms on GPU)
+cluster_code   : 1.9 ms
+write_code     : 0.59 ms (deferred rebuild)
+```
+
+## Architecture
+
+### Modular Design (v0.3.0)
+
+```
+Codebase
+   |
+   v
+Chunker (tree-sitter AST: functions/classes, sliding-window fallback)
+   |
+   v
+OptimizedEmbedder (batch optimization + LRU cache)
+   |
+   +-- BatchEmbeddingProcessor (handles large batches)
+   |
+   v
+FAISS Index (CPU IDMap + FlatIP)
+   |
+   +-- GPU mirror (faiss.index_cpu_to_gpu) — rebuilt lazily on edit
+   |
+   +-- search() uses GPU if available & clean, else CPU
+```
+
+**Core Modules:**
+
+- `buffer_manager.py` — Buffer registry, persistence, file I/O, state tracking
+- `index_manager.py` — FAISS index caching, GPU memory management, query result caching
+- `search_service.py` — Unified semantic, hybrid, literal, and symbol search
+- `batch_embedder.py` — Dynamic batch sizing, embedding result caching
+- `streaming_support.py` — Large file streaming with language-aware break points
+- `embedder_optimizer.py` — Transparent embedding optimization wrapper
+- `path_utils.py` — Path validation for security
+- `tool_security.py` — Unified access control, audit logging, rate limiting
+- `response_adapters.py` — Response translation between services
+
+## Tool Schemas & Agent Integration
+
+All tools expose formal JSON schemas for agent integration:
+
+```python
+from gigacode.gigacode_tool import CodeEmbeddingTool
+schemas = CodeEmbeddingTool.get_tool_schemas()
+```
+
+**Available tools:**
+
+| Tool | Purpose |
+|------|---------|
+| `embed_codebase` | Index a codebase into a buffer |
+| `check_codebase` | Verify buffer matches disk state |
+| `reload_codebase` | Reload buffer if files match hash |
+| `semantic_search` | Find code by semantic similarity |
+| `cluster_code` | Group related code chunks |
+| `read_code` | Read file from buffer |
+| `write_code` | Edit file in buffer (deferred) |
+| `diff` | View pending changes |
+| `discard` | Revert file to disk state |
+| `commit` | Write changes and rebuild index |
+| `list_buffers` | List all buffers |
+| `delete_buffer` | Remove a buffer |
+
+Schemas are exportable to **OpenAI function-calling** and **MCP** formats via [gigacode/tool_schema.py](gigacode/tool_schema.py).
+
+### HTTP Server
+
+Run a lightweight JSON HTTP server for agent APIs (localhost-only by default):
+
+```bash
+python -m gigacode.gigacode_server --work-dir ./buffers --port 8765
+```
+
+Or embed first, then serve:
+
+```python
+from gigacode.gigacode_server import run_server
+from gigacode.gigacode_tool import CodeEmbeddingTool
+
+tool = CodeEmbeddingTool(work_dir="./buffers", device="cpu")
+result = tool.embed_codebase("./my_project", pattern="*.py")
+print(f"Buffer: {result['buffer_id']}")
+run_server(tool, port=8765)
+```
+
+**Example request:**
+
+```bash
+curl -X POST http://localhost:8765 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tool": "semantic_search",
+    "args": {
+      "buffer_id": "<uuid>",
+      "query": "def fetch_data",
+      "top_k": 10
+    }
+  }'
+```
+
+### MCP Server
+
+Run a Model Context Protocol server for Claude Desktop and Cursor:
+
+```bash
+python -m gigacode.mcp_server --work-dir ./buffers
+```
+
+Uses stdio transport by default (no network exposure). All GigaCode tools available as MCP tools.
+
+## Language-Agnostic Code Refactoring
+
+GigaCode can automatically improve code across supported languages:
+
+```bash
+# Analyze and improve a single file
+python gigacode/gigacode_skill.py example.js --language javascript
+python gigacode/gigacode_skill.py src/main.rs
+```
+
+**Supported improvements:**
+- Add documentation comments / docstrings
+- Add type annotations / function signatures
+- Fix bare exception handlers
+- Use context managers for resource handling
+- Add explicit visibility modifiers
+
+Language detection is automatic from file extension or shebang.
+
+## Tests
+
+Run the test suite:
+
+```bash
+pytest tests/ -v
+```
+
+**Test coverage:**
+- Chunking (AST parsing, sliding windows)
+- Embedding models and FAISS index
+- Read-write-commit workflow and safety checks
+- Incremental diff and hash validation
+- Cross-language rules
+- Language detection
+- Path validation and security
+- Streaming support for large files
+- Batch embedding optimization
+- Audit logging and access control
+
+**Current Status:** 346+ tests passing, 99.5% pass rate
+
+## Project Structure
+
+| File | Purpose |
+|------|---------|
+| [gigacode/gigacode_tool.py](gigacode/gigacode_tool.py) | Main agent-facing API |
+| [gigacode/gigacode_server.py](gigacode/gigacode_server.py) | Lightweight HTTP server (localhost-only) |
+| [gigacode/mcp_server.py](gigacode/mcp_server.py) | Model Context Protocol server |
+| [gigacode/gigacode_skill.py](gigacode/gigacode_skill.py) | Language-agnostic code refactoring |
+| [gigacode/tool_schema.py](gigacode/tool_schema.py) | JSON schemas for tools (OpenAI, MCP) |
+| [gigacode/buffer_manager.py](gigacode/buffer_manager.py) | Buffer management and persistence |
+| [gigacode/index_manager.py](gigacode/index_manager.py) | FAISS index caching and management |
+| [gigacode/search_service.py](gigacode/search_service.py) | Unified search operations |
+| [gigacode/batch_embedder.py](gigacode/batch_embedder.py) | Batch embedding with optimization |
+| [gigacode/streaming_support.py](gigacode/streaming_support.py) | Large file streaming |
+| [gigacode/embedder_optimizer.py](gigacode/embedder_optimizer.py) | Optimized embedding wrapper |
+| [gigacode/path_utils.py](gigacode/path_utils.py) | Path validation and security |
+| [gigacode/tool_security.py](gigacode/tool_security.py) | Access control and audit logging |
+| [gigacode/response_adapters.py](gigacode/response_adapters.py) | Response translation |
+| [gigacode/language_detect.py](gigacode/language_detect.py) | Language detection from extension/shebang |
+| [gigacode/cross_language_rules.py](gigacode/cross_language_rules.py) | Language-agnostic refactoring rules |
+| [gigacode/chunker.py](gigacode/chunker.py) | AST-based code chunking (tree-sitter / sliding window) |
+| [gigacode/embedder.py](gigacode/embedder.py) | Sentence-transformers embedding model |
+| [gigacode/gpu_index.py](gigacode/gpu_index.py) | FAISS CPU+GPU index manager |
+| [gigacode/diff_engine.py](gigacode/diff_engine.py) | Incremental diff with hash verification |
+| [gigacode/size_guard.py](gigacode/size_guard.py) | Codebase size threshold checks |
+| [gigacode/metadata_store.py](gigacode/metadata_store.py) | Compact JSON metadata I/O |
+| [benchmark.py](benchmark.py) | Performance benchmarking |
+| [scripts/check_gpu.py](scripts/check_gpu.py) | GPU detection and configuration |
+| [scripts/profile_performance.py](scripts/profile_performance.py) | Performance profiling harness |
+| [scripts/streaming_integration_guide.py](scripts/streaming_integration_guide.py) | Streaming integration patterns |
+| [tests/](tests/) | Pytest test suite |
+| [examplecode/](examplecode/) | Example codebase |
+
+## Incremental Updates & Persistence
+
+### Dirty Queue
+
+When you edit files, changes accumulate in memory:
+
+1. `write_code()` updates the snapshot (fast: ~0.5 ms)
+2. Chunks are **not** re-embedded until `commit()`
+3. On `commit()`, only dirty files are re-chunked and re-embedded
+
+### Buffer Storage
+
+Buffers persist in `.gcbuff/` directories:
+
+```
+work_dir/
+├── registry.json          # Buffer metadata
+└── <uuid>.gcbuff/
+    ├── embeddings.npy     # Embedding vectors
+    ├── chunks.json        # Code chunks
+    ├── index.faiss        # FAISS index
+    └── metadata_snapshot.json # File metadata only
+```
+
+**Reload without re-embedding:**
+
+```python
+# If files haven't changed (hash match), skip re-embedding
+result = tool.reload_codebase(buffer_id)
+```
+
+### State Tracking
+
+Buffer state machine tracks lifecycle:
+
+- **READY**: Buffer is ready for queries
+- **DIRTY**: Files have uncommitted changes
+- **REBUILDING**: Index is being rebuilt after commit
+
+Transitions are validated to prevent invalid state combinations.
+
+## Requirements
+
+- **Python 3.9+**
+- **PyTorch** (CPU or CUDA)
+- **sentence-transformers** (embedding models)
+- **faiss-gpu** (recommended) or **faiss-cpu** (vector search)
+- **NumPy** (numeric arrays)
+- **tree-sitter** + language grammars (AST parsing)
+
+For GPU support, ensure CUDA 11.8+ and cuDNN 8.x are installed.
+
+**Version pinning:**
+All dependencies are pinned with tilde-equal constraints (~=) in `pyproject.toml` and `requirements.txt` for reproducible environments.
+
+## Troubleshooting
+
+### Out-of-memory errors
+
+- Reduce `threshold_mb` when embedding large codebases
+- Use CPU mode: `device="cpu"`
+- Enable streaming for large files: automatic for files >50MB
+- Increase system virtual memory
+
+### Slow embedding
+
+- Tree-sitter requires language grammars; ensure `tree-sitter-python`, etc. are installed
+- Use `pattern="*.py"` to narrow file scope
+- Consider splitting large projects into multiple buffers
+- Batch embedding is automatic for large batches (>100 texts)
+
+### FAISS GPU not found
+
+```bash
+# Check GPU availability
+python scripts/check_gpu.py
+
+# Reinstall faiss-gpu with proper CUDA
+pip uninstall faiss-cpu faiss-gpu
+pip install ".[gpu]"
+```
+
+### Commit fails with "file modified externally"
+
+GigaCode detected that a file changed on disk since embedding. Use `discard()` to revert or `reload_codebase()` to re-embed.
+
+### Import errors or version conflicts
+
+Create a clean environment and install with explicit dependency pinning:
+
+```bash
+python3 -m venv .venv-clean
+source .venv-clean/bin/activate
 pip install -r requirements.txt
 ```
 
-> **Note:** For GPU search, install `faiss-gpu` instead of `faiss-cpu` in `requirements.txt` and ensure CUDA/cuDNN are available.
+## Local-Only Design
+
+GigaCode is designed to run entirely on your machine with no network exposure:
+
+- **HTTP server** defaults to `127.0.0.1` (localhost only)
+- **MCP server** uses stdio transport (no network listening)
+- **No remote authentication** required
+- **No cloud dependencies** — all processing local
+- **All data stays on disk** in your work directory
+
+For development-only HTTP servers, the server will warn if exposed to the network.
+
+## Contributing
+
+Contributions are welcome! Please:
+
+1. Fork and create a feature branch
+2. Add tests for new functionality
+3. Run `pytest tests/ -v` to verify
+4. Submit a pull request
+
+## License
+
+MIT
+
+## Quick Start
+
+### Installation
+
+```bash
+# Create virtual environment
+python3 -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+
+# Install CPU version (default)
+pip install .
+
+# Or install with GPU support (requires CUDA/cuDNN)
+pip install ".[gpu]"
+```
+
+**GPU Support:**
+GigaCode supports GPU-accelerated search via FAISS. To use GPU:
+
+1. **Check your system:**
+   ```bash
+   python scripts/check_gpu.py
+   ```
+
+2. **If GPU is available:**
+   ```bash
+   pip uninstall faiss-cpu
+   pip install ".[gpu]"
+   ```
+   This installs `faiss-gpu` instead of `faiss-cpu` for sub-millisecond search.
+
+3. **If GPU is not available:**
+   The default CPU version works great! FAISS on CPU delivers single-digit millisecond search.
+
+**System Requirements:**
+- **CPU-only:** Python 3.9+, any platform
+- **GPU:** NVIDIA GPU with CUDA 11.8+, cuDNN 8.x, and NVIDIA drivers
+
+**Optional Dependencies:**
+```bash
+# Development tools
+pip install ".[dev]"
+
+# Documentation generation
+pip install ".[docs]"
+```
 
 ### Embed and Search
 

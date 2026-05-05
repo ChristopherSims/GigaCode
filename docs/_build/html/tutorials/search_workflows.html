@@ -1,0 +1,654 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Workflows &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Edit Workflows" href="edit_workflows.html" />
+    <link rel="prev" title="Basic Embedding Workflow" href="basic_embed.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Search Workflows</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#basic-semantic-search">Basic Semantic Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-search-options">Advanced Search Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lexical-search">Lexical Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#hybrid-search">Hybrid Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#searching-with-caching">Searching with Caching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#processing-search-results">Processing Search Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-clustering-results">Advanced: Clustering Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-finding-duplicates">Advanced: Finding Duplicates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#complete-workflow-example">Complete Workflow Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-search-patterns">Common Search Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Search Workflows</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#basic-semantic-search">Basic Semantic Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-search-options">Advanced Search Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lexical-search">Lexical Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#hybrid-search">Hybrid Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#searching-with-caching">Searching with Caching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#processing-search-results">Processing Search Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-clustering-results">Advanced: Clustering Results</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-finding-duplicates">Advanced: Finding Duplicates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#complete-workflow-example">Complete Workflow Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-search-patterns">Common Search Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Search Workflows</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorials/search_workflows.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="search-workflows">
+<h1>Search Workflows<a class="headerlink" href="#search-workflows" title="Link to this heading"></a></h1>
+<p>This tutorial covers different ways to search embedded code, from basic semantic search to advanced hybrid techniques.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>GigaCode supports multiple search methods:</p>
+<ol class="arabic simple">
+<li><p><strong>Semantic Search</strong> - Find code by meaning and intent</p></li>
+<li><p><strong>Lexical Search</strong> - Find code by exact keywords</p></li>
+<li><p><strong>Hybrid Search</strong> - Combine semantic and lexical for best results</p></li>
+<li><p><strong>Filtering</strong> - Narrow results by language, file, or other criteria</p></li>
+</ol>
+</section>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h2>
+<p>Make sure you have embedded a project. If not, see <a class="reference internal" href="basic_embed.html"><span class="doc">Basic Embedding Workflow</span></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="basic-semantic-search">
+<h2>Basic Semantic Search<a class="headerlink" href="#basic-semantic-search" title="Link to this heading"></a></h2>
+<p>Search by meaning, not keywords:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Find code related to a concept</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find the function that initializes the database&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span>
+<span class="p">)</span>
+
+<span class="c1"># Display results</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">match</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s2">&quot;matches&quot;</span><span class="p">],</span> <span class="mi">1</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">. </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;start_line&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Score: </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;score&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">][:</span><span class="mi">100</span><span class="p">]</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Key parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">query</span></code> (str): What you’re looking for (in natural language)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">top_k</span></code> (int): Number of results (default: 5)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">threshold</span></code> (float): Minimum similarity score (0-1, default: 0.0)</p></li>
+</ul>
+<p><strong>How semantic search works:</strong></p>
+<ol class="arabic simple">
+<li><p>Your query is converted to a vector embedding</p></li>
+<li><p>Similarity to all code chunks is calculated</p></li>
+<li><p>Top matches are returned, sorted by similarity</p></li>
+</ol>
+<p><strong>Semantic vs. lexical:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Semantic: finds by meaning</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;send HTTP request to remote server&quot;</span>
+<span class="p">)</span>
+<span class="c1"># Returns: requests.get(), urllib.urlopen(), httplib calls, etc.</span>
+
+<span class="c1"># Lexical: finds by keywords only</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">lexical_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;HTTP request&quot;</span>
+<span class="p">)</span>
+<span class="c1"># Returns: only code containing exact words &quot;HTTP&quot; and &quot;request&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-search-options">
+<h2>Advanced Search Options<a class="headerlink" href="#advanced-search-options" title="Link to this heading"></a></h2>
+<p><strong>Filter by file type:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;error handling&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">file_patterns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*.py&quot;</span><span class="p">]</span>  <span class="c1"># Python files only</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Filter by directory:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;user authentication&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">include_dirs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;src/auth&quot;</span><span class="p">,</span> <span class="s2">&quot;src/security&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Filter by language:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;async processing&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">languages</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span> <span class="s2">&quot;javascript&quot;</span><span class="p">]</span>  <span class="c1"># Python and JS only</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Set similarity threshold:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Only return very similar results</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;cache management&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.85</span>  <span class="c1"># 0-1, higher = more similar</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Combine filters:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;database connection pooling&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">file_patterns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*.py&quot;</span><span class="p">],</span>
+    <span class="n">exclude_dirs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s2">&quot;examples&quot;</span><span class="p">],</span>
+    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.8</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="lexical-search">
+<h2>Lexical Search<a class="headerlink" href="#lexical-search" title="Link to this heading"></a></h2>
+<p>Find code by exact keywords:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Find all code containing specific terms</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">lexical_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;redis cache&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">10</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>When to use lexical search:</strong></p>
+<ul class="simple">
+<li><p>Searching for specific function names</p></li>
+<li><p>Finding imports of a library</p></li>
+<li><p>Locating configuration values</p></li>
+<li><p>Searching for TODO or FIXME comments</p></li>
+</ul>
+<p><strong>Case-sensitive matching:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">lexical_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;MyClass&quot;</span><span class="p">,</span>
+    <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Regex patterns:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+<span class="c1"># Find all variable assignments</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">lexical_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;^\s*[a-z_]\w*\s*=&quot;</span><span class="p">,</span>  <span class="c1"># regex pattern</span>
+    <span class="n">use_regex</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="hybrid-search">
+<h2>Hybrid Search<a class="headerlink" href="#hybrid-search" title="Link to this heading"></a></h2>
+<p>Combine semantic and lexical for best results:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Hybrid: semantic + lexical</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">hybrid_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;async function that handles network requests&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">semantic_weight</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>  <span class="c1"># 70% semantic, 30% lexical</span>
+    <span class="n">lexical_weight</span><span class="o">=</span><span class="mf">0.3</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>How hybrid search works:</strong></p>
+<ol class="arabic simple">
+<li><p>Run semantic search (finds by meaning)</p></li>
+<li><p>Run lexical search (finds by keywords)</p></li>
+<li><p>Combine results weighted by parameters</p></li>
+<li><p>Return top results by combined score</p></li>
+</ol>
+<p><strong>Tuning weights:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># More semantic (good for conceptual queries)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">hybrid_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;implement error recovery&quot;</span><span class="p">,</span>
+    <span class="n">semantic_weight</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">lexical_weight</span><span class="o">=</span><span class="mf">0.2</span>
+<span class="p">)</span>
+
+<span class="c1"># More lexical (good for specific code patterns)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">hybrid_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;def __init__&quot;</span><span class="p">,</span>
+    <span class="n">semantic_weight</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
+    <span class="n">lexical_weight</span><span class="o">=</span><span class="mf">0.7</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="searching-with-caching">
+<h2>Searching with Caching<a class="headerlink" href="#searching-with-caching" title="Link to this heading"></a></h2>
+<p>Repeated searches are automatically cached:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># First search: slow (computes embeddings)</span>
+<span class="n">results1</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find the authentication module&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Identical query: fast (from cache)</span>
+<span class="n">results2</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find the authentication module&quot;</span>
+<span class="p">)</span>
+<span class="c1"># This is ~100x faster!</span>
+
+<span class="c1"># Similar query: medium (semantic cache hit)</span>
+<span class="n">results3</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;locate authentication code&quot;</span>  <span class="c1"># Slightly different</span>
+<span class="p">)</span>
+<span class="c1"># Semantic similarity detected, 50x faster</span>
+</pre></div>
+</div>
+<p><strong>View cache statistics:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">stats</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_cache_stats</span><span class="p">(</span><span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cache hit rate: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;hit_rate&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cache entries: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;entries&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total searches: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;total_searches&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Clear cache:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tool</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">(</span><span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="processing-search-results">
+<h2>Processing Search Results<a class="headerlink" href="#processing-search-results" title="Link to this heading"></a></h2>
+<p><strong>Access result fields:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;parse JSON data&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;matches&quot;</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File: </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Line: </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;start_line&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;end_line&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Name: </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Type: </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># function, class, etc.</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Score: </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;score&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Code:</span><span class="se">\n</span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Result structure:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;matches&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="s2">&quot;src/parser.py&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;start_line&quot;</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span>
+            <span class="s2">&quot;end_line&quot;</span><span class="p">:</span> <span class="mi">58</span><span class="p">,</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;parse_json&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;function&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="mf">0.92</span><span class="p">,</span>
+            <span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;def parse_json(data: str) -&gt; dict:</span><span class="se">\n</span><span class="s2">    # ...&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="s2">&quot;chunk_123&quot;</span>
+        <span class="p">}</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;total&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="s2">&quot;took_ms&quot;</span><span class="p">:</span> <span class="mf">12.3</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Sort results:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;user authentication&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">20</span>
+<span class="p">)</span>
+
+<span class="c1"># Sort by similarity score</span>
+<span class="n">sorted_matches</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+    <span class="n">results</span><span class="p">[</span><span class="s2">&quot;matches&quot;</span><span class="p">],</span>
+    <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;score&quot;</span><span class="p">],</span>
+    <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+
+<span class="c1"># Sort by file location</span>
+<span class="n">sorted_by_file</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+    <span class="n">results</span><span class="p">[</span><span class="s2">&quot;matches&quot;</span><span class="p">],</span>
+    <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">&quot;file&quot;</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;start_line&quot;</span><span class="p">])</span>
+<span class="p">)</span>
+
+<span class="c1"># Sort by code type</span>
+<span class="n">sorted_by_type</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+    <span class="n">results</span><span class="p">[</span><span class="s2">&quot;matches&quot;</span><span class="p">],</span>
+    <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-clustering-results">
+<h2>Advanced: Clustering Results<a class="headerlink" href="#advanced-clustering-results" title="Link to this heading"></a></h2>
+<p>Group similar search results:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Semantic search with clustering</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;database access&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">20</span>
+<span class="p">)</span>
+
+<span class="c1"># Cluster the results</span>
+<span class="n">clusters</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">cluster_results</span><span class="p">(</span>
+    <span class="n">results</span><span class="p">[</span><span class="s2">&quot;matches&quot;</span><span class="p">],</span>
+    <span class="n">n_clusters</span><span class="o">=</span><span class="mi">3</span>
+<span class="p">)</span>
+
+<span class="c1"># Display clusters</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">clusters</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Cluster </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cluster</span><span class="p">)</span><span class="si">}</span><span class="s2"> matches):&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">cluster</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  - </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-finding-duplicates">
+<h2>Advanced: Finding Duplicates<a class="headerlink" href="#advanced-finding-duplicates" title="Link to this heading"></a></h2>
+<p>Find duplicate or nearly-duplicate code:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Find similar code within buffer</span>
+<span class="n">duplicates</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">find_duplicates</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>  <span class="c1"># 0-1, higher = more similar</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">duplicates</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">group</span><span class="p">)</span><span class="si">}</span><span class="s2"> similar chunks:&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">group</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">chunk</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">chunk</span><span class="p">[</span><span class="s1">&#39;start_line&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="performance-tips">
+<h2>Performance Tips<a class="headerlink" href="#performance-tips" title="Link to this heading"></a></h2>
+<p><strong>Speed up searches:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Use filters:</strong> Narrow search space by file, directory, or language</p></li>
+<li><p><strong>Reduce top_k:</strong> Only ask for results you need</p></li>
+<li><p><strong>Set threshold:</strong> Only return sufficiently similar results</p></li>
+<li><p><strong>Use GPU:</strong> Automatic if available</p></li>
+<li><p><strong>Semantic cache:</strong> Repeated queries are fast</p></li>
+</ol>
+<p><strong>Example: Fast search on large codebase</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Narrow search to specific directory and language</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;huge_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;transaction handling&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>  <span class="c1"># Only want 3 results</span>
+    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.85</span><span class="p">,</span>  <span class="c1"># Skip low-scoring matches</span>
+    <span class="n">include_dirs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;src/database&quot;</span><span class="p">],</span>
+    <span class="n">file_patterns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*.py&quot;</span><span class="p">],</span>
+    <span class="n">languages</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+<span class="c1"># Much faster than searching entire codebase!</span>
+</pre></div>
+</div>
+</section>
+<section id="complete-workflow-example">
+<h2>Complete Workflow Example<a class="headerlink" href="#complete-workflow-example" title="Link to this heading"></a></h2>
+<p>Here’s a complete search workflow:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+
+<span class="c1"># Initialize</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
+
+<span class="c1"># Step 1: Broad semantic search</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;handle authentication errors&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">10</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;total&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> matches&quot;</span><span class="p">)</span>
+
+<span class="c1"># Step 2: Filter by score</span>
+<span class="n">high_confidence</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;matches&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;score&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">0.85</span>
+<span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;High confidence: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">high_confidence</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Step 3: Narrow to specific files</span>
+<span class="n">in_src</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">m</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">high_confidence</span>
+    <span class="k">if</span> <span class="n">m</span><span class="p">[</span><span class="s2">&quot;file&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;src/&quot;</span><span class="p">)</span>
+<span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;In src/: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">in_src</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Step 4: Display top result</span>
+<span class="k">if</span> <span class="n">in_src</span><span class="p">:</span>
+    <span class="n">top</span> <span class="o">=</span> <span class="n">in_src</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Top match: </span><span class="si">{</span><span class="n">top</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Location: </span><span class="si">{</span><span class="n">top</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">top</span><span class="p">[</span><span class="s1">&#39;start_line&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Score: </span><span class="si">{</span><span class="n">top</span><span class="p">[</span><span class="s1">&#39;score&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="n">top</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="common-search-patterns">
+<h2>Common Search Patterns<a class="headerlink" href="#common-search-patterns" title="Link to this heading"></a></h2>
+<p><strong>Find all occurrences of a pattern:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">lexical_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;TODO&quot;</span><span class="p">,</span>  <span class="c1"># Find all TODOs</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">100</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Find related functionality:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;file I/O operations&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">10</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Find by function signature:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">lexical_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;def.*async.*requests&quot;</span><span class="p">,</span>
+    <span class="n">use_regex</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">20</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Find configuration:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">lexical_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;CONFIG|config|settings&quot;</span><span class="p">,</span>
+    <span class="n">use_regex</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">10</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<p><strong>Search returns no results:</strong></p>
+<ul class="simple">
+<li><p>Query might be too specific</p></li>
+<li><p>Try semantic search instead of lexical</p></li>
+<li><p>Lower the <code class="docutils literal notranslate"><span class="pre">threshold</span></code> parameter</p></li>
+<li><p>Remove file/directory filters</p></li>
+<li><p>Ensure buffer is properly embedded</p></li>
+</ul>
+<p><strong>Search is slow:</strong></p>
+<ul class="simple">
+<li><p>First search loads index (normal)</p></li>
+<li><p>Repeated searches are cached and fast</p></li>
+<li><p>Use filters to narrow search space</p></li>
+<li><p>Check GPU is enabled for large buffers</p></li>
+</ul>
+<p><strong>Results don’t seem relevant:</strong></p>
+<ul class="simple">
+<li><p>Try hybrid search combining semantic + lexical</p></li>
+<li><p>Adjust semantic_weight and lexical_weight</p></li>
+<li><p>Different query wording may work better</p></li>
+<li><p>Use threshold to filter low-confidence results</p></li>
+</ul>
+<p><strong>Too many results:</strong></p>
+<ul class="simple">
+<li><p>Increase <code class="docutils literal notranslate"><span class="pre">threshold</span></code> to filter low-scoring matches</p></li>
+<li><p>Reduce <code class="docutils literal notranslate"><span class="pre">top_k</span></code> parameter</p></li>
+<li><p>Add file/directory filters</p></li>
+<li><p>Use hybrid search with better weighting</p></li>
+</ul>
+</section>
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Learn about editing and committing: <a class="reference internal" href="edit_workflows.html"><span class="doc">Edit Workflows</span></a></p></li>
+<li><p>Explore advanced indexing: <a class="reference internal" href="../api_reference.html"><span class="doc">API Reference</span></a></p></li>
+<li><p>Check performance tips: <a class="reference internal" href="../performance_tuning.html"><span class="doc">Performance Tuning</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="basic_embed.html" class="btn btn-neutral float-left" title="Basic Embedding Workflow" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="edit_workflows.html" class="btn btn-neutral float-right" title="Edit Workflows" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,561 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Performance Tuning &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Architecture" href="architecture.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Performance Tuning</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#quick-wins">Quick Wins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#embedding-performance">Embedding Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#search-performance">Search Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#commit-performance">Commit Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#indexing-performance">Indexing Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#system-level-tuning">System-Level Tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workload-specific-optimization">Workload-Specific Optimization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#benchmarking-your-setup">Benchmarking Your Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-performance-issues">Common Performance Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
+</ul>
+</li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Performance Tuning</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#quick-wins">Quick Wins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#embedding-performance">Embedding Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#search-performance">Search Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#commit-performance">Commit Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#indexing-performance">Indexing Performance</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#system-level-tuning">System-Level Tuning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#workload-specific-optimization">Workload-Specific Optimization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#benchmarking-your-setup">Benchmarking Your Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-performance-issues">Common Performance Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Performance Tuning</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/performance_tuning.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="performance-tuning">
+<h1>Performance Tuning<a class="headerlink" href="#performance-tuning" title="Link to this heading"></a></h1>
+<p>Strategies to optimize GigaCode for your specific workload.</p>
+<section id="quick-wins">
+<h2>Quick Wins<a class="headerlink" href="#quick-wins" title="Link to this heading"></a></h2>
+<p>Enable these first for immediate improvements:</p>
+<p><strong>1. Use GPU (2-10x faster)</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">enable_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># Auto-detect CUDA</span>
+</pre></div>
+</div>
+<p><strong>2. Use semantic cache (50% faster searches)</strong></p>
+<p>Already enabled by default, but monitor:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">stats</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_cache_stats</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cache hit rate: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;hit_rate&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>3. Use incremental indexing (5-50x faster commits)</strong></p>
+<p>Automatic with Phase 3. Verify:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">files</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Efficiency: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x speedup&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="embedding-performance">
+<h2>Embedding Performance<a class="headerlink" href="#embedding-performance" title="Link to this heading"></a></h2>
+<p><strong>Reduce files to embed:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Only include relevant extensions</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">,</span>
+    <span class="n">include_extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;.py&quot;</span><span class="p">,</span> <span class="s2">&quot;.js&quot;</span><span class="p">],</span>  <span class="c1"># Skip other types</span>
+    <span class="n">exclude_dirs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;venv&quot;</span><span class="p">,</span> <span class="s2">&quot;node_modules&quot;</span><span class="p">,</span> <span class="s2">&quot;.git&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Batch embedding:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Embed once, search many times (good!)</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+
+<span class="c1"># Bad: re-embed for each query</span>
+<span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+    <span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>  <span class="c1"># Slow!</span>
+</pre></div>
+</div>
+<p><strong>Stream large projects:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase_streaming</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/huge/project&quot;</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>  <span class="c1"># Process in batches</span>
+    <span class="n">chunk_size</span><span class="o">=</span><span class="mi">512</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Use smaller embedding models (faster, less accurate):</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span>
+    <span class="n">embedding_model</span><span class="o">=</span><span class="s2">&quot;all-MiniLM-L6-v2&quot;</span>  <span class="c1"># Fast (384-dim)</span>
+    <span class="c1"># vs default &quot;all-mpnet-base-v2&quot; (768-dim, slower)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="search-performance">
+<h2>Search Performance<a class="headerlink" href="#search-performance" title="Link to this heading"></a></h2>
+<p><strong>Use filters to narrow search space:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Narrow: 100ms faster</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;huge_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;database operations&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">include_dirs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;src/db&quot;</span><span class="p">],</span>
+    <span class="n">file_patterns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*.py&quot;</span><span class="p">],</span>
+    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.85</span>
+<span class="p">)</span>
+
+<span class="c1"># Broad: full search (slower)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;huge_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;database operations&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.0</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Reduce top_k:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Fast: only asking for 3 results</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;my query&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span>  <span class="c1"># Low = fast</span>
+<span class="p">)</span>
+
+<span class="c1"># Slow: asking for 100 results</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;my query&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">100</span>  <span class="c1"># High = slow</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Use caching strategically:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Cache hits are ~100x faster</span>
+<span class="c1"># Cache similar queries together:</span>
+
+<span class="n">queries</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;database operations&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;database queries&quot;</span><span class="p">,</span>        <span class="c1"># Will hit semantic cache</span>
+    <span class="s2">&quot;database connections&quot;</span><span class="p">,</span>    <span class="c1"># Will hit semantic cache</span>
+    <span class="s2">&quot;network operations&quot;</span><span class="p">,</span>      <span class="c1"># Won&#39;t hit cache (different topic)</span>
+<span class="p">]</span>
+
+<span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Lexical search for specific patterns:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Lexical is often faster for specific code:</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">lexical_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;def connect&quot;</span><span class="p">,</span>  <span class="c1"># Exact keyword search</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span>
+<span class="p">)</span>
+<span class="c1"># Much faster than semantic search for this use case!</span>
+</pre></div>
+</div>
+</section>
+<section id="commit-performance">
+<h2>Commit Performance<a class="headerlink" href="#commit-performance" title="Link to this heading"></a></h2>
+<p><strong>Batch changes:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Good: single commit</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;file1.py&quot;</span><span class="p">,</span> <span class="s2">&quot;file2.py&quot;</span><span class="p">,</span> <span class="s2">&quot;file3.py&quot;</span><span class="p">],</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Batch update&quot;</span>
+<span class="p">)</span>
+<span class="c1"># Result: 3 seconds total</span>
+
+<span class="c1"># Bad: three commits</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;file1.py&quot;</span><span class="p">])</span>  <span class="c1"># 1.2s</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;file2.py&quot;</span><span class="p">])</span>  <span class="c1"># 1.2s</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;file3.py&quot;</span><span class="p">])</span>  <span class="c1"># 1.2s</span>
+<span class="c1"># Total: 3.6 seconds (more overhead!)</span>
+</pre></div>
+</div>
+<p><strong>Only commit changed files:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Efficient: only changed file</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;changed_file.py&quot;</span><span class="p">],</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Small fix&quot;</span>
+<span class="p">)</span>
+<span class="c1"># With incremental indexing: &lt;100ms</span>
+
+<span class="c1"># Inefficient: commit unchanged files</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;changed_file.py&quot;</span><span class="p">,</span> <span class="s2">&quot;unchanged1.py&quot;</span><span class="p">,</span> <span class="s2">&quot;unchanged2.py&quot;</span><span class="p">],</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Update&quot;</span>
+<span class="p">)</span>
+<span class="c1"># Slower: re-indexes unchanged files</span>
+</pre></div>
+</div>
+<p><strong>Monitor efficiency:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">files</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Efficiency: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x&quot;</span><span class="p">)</span>
+
+<span class="c1"># &lt;2x = most code changed (consider full rebuild)</span>
+<span class="c1"># 5-10x = typical incremental speedup</span>
+<span class="c1"># &gt;20x = very efficient (minimal changes)</span>
+</pre></div>
+</div>
+</section>
+<section id="indexing-performance">
+<h2>Indexing Performance<a class="headerlink" href="#indexing-performance" title="Link to this heading"></a></h2>
+<p><strong>Monitor cache hit rates:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">stats</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_cache_stats</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cache hits: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;hit_rate&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># &lt;10% = cache not helping, consider changing queries</span>
+<span class="c1"># 20-40% = good, typical interactive use</span>
+<span class="c1"># &gt;50% = excellent, very repetitive workload</span>
+</pre></div>
+</div>
+<p><strong>Clear cache if memory is an issue:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Clear all caches</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">()</span>
+
+<span class="c1"># Or specific buffer</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Monitor index size:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">metadata</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_buffer_metadata</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Index size: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;total_size_mb&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> MB&quot;</span><span class="p">)</span>
+
+<span class="c1"># If too large, consider:</span>
+<span class="c1"># - Excluding more directories</span>
+<span class="c1"># - Splitting into multiple buffers</span>
+<span class="c1"># - Using smaller embedding model</span>
+</pre></div>
+</div>
+</section>
+<section id="system-level-tuning">
+<h2>System-Level Tuning<a class="headerlink" href="#system-level-tuning" title="Link to this heading"></a></h2>
+<p><strong>GPU Optimization</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check GPU availability</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GPU available: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GPU: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_name</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Force specific GPU</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;CUDA_VISIBLE_DEVICES&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span>  <span class="c1"># Use GPU 0</span>
+
+<span class="c1"># Enable GPU features</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span>
+    <span class="n">enable_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">gpu_device</span><span class="o">=</span><span class="mi">0</span>  <span class="c1"># Device ID</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>CPU Optimization</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use all CPU cores</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;OMP_NUM_THREADS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">())</span>
+
+<span class="c1"># NumPy will use all cores</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">enable_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Memory Management</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Limit buffers</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span>
+    <span class="n">max_buffers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>  <span class="c1"># Max 2 concurrent projects</span>
+    <span class="n">max_cache_size</span><span class="o">=</span><span class="mi">500</span>  <span class="c1"># Max cache entries</span>
+<span class="p">)</span>
+
+<span class="c1"># Monitor memory</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">psutil</span>
+<span class="n">process</span> <span class="o">=</span> <span class="n">psutil</span><span class="o">.</span><span class="n">Process</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Memory: </span><span class="si">{</span><span class="n">process</span><span class="o">.</span><span class="n">memory_info</span><span class="p">()</span><span class="o">.</span><span class="n">rss</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="o">**</span><span class="mi">2</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> MB&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Disk I/O Optimization</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use fast SSD for work_dir</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span>
+    <span class="n">work_dir</span><span class="o">=</span><span class="s2">&quot;/mnt/nvme/gigacode&quot;</span>  <span class="c1"># NVMe SSD</span>
+<span class="p">)</span>
+
+<span class="c1"># Avoid network drives</span>
+<span class="c1"># Better: local disk &gt; network NFS &gt; cloud storage</span>
+</pre></div>
+</div>
+</section>
+<section id="workload-specific-optimization">
+<h2>Workload-Specific Optimization<a class="headerlink" href="#workload-specific-optimization" title="Link to this heading"></a></h2>
+<p><strong>Interactive Search (IDE Plugin)</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Goal: Fast response time</span>
+
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">enable_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>           <span class="c1"># Few results needed</span>
+    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.85</span><span class="p">,</span>    <span class="c1"># Skip low scores</span>
+    <span class="n">file_patterns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*.py&quot;</span><span class="p">]</span>  <span class="c1"># Current language</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Batch Analysis</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Goal: Throughput (many searches)</span>
+
+<span class="c1"># Pre-cache common queries</span>
+<span class="n">common_queries</span> <span class="o">=</span> <span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">common_queries</span><span class="p">:</span>
+    <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+
+<span class="c1"># Then process batch</span>
+<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">:</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">item</span><span class="o">.</span><span class="n">query</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Large Codebase Analysis</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Goal: Handle large projects</span>
+
+<span class="c1"># Split into multiple buffers by language</span>
+<span class="n">py_buffer</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">,</span>
+    <span class="n">include_extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;.py&quot;</span><span class="p">],</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;project_python&quot;</span>
+<span class="p">)</span>
+
+<span class="n">js_buffer</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">,</span>
+    <span class="n">include_extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;.js&quot;</span><span class="p">,</span> <span class="s2">&quot;.ts&quot;</span><span class="p">],</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;project_js&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Search both: combined = full coverage</span>
+<span class="n">py_results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">py_buffer</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+<span class="n">js_results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">js_buffer</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Real-time Incremental Updates</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Goal: Keep index in sync with active development</span>
+
+<span class="c1"># Use file watcher</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.file_watcher</span><span class="w"> </span><span class="kn">import</span> <span class="n">FileWatcher</span>
+
+<span class="n">watcher</span> <span class="o">=</span> <span class="n">FileWatcher</span><span class="p">(</span><span class="n">project_path</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">changed_files</span> <span class="ow">in</span> <span class="n">watcher</span><span class="o">.</span><span class="n">watch</span><span class="p">():</span>
+    <span class="c1"># Write changes</span>
+    <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">changed_files</span><span class="p">:</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">content</span><span class="p">)</span>
+
+    <span class="c1"># Commit (incremental, fast)</span>
+    <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">changed_files</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="benchmarking-your-setup">
+<h2>Benchmarking Your Setup<a class="headerlink" href="#benchmarking-your-setup" title="Link to this heading"></a></h2>
+<p>Create a benchmark script:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">enable_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Benchmark 1: Embedding</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
+<span class="n">embed_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+
+<span class="n">metadata</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_buffer_metadata</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+<span class="n">chunks_per_sec</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;chunk_count&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">embed_time</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Embedding: </span><span class="si">{</span><span class="n">chunks_per_sec</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> chunks/sec&quot;</span><span class="p">)</span>
+
+<span class="c1"># Benchmark 2: Search</span>
+<span class="n">times</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="s2">&quot;test query&quot;</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">times</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span>
+
+<span class="n">avg_time</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">times</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">times</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Search: </span><span class="si">{</span><span class="n">avg_time</span><span class="o">*</span><span class="mi">1000</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">ms avg, &quot;</span>
+      <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="mi">1</span><span class="o">/</span><span class="n">avg_time</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2"> queries/sec&quot;</span><span class="p">)</span>
+
+<span class="c1"># Benchmark 3: Commit</span>
+<span class="c1"># Make a small change</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="s2">&quot;test.py&quot;</span><span class="p">,</span> <span class="s2">&quot;new content&quot;</span><span class="p">)</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;test.py&quot;</span><span class="p">])</span>
+<span class="n">commit_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Commit: </span><span class="si">{</span><span class="n">commit_time</span><span class="o">*</span><span class="mi">1000</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="common-performance-issues">
+<h2>Common Performance Issues<a class="headerlink" href="#common-performance-issues" title="Link to this heading"></a></h2>
+<p><strong>Search is slow:</strong></p>
+<ol class="arabic simple">
+<li><p>Check cache hit rate (low? adjust threshold)</p></li>
+<li><p>Reduce top_k</p></li>
+<li><p>Add file/directory filters</p></li>
+<li><p>Use GPU: <code class="docutils literal notranslate"><span class="pre">enable_gpu=True</span></code></p></li>
+</ol>
+<p><strong>Commits are slow:</strong></p>
+<ol class="arabic simple">
+<li><p>Check efficiency ratio (low? commit fewer files)</p></li>
+<li><p>Enable GPU</p></li>
+<li><p>Batch changes together</p></li>
+<li><p>Check if incremental indexing working</p></li>
+</ol>
+<p><strong>High memory usage:</strong></p>
+<ol class="arabic simple">
+<li><p>Reduce max_buffers</p></li>
+<li><p>Reduce max_cache_size</p></li>
+<li><p>Clear cache periodically</p></li>
+<li><p>Use smaller embedding model</p></li>
+</ol>
+<p><strong>Embedding takes forever:</strong></p>
+<ol class="arabic simple">
+<li><p>Exclude large directories</p></li>
+<li><p>Use fewer file types</p></li>
+<li><p>Use GPU (2-10x faster)</p></li>
+<li><p>Use streaming embeddings</p></li>
+</ol>
+</section>
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Profile your specific workload</p></li>
+<li><p>Run benchmarks to establish baseline</p></li>
+<li><p>Apply targeted optimizations</p></li>
+<li><p>Monitor metrics over time</p></li>
+<li><p>Adjust thresholds based on results</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="architecture.html" class="btn btn-neutral float-left" title="Architecture" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

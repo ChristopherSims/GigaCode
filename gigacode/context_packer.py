@@ -37,7 +37,17 @@ def pack_context(
     max_tokens: int = 8192,
     use_tiktoken: bool = False,
 ) -> dict[str, Any]:
-    """Greedy-pack chunks by relevance until *max_tokens* is reached.
+    """Pack chunks by relevance using best-fit strategy until *max_tokens* is reached.
+
+    Uses a deterministic best-fit algorithm:
+    1. Sort chunks by relevance score (descending)
+    2. Accumulate highest-scored chunks that fit within budget
+    3. Stop when adding the next chunk would exceed budget
+
+    This ensures:
+    - Predictable behavior (no skipping then accepting)
+    - Optimal token usage for the set of chunks considered
+    - Consistent results across runs
 
     Args:
         chunks: List of CodeChunk-like objects (must have ``.text``, ``.file``, ``.start_line``, ``.end_line``, ``.name``).
@@ -56,7 +66,7 @@ def pack_context(
 
     token_fn = _exact_token_count if use_tiktoken else _approx_token_count
 
-    # Sort by descending score
+    # Sort by descending score (best-fit: accept chunks in order until budget exceeded)
     indexed = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
 
     packed: list[dict[str, Any]] = []
@@ -65,9 +75,13 @@ def pack_context(
     for idx, score in indexed:
         ch = chunks[idx]
         cost = token_fn(ch.text)
-        if total_tokens + cost > max_tokens and packed:
-            # Skip if over budget and we already have something
-            continue
+        
+        # Check if this chunk fits within budget
+        if total_tokens + cost > max_tokens:
+            # Stop here - budget exceeded, don't add this chunk or any later chunks
+            # (later chunks have lower scores, so no point continuing)
+            break
+        
         packed.append({
             "file": ch.file,
             "start_line": ch.start_line,
@@ -78,8 +92,6 @@ def pack_context(
             "tokens": cost,
         })
         total_tokens += cost
-        if total_tokens >= max_tokens:
-            break
 
     # Re-sort packed chunks by original file order for coherent reading
     packed.sort(key=lambda x: (x["file"], x["start_line"]))

@@ -1,0 +1,245 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Managers &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Services" href="services.html" />
+    <link rel="prev" title="Tools" href="tools.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Managers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="buffer_manager.html">Buffer Manager</a></li>
+<li class="toctree-l3"><a class="reference internal" href="index_manager.html">Index Manager</a></li>
+<li class="toctree-l3"><a class="reference internal" href="search_service.html">Search Service</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-reference">Quick Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Managers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#detailed-documentation">Detailed Documentation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="buffer_manager.html">Buffer Manager</a></li>
+<li class="toctree-l3"><a class="reference internal" href="index_manager.html">Index Manager</a></li>
+<li class="toctree-l3"><a class="reference internal" href="search_service.html">Search Service</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-reference">Quick Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Managers</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/managers.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="managers">
+<h1>Managers<a class="headerlink" href="#managers" title="Link to this heading"></a></h1>
+<p>Core manager classes for buffer, index, and search management.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>Managers handle the core functionality:</p>
+<ul class="simple">
+<li><p><strong>BufferManager</strong>: Code buffer lifecycle and file tracking</p></li>
+<li><p><strong>IndexManager</strong>: FAISS index creation and caching</p></li>
+<li><p><strong>SearchService</strong>: All search operations</p></li>
+</ul>
+</section>
+<section id="detailed-documentation">
+<h2>Detailed Documentation<a class="headerlink" href="#detailed-documentation" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="buffer_manager.html">Buffer Manager</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="buffer_manager.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="buffer_manager.html#core-class">Core Class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="buffer_manager.html#key-methods">Key Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="buffer_manager.html#state-management">State Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="buffer_manager.html#file-tracking">File Tracking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="buffer_manager.html#storage-management">Storage Management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="buffer_manager.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="buffer_manager.html#example-complete-buffer-lifecycle">Example: Complete Buffer Lifecycle</a></li>
+<li class="toctree-l2"><a class="reference internal" href="buffer_manager.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="index_manager.html">Index Manager</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="index_manager.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index_manager.html#core-class">Core Class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index_manager.html#key-methods">Key Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index_manager.html#phase-3-integration">Phase 3 Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index_manager.html#example-incremental-update">Example: Incremental Update</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index_manager.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index_manager.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="search_service.html">Search Service</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="search_service.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search_service.html#core-class">Core Class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search_service.html#search-methods">Search Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search_service.html#result-format">Result Format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search_service.html#advanced-features">Advanced Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search_service.html#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search_service.html#performance-characteristics">Performance Characteristics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search_service.html#tuning-guide">Tuning Guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="search_service.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="quick-reference">
+<h2>Quick Reference<a class="headerlink" href="#quick-reference" title="Link to this heading"></a></h2>
+<p><strong>BufferManager:</strong></p>
+<ul class="simple">
+<li><p>Create and manage buffers</p></li>
+<li><p>Track file changes</p></li>
+<li><p>Handle storage</p></li>
+</ul>
+<p><strong>IndexManager:</strong></p>
+<ul class="simple">
+<li><p>Create FAISS indices</p></li>
+<li><p>Cache indices efficiently</p></li>
+<li><p>Auto-select index types (Phase 3)</p></li>
+<li><p>Support incremental updates (Phase 3)</p></li>
+</ul>
+<p><strong>SearchService:</strong></p>
+<ul class="simple">
+<li><p>Semantic search</p></li>
+<li><p>Lexical search</p></li>
+<li><p>Hybrid search</p></li>
+<li><p>Query caching (Phase 3)</p></li>
+</ul>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="tools.html"><span class="doc">Tools</span></a> - CodeEmbeddingTool (main API)</p></li>
+<li><p><a class="reference internal" href="../tutorials/basic_embed.html"><span class="doc">Basic Embedding Workflow</span></a> - Embedding examples</p></li>
+<li><p><a class="reference internal" href="../tutorials/search_workflows.html"><span class="doc">Search Workflows</span></a> - Search examples</p></li>
+<li><p><a class="reference internal" href="../tutorials/edit_workflows.html"><span class="doc">Edit Workflows</span></a> - Edit examples</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tools.html" class="btn btn-neutral float-left" title="Tools" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="services.html" class="btn btn-neutral float-right" title="Services" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,160 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gigacode"
+version = "0.3.0"
+description = "GPU-accelerated code embedding and semantic search for AI agents"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "GigaCode Team"}
+]
+keywords = [
+    "code-embedding",
+    "semantic-search",
+    "gpu-acceleration",
+    "faiss",
+    "ast-chunking",
+    "code-intelligence"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy~=1.24.0",
+    "torch~=2.0.0",
+    "sentence-transformers~=2.2.0",
+    "transformers~=4.37.0",
+    "faiss-cpu~=1.8.0",
+    "tree-sitter~=0.22.0",
+    "tree-sitter-python~=0.21.0",
+    "tree-sitter-javascript~=0.21.0",
+    "tree-sitter-typescript~=0.21.0",
+    "tree-sitter-rust~=0.21.0",
+    "tree-sitter-cpp~=0.22.0",
+    "tree-sitter-go~=0.21.0",
+    "tree-sitter-java~=0.21.0",
+    "tree-sitter-c~=0.21.0",
+    "fastapi~=0.110.0",
+    "uvicorn[standard]~=0.29.0",
+    "pydantic~=2.0.0",
+    "watchdog~=3.0.0",
+    "mcp~=1.1.0",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "faiss-gpu~=1.8.0",
+]
+dev = [
+    "pytest~=7.0.0",
+    "pytest-cov~=4.1.0",
+    "black~=24.1.0",
+    "ruff~=0.2.0",
+    "mypy~=1.8.0",
+]
+docs = [
+    "sphinx~=7.2.0",
+    "sphinx-rtd-theme~=2.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/gigacode-ai/gigacode"
+Repository = "https://github.com/gigacode-ai/gigacode.git"
+Documentation = "https://github.com/gigacode-ai/gigacode#readme"
+Issues = "https://github.com/gigacode-ai/gigacode/issues"
+
+[tool.setuptools]
+packages = ["gigacode"]
+include-package-data = true
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311", "py312"]
+extend-exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # Pyflakes
+    "I",    # isort
+    "C",    # flake8-comprehensions
+    "B",    # flake8-bugbear
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv",
+    ".eggs",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+markers = [
+    "integration: integration tests",
+    "slow: slow tests",
+]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.coverage.run]
+source = ["gigacode"]
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

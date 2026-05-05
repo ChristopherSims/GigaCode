@@ -1,0 +1,574 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Performance Tuning" href="performance_tuning.html" />
+    <link rel="prev" title="Contributing" href="contributing.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#high-level-architecture">High-Level Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-components">Core Components</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#data-flow">Data Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#phase-3-architecture">Phase 3 Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#design-patterns">Design Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extensibility-points">Extensibility Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-characteristics">Performance Characteristics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#deployment-patterns">Deployment Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#security-model">Security Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#testing-architecture">Testing Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#future-architecture-improvements">Future Architecture Improvements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#debugging-monitoring">Debugging &amp; Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#high-level-architecture">High-Level Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-components">Core Components</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#data-flow">Data Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#phase-3-architecture">Phase 3 Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#design-patterns">Design Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extensibility-points">Extensibility Points</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-characteristics">Performance Characteristics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#deployment-patterns">Deployment Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#security-model">Security Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#testing-architecture">Testing Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#future-architecture-improvements">Future Architecture Improvements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#debugging-monitoring">Debugging &amp; Monitoring</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Architecture</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/architecture.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="architecture">
+<h1>Architecture<a class="headerlink" href="#architecture" title="Link to this heading"></a></h1>
+<p>Overview of GigaCode’s architecture and design patterns.</p>
+<section id="high-level-architecture">
+<h2>High-Level Architecture<a class="headerlink" href="#high-level-architecture" title="Link to this heading"></a></h2>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────────────────────┐
+│                    CodeEmbeddingTool (Main API)             │
+└────┬───────────────────────────────────────────────────┬────┘
+     │                                                   │
+     ├─ embed_codebase()      ──┐                       │
+     ├─ semantic_search()      ──┼─► SearchService     │
+     ├─ hybrid_search()        ──┤                       │
+     ├─ write_code()       ──┐  │   IndexManager       │
+     ├─ commit()           ──┼──┴─► BufferManager      │
+     └─ find_duplicates()     │     DuplicateDetector  │
+                               │
+                               └─► Core Managers
+                                   (Phase 3 Optimizations)
+                                   │
+                                   ├─ IncrementalIndexManager
+                                   ├─ SemanticQueryCache
+                                   └─ FAISSIndexOptimizer
+</pre></div>
+</div>
+</section>
+<section id="core-components">
+<h2>Core Components<a class="headerlink" href="#core-components" title="Link to this heading"></a></h2>
+<p><strong>CodeEmbeddingTool</strong> (<code class="docutils literal notranslate"><span class="pre">gigacode_tool.py</span></code>)</p>
+<ul class="simple">
+<li><p>Main entry point for users</p></li>
+<li><p>Delegates to managers</p></li>
+<li><p>Handles buffer lifecycle</p></li>
+</ul>
+<p><strong>BufferManager</strong> (<code class="docutils literal notranslate"><span class="pre">buffer_manager.py</span></code>)</p>
+<ul class="simple">
+<li><p>Manages code buffers</p></li>
+<li><p>Tracks file state</p></li>
+<li><p>Handles storage</p></li>
+</ul>
+<p><strong>IndexManager</strong> (<code class="docutils literal notranslate"><span class="pre">index_manager.py</span></code>)</p>
+<ul class="simple">
+<li><p>Manages FAISS indices</p></li>
+<li><p>Index caching</p></li>
+<li><p>Phase 3: Incremental updates</p></li>
+</ul>
+<p><strong>SearchService</strong> (<code class="docutils literal notranslate"><span class="pre">search_service.py</span></code>)</p>
+<ul class="simple">
+<li><p>Semantic search</p></li>
+<li><p>Lexical search</p></li>
+<li><p>Hybrid search</p></li>
+<li><p>Phase 3: Query caching</p></li>
+</ul>
+<p><strong>DuplicateDetector</strong> (<code class="docutils literal notranslate"><span class="pre">duplicate_detector.py</span></code>)</p>
+<ul class="simple">
+<li><p>Finds duplicate code</p></li>
+<li><p>Clustering similar code</p></li>
+</ul>
+</section>
+<section id="data-flow">
+<h2>Data Flow<a class="headerlink" href="#data-flow" title="Link to this heading"></a></h2>
+<p><strong>Embedding Workflow</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>User Input (codebase path)
+     │
+     ▼
+BufferManager: Create buffer
+     │
+     ▼
+Chunker: Split code into chunks
+     │
+     ▼
+Embedder: Convert chunks to vectors
+     │
+     ▼
+IndexManager: Create FAISS index
+     │
+     ▼
+MetadataStore: Save mappings
+     │
+     ▼
+Return buffer_id
+</pre></div>
+</div>
+<p><strong>Search Workflow</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>User Query
+     │
+     ▼
+SearchService: Check semantic cache (Phase 3)
+     │
+     ├─ Hit? Return cached results
+     │
+     └─ Miss? Continue...
+          │
+          ▼
+          IndexManager: Get FAISS index
+          │
+          ▼
+          Embedder: Embed query
+          │
+          ▼
+          FAISS: Search index
+          │
+          ▼
+          MetadataStore: Reconstruct chunks
+          │
+          ▼
+          Cache result (Phase 3)
+          │
+          ▼
+          Return results
+</pre></div>
+</div>
+<p><strong>Commit Workflow</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>User: write_code() + commit()
+     │
+     ▼
+BufferManager: Track changes
+     │
+     ▼
+Chunker: Create new chunks
+     │
+     ▼
+Phase 3: IncrementalIndexManager
+- Detect changed chunks (ChunkDiffTracker)
+- Only embed changed chunks
+- Reuse old embeddings
+     │
+     ▼
+IndexManager: Update FAISS index
+     │
+     ▼
+MetadataStore: Update mappings
+     │
+     ▼
+Return commit result with efficiency metrics
+</pre></div>
+</div>
+</section>
+<section id="phase-3-architecture">
+<h2>Phase 3 Architecture<a class="headerlink" href="#phase-3-architecture" title="Link to this heading"></a></h2>
+<p>Three optimization layers integrated into core:</p>
+<p><strong>Layer 1: Incremental Indexing</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>IndexManager._rebuild_files()
+     │
+     ▼
+Check if _incremental_manager exists
+     │
+     ├─ Yes: Use incremental
+     │   │
+     │   ▼
+     │   ChunkDiffTracker.detect_changes()
+     │   │
+     │   ├─ Changed chunks → Embed
+     │   ├─ Removed chunks → Remove from index
+     │   └─ Kept chunks → Reuse embeddings
+     │
+     └─ No: Full rebuild (fallback)
+
+Result: 5-50x faster commits
+</pre></div>
+</div>
+<p><strong>Layer 2: Semantic Query Cache</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>SearchService.semantic_search()
+     │
+     ▼
+Check SemanticQueryCache
+     │
+     ├─ Exact match → Return cached result (1ms)
+     ├─ Semantic match → Return cached result (5ms)
+     │  (paraphrased queries detected via cosine similarity)
+     │
+     └─ No match → Compute search (15ms)
+          │
+          ▼
+          Cache result for future queries
+
+Result: 50% overall speedup, 100x for cache hits
+</pre></div>
+</div>
+<p><strong>Layer 3: FAISS Optimization</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Create index based on vector count:
+
+&lt;10k vectors  → Flat (exact search)
+10k-100k      → IVF (partitioned search)
+&gt;100k         → HNSW (approximate search)
+
+Infrastructure ready for future auto-tuning
+</pre></div>
+</div>
+</section>
+<section id="design-patterns">
+<h2>Design Patterns<a class="headerlink" href="#design-patterns" title="Link to this heading"></a></h2>
+<p><strong>Manager Delegation</strong></p>
+<p>Tools delegate to managers:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">CodeEmbeddingTool</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">semantic_search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_search_service</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Thin Wrapper</strong></p>
+<p>Optimizations wrap existing code without breaking API:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">SemanticQueryCache</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">):</span>
+        <span class="c1"># Check cache first, then delegate</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_exact_match</span><span class="p">(</span><span class="n">query</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[</span><span class="n">query_normalized</span><span class="p">]</span>
+        <span class="k">return</span> <span class="kc">None</span>  <span class="c1"># Miss, caller does computation</span>
+</pre></div>
+</div>
+<p><strong>Strategy Pattern</strong></p>
+<p>Index selection based on size:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">select_index_type</span><span class="p">(</span><span class="n">vector_count</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">vector_count</span> <span class="o">&lt;</span> <span class="mi">10000</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;Flat&quot;</span>
+    <span class="k">elif</span> <span class="n">vector_count</span> <span class="o">&lt;</span> <span class="mi">100000</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;IVF&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;HNSW&quot;</span>
+</pre></div>
+</div>
+<p><strong>Cache Eviction</strong></p>
+<p>LRU (Least Recently Used):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># When cache full</span>
+<span class="n">remove_least_recently_used</span><span class="p">()</span>
+<span class="n">add_new_entry</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="extensibility-points">
+<h2>Extensibility Points<a class="headerlink" href="#extensibility-points" title="Link to this heading"></a></h2>
+<p><strong>Custom Embedder</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">CustomEmbedder</span><span class="p">(</span><span class="n">Embedder</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="c1"># Your implementation</span>
+        <span class="k">return</span> <span class="n">embeddings</span>
+
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">embedder</span><span class="o">=</span><span class="n">CustomEmbedder</span><span class="p">())</span>
+</pre></div>
+</div>
+<p><strong>Custom Chunker</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">CustomChunker</span><span class="p">(</span><span class="n">Chunker</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">language</span><span class="p">):</span>
+        <span class="c1"># Your chunking logic</span>
+        <span class="k">return</span> <span class="n">chunks</span>
+
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">,</span>
+    <span class="n">chunker</span><span class="o">=</span><span class="n">CustomChunker</span><span class="p">()</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Custom Index</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.gpu_index</span><span class="w"> </span><span class="kn">import</span> <span class="n">GpuIndex</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CustomIndex</span><span class="p">(</span><span class="n">GpuIndex</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+        <span class="c1"># Your search logic</span>
+        <span class="k">return</span> <span class="n">results</span>
+</pre></div>
+</div>
+</section>
+<section id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading"></a></h2>
+<p><strong>Core Dependencies:</strong></p>
+<ul class="simple">
+<li><p><strong>torch ~2.0.0</strong> - ML framework</p></li>
+<li><p><strong>sentence-transformers ~2.2.0</strong> - Embeddings (384-dim)</p></li>
+<li><p><strong>faiss ~1.8.0</strong> - Vector search</p></li>
+<li><p><strong>tree-sitter ~0.22.0</strong> - Syntax-aware chunking</p></li>
+<li><p><strong>fastapi/uvicorn</strong> - API server</p></li>
+<li><p><strong>numpy</strong> - Array operations</p></li>
+</ul>
+<p><strong>Optional Dependencies:</strong></p>
+<ul class="simple">
+<li><p><strong>faiss-gpu ~1.8.0</strong> - GPU acceleration</p></li>
+<li><p><strong>transformers ~4.37.0</strong> - Language models</p></li>
+</ul>
+</section>
+<section id="performance-characteristics">
+<h2>Performance Characteristics<a class="headerlink" href="#performance-characteristics" title="Link to this heading"></a></h2>
+<p><strong>Memory Usage:</strong></p>
+<ul class="simple">
+<li><p>Per buffer: ~4 bytes × num_vectors × embedding_dim</p></li>
+<li><p>Example: 10k vectors × 384 dims = 15 MB</p></li>
+<li><p>Cache overhead: ~1 KB per cached query</p></li>
+</ul>
+<p><strong>Computation:</strong></p>
+<ul class="simple">
+<li><p>Embedding: ~100-500 chunks/sec (CPU), 1-10k/sec (GPU)</p></li>
+<li><p>Search: 1-50ms per query (depends on size)</p></li>
+<li><p>Commit: 1-5ms per changed chunk</p></li>
+</ul>
+<p><strong>Latency:</strong></p>
+<ul class="simple">
+<li><p>First search: 10-50ms (index load)</p></li>
+<li><p>Cached search: &lt;1ms</p></li>
+<li><p>Uncached search: 5-50ms</p></li>
+<li><p>GPU search: 2-10x faster</p></li>
+</ul>
+</section>
+<section id="deployment-patterns">
+<h2>Deployment Patterns<a class="headerlink" href="#deployment-patterns" title="Link to this heading"></a></h2>
+<p><strong>Single Machine (Recommended)</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Local-only, simple setup</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">work_dir</span><span class="o">=</span><span class="s2">&quot;~/.gigacode&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Docker Container</strong></p>
+<div class="highlight-dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.11</span>
+<span class="k">RUN</span><span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>gigacode
+<span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-m&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;gigacode&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p><strong>API Server</strong> (Future)</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">GigacodeServer</span>
+<span class="n">server</span> <span class="o">=</span> <span class="n">GigacodeServer</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="mi">8000</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="security-model">
+<h2>Security Model<a class="headerlink" href="#security-model" title="Link to this heading"></a></h2>
+<p><strong>Data Isolation:</strong></p>
+<ul class="simple">
+<li><p>No network communication</p></li>
+<li><p>All data stored locally</p></li>
+<li><p>No cloud or external API calls</p></li>
+</ul>
+<p><strong>File Access:</strong></p>
+<ul class="simple">
+<li><p>Only reads/writes specified directories</p></li>
+<li><p>Respects user permissions</p></li>
+<li><p>No privilege escalation</p></li>
+</ul>
+<p><strong>Secret Protection:</strong></p>
+<ul class="simple">
+<li><p>No credentials stored</p></li>
+<li><p>No authentication required (local only)</p></li>
+<li><p>No telemetry</p></li>
+</ul>
+</section>
+<section id="testing-architecture">
+<h2>Testing Architecture<a class="headerlink" href="#testing-architecture" title="Link to this heading"></a></h2>
+<p><strong>Test Organization:</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>tests/
+├─ unit/           # Component tests
+├─ integration/    # Multi-component tests
+├─ performance/    # Benchmarks
+└─ e2e/           # End-to-end workflows
+</pre></div>
+</div>
+<p><strong>Test Coverage:</strong></p>
+<ul class="simple">
+<li><p>Phase 3 features: 100% coverage (5 core tests)</p></li>
+<li><p>Phase 3b integration: 100% coverage (6 integration tests)</p></li>
+<li><p>Existing features: &gt;90% coverage</p></li>
+</ul>
+</section>
+<section id="future-architecture-improvements">
+<h2>Future Architecture Improvements<a class="headerlink" href="#future-architecture-improvements" title="Link to this heading"></a></h2>
+<p><strong>Planned Enhancements:</strong></p>
+<ul class="simple">
+<li><p>Distributed indexing (multiple machines)</p></li>
+<li><p>Incremental model updates</p></li>
+<li><p>Query expansion and refinement</p></li>
+<li><p>Multi-language embedding models</p></li>
+<li><p>Real-time index updates</p></li>
+<li><p>Approximate semantic matching for speed</p></li>
+</ul>
+<p><strong>Backward Compatibility:</strong></p>
+<ul class="simple">
+<li><p>All enhancements use additive patterns</p></li>
+<li><p>Existing APIs remain unchanged</p></li>
+<li><p>Opt-in for new features</p></li>
+</ul>
+</section>
+<section id="debugging-monitoring">
+<h2>Debugging &amp; Monitoring<a class="headerlink" href="#debugging-monitoring" title="Link to this heading"></a></h2>
+<p><strong>Logging:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>  <span class="c1"># Now logs detailed info</span>
+</pre></div>
+</div>
+<p><strong>Metrics:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">metrics</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_metrics</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Search performance: </span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;avg_search_ms&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cache hit rate: </span><span class="si">{</span><span class="n">metrics</span><span class="p">[</span><span class="s1">&#39;cache_hit_rate&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Health Check:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">status</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_health_status</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GPU available: </span><span class="si">{</span><span class="n">status</span><span class="p">[</span><span class="s1">&#39;gpu_available&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Indices cached: </span><span class="si">{</span><span class="n">status</span><span class="p">[</span><span class="s1">&#39;cached_indices&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="performance_tuning.html"><span class="doc">Performance Tuning</span></a> - Optimization strategies</p></li>
+<li><p><a class="reference internal" href="api_reference.html"><span class="doc">API Reference</span></a> - API documentation</p></li>
+<li><p><a class="reference internal" href="tutorials/basic_embed.html"><span class="doc">Basic Embedding Workflow</span></a> - Usage examples</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="contributing.html" class="btn btn-neutral float-left" title="Contributing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="performance_tuning.html" class="btn btn-neutral float-right" title="Performance Tuning" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

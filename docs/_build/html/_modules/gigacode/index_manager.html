@@ -1,0 +1,843 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gigacode.index_manager &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gigacode.index_manager</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gigacode.index_manager</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Index management layer for CodeEmbeddingTool.</span>
+
+<span class="sd">Handles:</span>
+<span class="sd">- FAISS index caching (GPU/CPU)</span>
+<span class="sd">- BM25 lexical index caching</span>
+<span class="sd">- Query result caching with semantic similarity</span>
+<span class="sd">- GPU memory management</span>
+<span class="sd">- Index persistence and loading</span>
+<span class="sd">- Metrics and health tracking</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.chunker</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeChunk</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.embedder</span><span class="w"> </span><span class="kn">import</span> <span class="n">Embedder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.gpu_index</span><span class="w"> </span><span class="kn">import</span> <span class="n">GpuIndex</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.incremental_indexer</span><span class="w"> </span><span class="kn">import</span> <span class="n">IncrementalIndexManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.json_logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">StructuredJsonLogger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.lexical_index</span><span class="w"> </span><span class="kn">import</span> <span class="n">LexicalIndex</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.metadata_store</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_metadata</span><span class="p">,</span> <span class="n">save_metadata</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.query_cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">QueryCache</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="n">json_logger</span> <span class="o">=</span> <span class="n">StructuredJsonLogger</span><span class="p">(</span><span class="s1">&#39;index_manager&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="IndexManager">
+<a class="viewcode-back" href="../../api/index_manager.html#gigacode.index_manager.IndexManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">IndexManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Manage FAISS/Lexical indices and query caching.</span>
+<span class="sd">    </span>
+<span class="sd">    Responsibilities:</span>
+<span class="sd">    - Maintain LRU-bounded cache of FAISS indices (GPU/CPU)</span>
+<span class="sd">    - Maintain LRU-bounded cache of BM25 lexical indices</span>
+<span class="sd">    - Handle query result caching with paraphrase detection</span>
+<span class="sd">    - Manage GPU memory (sync, eviction, monitoring)</span>
+<span class="sd">    - Track metrics (cache hits, GPU usage, operation latency)</span>
+<span class="sd">    - Rebuild indices on demand (called from BufferManager)</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        embedder: Embedder instance for vector operations.</span>
+<span class="sd">        embedding_dim: Dimension of embeddings.</span>
+<span class="sd">        max_buffers: Max indices in memory (LRU limit).</span>
+<span class="sd">        work_dir: Root directory for index persistence.</span>
+<span class="sd">        use_gpu: Enable GPU FAISS indices.</span>
+<span class="sd">        gpu_id: GPU device ID.</span>
+<span class="sd">        prometheus_exporter: Optional metrics exporter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+<div class="viewcode-block" id="IndexManager.__init__">
+<a class="viewcode-back" href="../../api/index_manager.html#gigacode.index_manager.IndexManager.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">embedder</span><span class="p">:</span> <span class="n">Embedder</span><span class="p">,</span>
+        <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">max_buffers</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">work_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">use_gpu</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">gpu_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">prometheus_exporter</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize IndexManager.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_embedder</span> <span class="o">=</span> <span class="n">embedder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_embedding_dim</span> <span class="o">=</span> <span class="n">embedding_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_buffers</span> <span class="o">=</span> <span class="n">max_buffers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">=</span> <span class="n">work_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_gpu</span> <span class="o">=</span> <span class="n">use_gpu</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gpu_id</span> <span class="o">=</span> <span class="n">gpu_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prometheus_exporter</span> <span class="o">=</span> <span class="n">prometheus_exporter</span>
+        
+        <span class="c1"># Index caches (LRU-bounded)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.lru_cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">LRUDict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="p">:</span> <span class="n">LRUDict</span> <span class="o">=</span> <span class="n">LRUDict</span><span class="p">(</span><span class="n">max_size</span><span class="o">=</span><span class="n">max_buffers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lexical_cache</span><span class="p">:</span> <span class="n">LRUDict</span> <span class="o">=</span> <span class="n">LRUDict</span><span class="p">(</span><span class="n">max_size</span><span class="o">=</span><span class="n">max_buffers</span><span class="p">)</span>
+        
+        <span class="c1"># Query result cache with semantic matching</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query_cache</span> <span class="o">=</span> <span class="n">QueryCache</span><span class="p">(</span>
+            <span class="n">maxsize</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+            <span class="n">embedder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_embedder</span><span class="p">,</span>
+            <span class="n">similarity_threshold</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
+        <span class="p">)</span>
+        
+        <span class="c1"># Incremental indexing manager for efficient updates</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_incremental_manager</span> <span class="o">=</span> <span class="n">IncrementalIndexManager</span><span class="p">(</span>
+            <span class="n">embedder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_embedder</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Index Caching</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GpuIndex</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load FAISS index from cache or disk.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            GpuIndex instance if found, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check cache first</span>
+        <span class="k">if</span> <span class="n">buffer_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span>
+        
+        <span class="c1"># Try to load from disk</span>
+        <span class="n">buffer_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">.gcbuff&quot;</span>
+        <span class="n">index_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;index.faiss&quot;</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">index_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">GpuIndex</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">index_path</span><span class="p">),</span> <span class="n">use_gpu</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_gpu</span><span class="p">,</span> <span class="n">gpu_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gpu_id</span><span class="p">)</span>
+            
+            <span class="c1"># Pre-sync to GPU if enabled</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_gpu</span><span class="p">:</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">sync_gpu</span><span class="p">()</span>
+            
+            <span class="c1"># Cache it</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">index</span>
+            
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;load_index&#39;</span><span class="p">,</span>
+                <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;buffer_id&#39;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="s1">&#39;from&#39;</span><span class="p">:</span> <span class="s1">&#39;disk&#39;</span><span class="p">}</span>
+            <span class="p">)</span>
+            
+            <span class="k">return</span> <span class="n">index</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;load_index&#39;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to load index for </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_lexical_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LexicalIndex</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load BM25 index from cache or disk.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            LexicalIndex instance if found, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Check cache first</span>
+        <span class="k">if</span> <span class="n">buffer_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lexical_cache</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lexical_cache</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span>
+        
+        <span class="c1"># Try to load from disk</span>
+        <span class="n">buffer_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">.gcbuff&quot;</span>
+        <span class="n">lexical_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;lexical_index.json&quot;</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">lexical_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">lexical_path</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+            <span class="n">lexical_index</span> <span class="o">=</span> <span class="n">LexicalIndex</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            
+            <span class="c1"># Cache it</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lexical_cache</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">lexical_index</span>
+            
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;load_lexical_index&#39;</span><span class="p">,</span>
+                <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;buffer_id&#39;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="s1">&#39;from&#39;</span><span class="p">:</span> <span class="s1">&#39;disk&#39;</span><span class="p">}</span>
+            <span class="p">)</span>
+            
+            <span class="k">return</span> <span class="n">lexical_index</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;load_lexical_index&#39;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to load lexical index for </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load chunks from buffer metadata file.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of CodeChunk objects, or None if not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">buffer_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">.gcbuff&quot;</span>
+        <span class="n">chunks_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;chunks.json&quot;</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">chunks_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="n">load_metadata</span><span class="p">(</span><span class="n">chunks_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            
+            <span class="n">chunks</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">CodeChunk</span><span class="p">(</span>
+                    <span class="n">file</span><span class="o">=</span><span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;file&#39;</span><span class="p">),</span>
+                    <span class="n">start_line</span><span class="o">=</span><span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;start_line&#39;</span><span class="p">),</span>
+                    <span class="n">end_line</span><span class="o">=</span><span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;end_line&#39;</span><span class="p">),</span>
+                    <span class="nb">type</span><span class="o">=</span><span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">),</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;name&#39;</span><span class="p">),</span>
+                    <span class="n">content</span><span class="o">=</span><span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;content&#39;</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;chunks&#39;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="p">]</span>
+            
+            <span class="k">return</span> <span class="n">chunks</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;load_chunks&#39;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to load chunks for </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># GPU Memory Management</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_gpu_memory</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check available GPU memory.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict with available_mb, total_mb, used_mb, or status=&#39;error&#39;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_gpu</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;gpu_disabled&quot;</span><span class="p">}</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;cuda_unavailable&quot;</span><span class="p">}</span>
+            
+            <span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;cuda:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">gpu_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">total_memory</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_properties</span><span class="p">(</span><span class="n">device</span><span class="p">)</span><span class="o">.</span><span class="n">total_memory</span>
+            <span class="n">allocated</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">memory_allocated</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">reserved</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">memory_reserved</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">available</span> <span class="o">=</span> <span class="n">total_memory</span> <span class="o">-</span> <span class="n">reserved</span>
+            
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;available_mb&quot;</span><span class="p">:</span> <span class="n">available</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">/</span> <span class="mi">1024</span><span class="p">,</span>
+                <span class="s2">&quot;allocated_mb&quot;</span><span class="p">:</span> <span class="n">allocated</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">/</span> <span class="mi">1024</span><span class="p">,</span>
+                <span class="s2">&quot;reserved_mb&quot;</span><span class="p">:</span> <span class="n">reserved</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">/</span> <span class="mi">1024</span><span class="p">,</span>
+                <span class="s2">&quot;total_mb&quot;</span><span class="p">:</span> <span class="n">total_memory</span> <span class="o">/</span> <span class="mi">1024</span> <span class="o">/</span> <span class="mi">1024</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;check_gpu_memory&#39;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;GPU memory check failed: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)}</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_evict_gpu_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove index from GPU when evicted from cache.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID to evict.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">buffer_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="p">:</span>
+            <span class="k">return</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="s1">&#39;unload_from_gpu&#39;</span><span class="p">):</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">unload_from_gpu</span><span class="p">()</span>
+            
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;evict_gpu_index&#39;</span><span class="p">,</span>
+                <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;buffer_id&#39;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">}</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;evict_gpu_index&#39;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to evict GPU index for </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s1">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Persistence</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_save_buffer_state</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">embeddings</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save embeddings and chunks to disk.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer identifier.</span>
+<span class="sd">            embeddings: Embedding vectors.</span>
+<span class="sd">            chunks: Code chunks.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Status dict.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">buffer_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">.gcbuff&quot;</span>
+        <span class="n">buffer_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Save chunks</span>
+            <span class="n">chunks_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;chunks.json&quot;</span>
+            <span class="n">chunks_data</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;chunks&quot;</span><span class="p">:</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">c</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                        <span class="s2">&quot;start_line&quot;</span><span class="p">:</span> <span class="n">c</span><span class="o">.</span><span class="n">start_line</span><span class="p">,</span>
+                        <span class="s2">&quot;end_line&quot;</span><span class="p">:</span> <span class="n">c</span><span class="o">.</span><span class="n">end_line</span><span class="p">,</span>
+                        <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">c</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">c</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                        <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">c</span><span class="o">.</span><span class="n">content</span><span class="p">,</span>
+                    <span class="p">}</span>
+                    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chunks</span>
+                <span class="p">]</span>
+            <span class="p">}</span>
+            <span class="n">save_metadata</span><span class="p">(</span><span class="n">chunks_data</span><span class="p">,</span> <span class="n">chunks_path</span><span class="p">)</span>
+            
+            <span class="c1"># Save embeddings as numpy file</span>
+            <span class="n">embeddings_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;embeddings.npy&quot;</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">embeddings_path</span><span class="p">,</span> <span class="n">embeddings</span><span class="p">)</span>
+            
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;save_buffer_state&#39;</span><span class="p">,</span>
+                <span class="n">details</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s1">&#39;buffer_id&#39;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                    <span class="s1">&#39;chunks_count&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">),</span>
+                    <span class="s1">&#39;embeddings_shape&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">embeddings</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">}</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;save_buffer_state&#39;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to save buffer state: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)}</span>
+    
+<div class="viewcode-block" id="IndexManager.load_buffer_state">
+<a class="viewcode-back" href="../../api/index_manager.html#gigacode.index_manager.IndexManager.load_buffer_state">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_buffer_state</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">GpuIndex</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load all buffer state from disk.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            (index, chunks, embeddings) tuple.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_index</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_chunks</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        
+        <span class="c1"># Load embeddings</span>
+        <span class="n">buffer_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">.gcbuff&quot;</span>
+        <span class="n">embeddings_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;embeddings.npy&quot;</span>
+        <span class="n">embeddings</span> <span class="o">=</span> <span class="kc">None</span>
+        
+        <span class="k">if</span> <span class="n">embeddings_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">embeddings</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">embeddings_path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="n">json_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;load_embeddings&#39;</span><span class="p">,</span>
+                    <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to load embeddings: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">index</span><span class="p">,</span> <span class="n">chunks</span><span class="p">,</span> <span class="n">embeddings</span></div>
+
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Index Creation</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+<div class="viewcode-block" id="IndexManager.create_indices">
+<a class="viewcode-back" href="../../api/index_manager.html#gigacode.index_manager.IndexManager.create_indices">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_indices</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">embeddings</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create and cache indices from embeddings.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer identifier.</span>
+<span class="sd">            embeddings: Embedding vectors.</span>
+<span class="sd">            chunks: Code chunks.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Status dict with index info.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Create FAISS index</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">GpuIndex</span><span class="p">(</span>
+                <span class="n">embedding_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_embedding_dim</span><span class="p">,</span>
+                <span class="n">use_gpu</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_gpu</span><span class="p">,</span>
+                <span class="n">gpu_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gpu_id</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">embeddings</span><span class="p">)</span>
+            
+            <span class="c1"># Pre-sync to GPU</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_gpu</span><span class="p">:</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">sync_gpu</span><span class="p">()</span>
+            
+            <span class="c1"># Save to disk</span>
+            <span class="n">buffer_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">.gcbuff&quot;</span>
+            <span class="n">buffer_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">index_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;index.faiss&quot;</span>
+            <span class="n">index</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">index_path</span><span class="p">))</span>
+            
+            <span class="c1"># Cache index</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">index</span>
+            
+            <span class="c1"># Create and cache lexical index</span>
+            <span class="n">lexical_index</span> <span class="o">=</span> <span class="n">LexicalIndex</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+                <span class="n">lexical_index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">doc_id</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">),</span> <span class="n">chunk</span><span class="o">.</span><span class="n">content</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            
+            <span class="n">lexical_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;lexical_index.json&quot;</span>
+            <span class="n">lexical_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">lexical_index</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()),</span>
+                <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lexical_cache</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">lexical_index</span>
+            
+            <span class="c1"># Save embeddings and chunks</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_save_buffer_state</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">embeddings</span><span class="p">,</span> <span class="n">chunks</span><span class="p">)</span>
+            
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">t0</span>
+            
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prometheus_exporter</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_prometheus_exporter</span><span class="o">.</span><span class="n">record_operation</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;create_indices&#39;</span><span class="p">,</span>
+                    <span class="n">duration_s</span><span class="o">=</span><span class="n">elapsed</span><span class="p">,</span>
+                    <span class="n">status</span><span class="o">=</span><span class="s1">&#39;ok&#39;</span><span class="p">,</span>
+                    <span class="n">chunk_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">),</span>
+                <span class="p">)</span>
+            
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;create_indices&#39;</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">elapsed_s</span><span class="o">=</span><span class="n">elapsed</span><span class="p">,</span>
+                <span class="n">details</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s1">&#39;chunks_count&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">),</span>
+                    <span class="s1">&#39;embeddings_shape&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">embeddings</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="s2">&quot;chunks_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">),</span>
+                <span class="s2">&quot;embeddings_shape&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">embeddings</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span>
+                <span class="s2">&quot;elapsed_s&quot;</span><span class="p">:</span> <span class="n">elapsed</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;create_indices&#39;</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to create indices: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)}</span></div>
+
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_rebuild_files</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">embeddings</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Rebuild index for changed files with incremental updates.</span>
+<span class="sd">        </span>
+<span class="sd">        Uses incremental indexing when possible to skip unchanged chunks.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID.</span>
+<span class="sd">            files: List of changed files.</span>
+<span class="sd">            embeddings: New embeddings (optional, will reload if not provided).</span>
+<span class="sd">            chunks: Updated chunks (optional, will reload if not provided).</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Status dict.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">embeddings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">chunks</span><span class="p">,</span> <span class="n">embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_buffer_state</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">embeddings</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Could not load buffer state for rebuild&quot;</span>
+                <span class="p">}</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Try incremental update if available</span>
+            <span class="n">incremental_stats</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_incremental_manager</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c1"># Group chunks by file for incremental processing</span>
+                    <span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+                    <span class="n">chunks_by_file</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+                        <span class="n">chunks_by_file</span><span class="p">[</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+                    
+                    <span class="c1"># Process each changed file incrementally</span>
+                    <span class="n">total_changed</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">total_kept</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">chunks_by_file</span><span class="p">:</span>
+                            <span class="n">file_chunks</span> <span class="o">=</span> <span class="n">chunks_by_file</span><span class="p">[</span><span class="n">file_path</span><span class="p">]</span>
+                            <span class="n">changed</span><span class="p">,</span> <span class="n">removed</span><span class="p">,</span> <span class="n">kept</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_incremental_manager</span><span class="o">.</span><span class="n">_chunk_tracker</span><span class="o">.</span><span class="n">detect_changes</span><span class="p">(</span>
+                                <span class="n">file_path</span><span class="p">,</span> <span class="n">file_chunks</span>
+                            <span class="p">)</span>
+                            <span class="n">total_changed</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">changed</span><span class="p">)</span>
+                            <span class="n">total_kept</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">kept</span><span class="p">)</span>
+                    
+                    <span class="n">incremental_stats</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="s2">&quot;total_chunks&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">),</span>
+                        <span class="s2">&quot;changed_chunks&quot;</span><span class="p">:</span> <span class="n">total_changed</span><span class="p">,</span>
+                        <span class="s2">&quot;kept_chunks&quot;</span><span class="p">:</span> <span class="n">total_kept</span><span class="p">,</span>
+                    <span class="p">}</span>
+                    
+                    <span class="k">if</span> <span class="n">total_changed</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Incremental rebuild: </span><span class="si">{</span><span class="n">total_changed</span><span class="si">}</span><span class="s2"> changed, &quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">total_kept</span><span class="si">}</span><span class="s2"> kept, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">total_changed</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">total_kept</span><span class="si">}</span><span class="s2"> removed&quot;</span>
+                        <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Incremental update failed, falling back to full rebuild: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Recreate indices</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">GpuIndex</span><span class="p">(</span>
+                <span class="n">embedding_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_embedding_dim</span><span class="p">,</span>
+                <span class="n">use_gpu</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">use_gpu</span><span class="p">,</span>
+                <span class="n">gpu_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gpu_id</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">embeddings</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_gpu</span><span class="p">:</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">sync_gpu</span><span class="p">()</span>
+            
+            <span class="c1"># Save updated index</span>
+            <span class="n">buffer_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">.gcbuff&quot;</span>
+            <span class="n">index_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;index.faiss&quot;</span>
+            <span class="n">index</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">index_path</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">index</span>
+            
+            <span class="c1"># Update lexical index</span>
+            <span class="n">lexical_index</span> <span class="o">=</span> <span class="n">LexicalIndex</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+                <span class="n">lexical_index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">doc_id</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">),</span> <span class="n">chunk</span><span class="o">.</span><span class="n">content</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            
+            <span class="n">lexical_path</span> <span class="o">=</span> <span class="n">buffer_dir</span> <span class="o">/</span> <span class="s2">&quot;lexical_index.json&quot;</span>
+            <span class="n">lexical_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">lexical_index</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()),</span>
+                <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lexical_cache</span><span class="p">[</span><span class="n">buffer_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">lexical_index</span>
+            
+            <span class="c1"># Clear query cache (results may be stale)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_query_cache</span><span class="o">.</span><span class="n">invalidate_buffer</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;rebuild_files&#39;</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">details</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;files_count&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">),</span> <span class="s1">&#39;chunks_count&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">)}</span>
+            <span class="p">)</span>
+            
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="s2">&quot;rebuilt_files&quot;</span><span class="p">:</span> <span class="n">files</span><span class="p">,</span>
+                <span class="s2">&quot;chunks_count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">json_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;rebuild_files&#39;</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;Failed to rebuild files: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)}</span>
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Query Caching</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_record_search_query</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">results</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="n">top_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;semantic&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cache search results with paraphrase matching.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID.</span>
+<span class="sd">            query: Search query string.</span>
+<span class="sd">            results: Search results to cache.</span>
+<span class="sd">            top_k: Number of results.</span>
+<span class="sd">            mode: Search mode (semantic, lexical, hybrid).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query_cache</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_cached_search</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">top_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;semantic&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check cache for semantically similar queries.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID.</span>
+<span class="sd">            query: Search query string.</span>
+<span class="sd">            top_k: Number of results.</span>
+<span class="sd">            mode: Search mode (semantic, lexical, hybrid).</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Cached results if found, None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="IndexManager.clear_query_cache">
+<a class="viewcode-back" href="../../api/index_manager.html#gigacode.index_manager.IndexManager.clear_query_cache">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">clear_query_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clear all cached queries.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
+
+    
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Metrics &amp; Health</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+<div class="viewcode-block" id="IndexManager.get_cache_stats">
+<a class="viewcode-back" href="../../api/index_manager.html#gigacode.index_manager.IndexManager.get_cache_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_cache_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get FAISS and lexical cache utilization.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict with cache statistics.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;index_cache&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="o">.</span><span class="n">stats</span><span class="p">(),</span>
+            <span class="s2">&quot;lexical_cache&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lexical_cache</span><span class="o">.</span><span class="n">stats</span><span class="p">(),</span>
+            <span class="s2">&quot;query_cache&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_query_cache</span><span class="o">.</span><span class="n">stats</span><span class="p">(),</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="IndexManager.health_check">
+<a class="viewcode-back" href="../../api/index_manager.html#gigacode.index_manager.IndexManager.health_check">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">health_check</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check index system health.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict with health status and diagnostics.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;healthy&quot;</span>
+        <span class="n">warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="n">cache_stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cache_stats</span><span class="p">()</span>
+        
+        <span class="c1"># Check cache utilization</span>
+        <span class="n">index_util</span> <span class="o">=</span> <span class="n">cache_stats</span><span class="p">[</span><span class="s2">&quot;index_cache&quot;</span><span class="p">][</span><span class="s2">&quot;utilization&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">index_util</span> <span class="o">&gt;</span> <span class="mf">0.9</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;degraded&quot;</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Index cache at </span><span class="si">{</span><span class="n">index_util</span><span class="o">*</span><span class="mi">100</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">% utilization&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">index_util</span> <span class="o">&gt;</span> <span class="mf">0.75</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Index cache at </span><span class="si">{</span><span class="n">index_util</span><span class="o">*</span><span class="mi">100</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">% utilization&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Check GPU availability</span>
+        <span class="n">gpu_status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_gpu_memory</span><span class="p">()</span>
+        <span class="n">gpu_available</span> <span class="o">=</span> <span class="n">gpu_status</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;ok&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_gpu</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">gpu_available</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;degraded&quot;</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;GPU requested but unavailable&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Query cache hit rate</span>
+        <span class="n">query_stats</span> <span class="o">=</span> <span class="n">cache_stats</span><span class="p">[</span><span class="s2">&quot;query_cache&quot;</span><span class="p">]</span>
+        <span class="n">hit_rate</span> <span class="o">=</span> <span class="n">query_stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;hit_rate_percent&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+            <span class="s2">&quot;cache_utilization&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;index_cache&quot;</span><span class="p">:</span> <span class="n">index_util</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span>
+                <span class="s2">&quot;lexical_cache&quot;</span><span class="p">:</span> <span class="n">cache_stats</span><span class="p">[</span><span class="s2">&quot;lexical_cache&quot;</span><span class="p">][</span><span class="s2">&quot;utilization&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span>
+                <span class="s2">&quot;query_cache&quot;</span><span class="p">:</span> <span class="n">query_stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;utilization_percent&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;query_cache_hit_rate&quot;</span><span class="p">:</span> <span class="n">hit_rate</span><span class="p">,</span>
+            <span class="s2">&quot;gpu_available&quot;</span><span class="p">:</span> <span class="n">gpu_available</span><span class="p">,</span>
+            <span class="s2">&quot;gpu_memory&quot;</span><span class="p">:</span> <span class="n">gpu_status</span> <span class="k">if</span> <span class="n">gpu_available</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;warnings&quot;</span><span class="p">:</span> <span class="n">warnings</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+    
+<div class="viewcode-block" id="IndexManager.close">
+<a class="viewcode-back" href="../../api/index_manager.html#gigacode.index_manager.IndexManager.close">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Clean up GPU memory and close resources.&quot;&quot;&quot;</span>
+        <span class="c1"># Unload GPU indices</span>
+        <span class="k">for</span> <span class="n">buffer_id</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_evict_gpu_indices</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+        
+        <span class="c1"># Clear all caches</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_index_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_lexical_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_query_cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        
+        <span class="n">json_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="n">operation</span><span class="o">=</span><span class="s1">&#39;close&#39;</span><span class="p">,</span>
+            <span class="n">message</span><span class="o">=</span><span class="s1">&#39;IndexManager closed and resources released&#39;</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

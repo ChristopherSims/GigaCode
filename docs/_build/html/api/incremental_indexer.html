@@ -1,0 +1,540 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Incremental Indexer &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Semantic Cache" href="semantic_cache.html" />
+    <link rel="prev" title="Search Service" href="search_service.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#module-gigacode.gigacode_tool">Core Tool</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#managers">Managers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#services">Services</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../api_reference.html#phase-3-optimizations">Phase 3 Optimizations</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Incremental Indexer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-benefits">Key Benefits</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#performance-comparison">Performance Comparison</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core-class">Core Class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-components">Key Components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#usage-with-indexmanager">Usage with IndexManager</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-commit-with-incremental-updates">Example: Commit with Incremental Updates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#statistics">Statistics</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#optimization-tips">Optimization Tips</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#advanced-manual-incremental-updates">Advanced: Manual Incremental Updates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="semantic_cache.html">Semantic Cache</a></li>
+<li class="toctree-l3"><a class="reference internal" href="faiss_optimizer.html">FAISS Optimizer</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#utilities">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#quick-reference">Quick Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#module-gigacode.gigacode_tool">Core Tool</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#managers">Managers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#services">Services</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../api_reference.html#phase-3-optimizations">Phase 3 Optimizations</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Incremental Indexer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-benefits">Key Benefits</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#performance-comparison">Performance Comparison</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core-class">Core Class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-components">Key Components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#usage-with-indexmanager">Usage with IndexManager</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-commit-with-incremental-updates">Example: Commit with Incremental Updates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#statistics">Statistics</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#optimization-tips">Optimization Tips</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#advanced-manual-incremental-updates">Advanced: Manual Incremental Updates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="semantic_cache.html">Semantic Cache</a></li>
+<li class="toctree-l3"><a class="reference internal" href="faiss_optimizer.html">FAISS Optimizer</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#utilities">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#quick-reference">Quick Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api_reference.html">API Reference</a></li>
+      <li class="breadcrumb-item active">Incremental Indexer</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/incremental_indexer.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="incremental-indexer">
+<h1>Incremental Indexer<a class="headerlink" href="#incremental-indexer" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">gigacode.incremental_indexer.IncrementalIndexManager</span></code> enables 5-50x faster code commits by only re-embedding changed chunks.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The Incremental Indexer is responsible for:</p>
+<ul class="simple">
+<li><p>Detecting chunk-level changes in files</p></li>
+<li><p>Caching unchanged chunk embeddings</p></li>
+<li><p>Re-embedding only changed chunks</p></li>
+<li><p>Merging old and new embeddings</p></li>
+<li><p>Providing efficiency metrics</p></li>
+</ul>
+</section>
+<section id="key-benefits">
+<h2>Key Benefits<a class="headerlink" href="#key-benefits" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>5-50x faster commits</strong>: Only changed chunks are re-embedded</p></li>
+<li><p><strong>Intelligent caching</strong>: Embeddings reused for unchanged chunks</p></li>
+<li><p><strong>Transparent integration</strong>: Works automatically with IndexManager</p></li>
+<li><p><strong>Cost reduction</strong>: Fewer embedding computations = less GPU usage</p></li>
+</ul>
+</section>
+<section id="performance-comparison">
+<h2>Performance Comparison<a class="headerlink" href="#performance-comparison" title="Link to this heading"></a></h2>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Scenario: 2,500 chunks, 10% changed
+
+Standard re-indexing:
+- Re-embed: 2,500 chunks
+- Time: ~30 seconds
+- Embeddings computed: 2,500
+
+With incremental indexing:
+- Re-embed: 250 chunks (10%)
+- Reuse: 2,250 chunks (90%)
+- Time: ~3 seconds
+- Embeddings computed: 250
+- Speedup: 10x faster!
+</pre></div>
+</div>
+</section>
+<section id="core-class">
+<h2>Core Class<a class="headerlink" href="#core-class" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">gigacode.incremental_indexer.</span></span><span class="sig-name descname"><span class="pre">IncrementalIndexManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">embedder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Manages incremental FAISS index updates.</p>
+<p>Enables efficient index updates by only re-embedding changed chunks.</p>
+<p>Initialize incremental index manager.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>embedder</strong> – Embedder instance for computing embeddings</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">embedder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize incremental index manager.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>embedder</strong> – Embedder instance for computing embeddings</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager.register_initial_index">
+<span class="sig-name descname"><span class="pre">register_initial_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embeddings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><span class="pre">ndarray</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.register_initial_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.register_initial_index" title="Link to this definition"></a></dt>
+<dd><p>Register initial index after creation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Buffer identifier</p></li>
+<li><p><strong>chunks</strong> – List of CodeChunk objects</p></li>
+<li><p><strong>embeddings</strong> – Embedding matrix (N, embedding_dim)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager.compute_incremental_update">
+<span class="sig-name descname"><span class="pre">compute_incremental_update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_chunks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedder_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.compute_incremental_update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.compute_incremental_update" title="Link to this definition"></a></dt>
+<dd><p>Compute incremental embedding update for changed chunks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_path</strong> – Path to file (relative)</p></li>
+<li><p><strong>new_chunks</strong> – New chunks after changes</p></li>
+<li><p><strong>embedder_func</strong> – Function to compute embeddings (default: self._embedder.encode)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>new_embeddings: Embedding matrix for changed chunks only</p></li>
+<li><p>metadata: Information about changes</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple of</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager.get_chunk_embedding">
+<span class="sig-name descname"><span class="pre">get_chunk_embedding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chunk_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><span class="pre">ndarray</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.get_chunk_embedding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.get_chunk_embedding" title="Link to this definition"></a></dt>
+<dd><p>Get cached embedding for a chunk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>chunk_id</strong> – Unique chunk identifier</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Embedding vector or None if not cached</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager.get_cache_stats">
+<span class="sig-name descname"><span class="pre">get_cache_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.get_cache_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.get_cache_stats" title="Link to this definition"></a></dt>
+<dd><p>Get cache statistics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dictionary with cache size and stats</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="key-components">
+<h2>Key Components<a class="headerlink" href="#key-components" title="Link to this heading"></a></h2>
+<p><strong>ChunkDiffTracker</strong></p>
+<p>Tracks which chunks have changed:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.incremental_indexer</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChunkDiffTracker</span>
+
+<span class="n">tracker</span> <span class="o">=</span> <span class="n">ChunkDiffTracker</span><span class="p">()</span>
+
+<span class="c1"># Register chunks</span>
+<span class="n">tracker</span><span class="o">.</span><span class="n">register_chunk</span><span class="p">(</span>
+    <span class="n">chunk_id</span><span class="o">=</span><span class="s2">&quot;chunk_1&quot;</span><span class="p">,</span>
+    <span class="n">text</span><span class="o">=</span><span class="s2">&quot;def my_function(): pass&quot;</span><span class="p">,</span>
+    <span class="n">file_path</span><span class="o">=</span><span class="s2">&quot;module.py&quot;</span><span class="p">,</span>
+    <span class="n">line_start</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">line_end</span><span class="o">=</span><span class="mi">11</span>
+<span class="p">)</span>
+
+<span class="c1"># Detect changes</span>
+<span class="n">changed</span><span class="p">,</span> <span class="n">removed</span><span class="p">,</span> <span class="n">kept</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">detect_changes</span><span class="p">(</span>
+    <span class="n">new_chunks</span><span class="o">=</span><span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;chunk_1&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;def my_function_renamed(): pass&quot;</span>  <span class="c1"># Changed!</span>
+        <span class="p">}</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Changed: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">changed</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Removed: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">removed</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Kept: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">kept</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>IncrementalIndexManager</strong></p>
+<p>Manages incremental embeddings:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.incremental_indexer</span><span class="w"> </span><span class="kn">import</span> <span class="n">IncrementalIndexManager</span>
+
+<span class="n">manager</span> <span class="o">=</span> <span class="n">IncrementalIndexManager</span><span class="p">(</span><span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span><span class="p">)</span>
+
+<span class="c1"># Compute incremental update</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">compute_incremental_update</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">new_chunks</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>
+    <span class="n">previous_state</span><span class="o">=</span><span class="p">{</span><span class="o">...</span><span class="p">}</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Changed chunks: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;changed_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reused embeddings: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;reused_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Efficiency: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x faster&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="usage-with-indexmanager">
+<h2>Usage with IndexManager<a class="headerlink" href="#usage-with-indexmanager" title="Link to this heading"></a></h2>
+<p>The Incremental Indexer is automatically used by IndexManager:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.index_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">IndexManager</span>
+
+<span class="n">manager</span> <span class="o">=</span> <span class="n">IndexManager</span><span class="p">(</span><span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span><span class="p">)</span>
+
+<span class="c1"># When files change and rebuild is triggered:</span>
+<span class="c1"># 1. Chunk diff is detected</span>
+<span class="c1"># 2. Only changed chunks are embedded</span>
+<span class="c1"># 3. Old embeddings are reused</span>
+<span class="c1"># 4. Index is updated with merged embeddings</span>
+<span class="c1"># 5. Efficiency metrics are logged</span>
+</pre></div>
+</div>
+</section>
+<section id="example-commit-with-incremental-updates">
+<h2>Example: Commit with Incremental Updates<a class="headerlink" href="#example-commit-with-incremental-updates" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
+
+<span class="c1"># Make small changes (1% of chunks)</span>
+<span class="n">file_path</span> <span class="o">=</span> <span class="s2">&quot;/path/to/project/module.py&quot;</span>
+<span class="n">content</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<span class="n">new_content</span> <span class="o">=</span> <span class="n">content</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;old_name&quot;</span><span class="p">,</span> <span class="s2">&quot;new_name&quot;</span><span class="p">)</span>
+
+<span class="c1"># Write change</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="s2">&quot;module.py&quot;</span><span class="p">,</span> <span class="n">new_content</span><span class="p">)</span>
+
+<span class="c1"># Commit (incremental indexing activates)</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;module.py&quot;</span><span class="p">],</span> <span class="s2">&quot;Rename function&quot;</span><span class="p">)</span>
+<span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Commit time: </span><span class="si">{</span><span class="n">elapsed</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Changed chunks: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;chunks_changed&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reused chunks: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;chunks_kept&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Efficiency: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x faster&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.incremental_indexer</span><span class="w"> </span><span class="kn">import</span> <span class="n">IncrementalIndexManager</span>
+
+<span class="n">manager</span> <span class="o">=</span> <span class="n">IncrementalIndexManager</span><span class="p">(</span>
+    <span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span><span class="p">,</span>
+    <span class="n">max_cache_size</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>  <span class="c1"># Cache up to 10k embeddings</span>
+    <span class="n">use_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># GPU for diff computation</span>
+    <span class="n">fallback_threshold</span><span class="o">=</span><span class="mf">0.5</span>  <span class="c1"># Fallback to full rebuild if &gt;50% changed</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="statistics">
+<h2>Statistics<a class="headerlink" href="#statistics" title="Link to this heading"></a></h2>
+<p>Get incremental indexing statistics:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">stats</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total updates: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;total_updates&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Average efficiency: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;avg_efficiency&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cache hit rate: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;cache_hit_rate&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Fallback to full rebuild: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;fallback_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> times&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="optimization-tips">
+<h2>Optimization Tips<a class="headerlink" href="#optimization-tips" title="Link to this heading"></a></h2>
+<p><strong>1. Batch changes</strong></p>
+<p>Commit multiple files together for better efficiency:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Good: single commit</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;file1.py&quot;</span><span class="p">,</span> <span class="s2">&quot;file2.py&quot;</span><span class="p">,</span> <span class="s2">&quot;file3.py&quot;</span><span class="p">])</span>
+
+<span class="c1"># Bad: multiple commits (each rebuilds index)</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;file1.py&quot;</span><span class="p">])</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;file2.py&quot;</span><span class="p">])</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;file3.py&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p><strong>2. Monitor efficiency</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">files</span><span class="p">)</span>
+
+<span class="c1"># Low efficiency means most chunks changed</span>
+<span class="k">if</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">2.0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Warning: Most code changed, consider full rebuild&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>3. Clear cache periodically</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Cache can grow over time</span>
+<span class="n">manager</span><span class="o">.</span><span class="n">clear_cache</span><span class="p">()</span>  <span class="c1"># Or specific buffer: clear_cache(buffer_id)</span>
+</pre></div>
+</div>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<p><strong>Commit falling back to full rebuild:</strong></p>
+<ul class="simple">
+<li><p>Check log for messages about high change percentage</p></li>
+<li><p>If &gt;50% of chunks changed, full rebuild is more efficient</p></li>
+<li><p>Consider if you’re embedding the right files</p></li>
+</ul>
+<p><strong>Out of memory during incremental update:</strong></p>
+<ul class="simple">
+<li><p>Reduce batch size (fewer files per commit)</p></li>
+<li><p>Clear old cache entries: <code class="docutils literal notranslate"><span class="pre">manager.clear_cache()</span></code></p></li>
+<li><p>Check <code class="docutils literal notranslate"><span class="pre">max_cache_size</span></code> setting</p></li>
+</ul>
+<p><strong>Incremental updates not working:</strong></p>
+<ul class="simple">
+<li><p>Verify IndexManager has <code class="docutils literal notranslate"><span class="pre">_incremental_manager</span></code> initialized</p></li>
+<li><p>Check that file paths match exactly</p></li>
+<li><p>Enable debug logging to see what’s happening</p></li>
+</ul>
+</section>
+<section id="advanced-manual-incremental-updates">
+<h2>Advanced: Manual Incremental Updates<a class="headerlink" href="#advanced-manual-incremental-updates" title="Link to this heading"></a></h2>
+<p>You can manually compute incremental updates:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.incremental_indexer</span><span class="w"> </span><span class="kn">import</span> <span class="n">IncrementalIndexManager</span><span class="p">,</span> <span class="n">ChunkDiffTracker</span>
+
+<span class="n">tracker</span> <span class="o">=</span> <span class="n">ChunkDiffTracker</span><span class="p">()</span>
+<span class="n">manager</span> <span class="o">=</span> <span class="n">IncrementalIndexManager</span><span class="p">(</span><span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span><span class="p">)</span>
+
+<span class="c1"># Register baseline chunks</span>
+<span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">original_chunks</span><span class="p">:</span>
+    <span class="n">tracker</span><span class="o">.</span><span class="n">register_chunk</span><span class="p">(</span>
+        <span class="n">chunk_id</span><span class="o">=</span><span class="n">chunk</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
+        <span class="n">text</span><span class="o">=</span><span class="n">chunk</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">],</span>
+        <span class="n">file_path</span><span class="o">=</span><span class="n">chunk</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">],</span>
+        <span class="n">line_start</span><span class="o">=</span><span class="n">chunk</span><span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">],</span>
+        <span class="n">line_end</span><span class="o">=</span><span class="n">chunk</span><span class="p">[</span><span class="s1">&#39;end&#39;</span><span class="p">]</span>
+    <span class="p">)</span>
+
+<span class="c1"># Detect changes</span>
+<span class="n">changed</span><span class="p">,</span> <span class="n">removed</span><span class="p">,</span> <span class="n">kept</span> <span class="o">=</span> <span class="n">tracker</span><span class="o">.</span><span class="n">detect_changes</span><span class="p">(</span><span class="n">new_chunks</span><span class="p">)</span>
+
+<span class="c1"># Compute update</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">compute_incremental_update</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">changed_chunks</span><span class="o">=</span><span class="n">changed</span><span class="p">,</span>
+    <span class="n">new_chunks</span><span class="o">=</span><span class="n">new_chunks</span><span class="p">,</span>
+    <span class="n">old_embeddings</span><span class="o">=</span><span class="n">old_embeddings</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Efficiency: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="semantic_cache.html#gigacode.semantic_cache.SemanticQueryCache" title="gigacode.semantic_cache.SemanticQueryCache"><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.semantic_cache.SemanticQueryCache</span></code></a> - Query caching</p></li>
+<li><p><a class="reference internal" href="faiss_optimizer.html#gigacode.faiss_optimizer.FAISSIndexOptimizer" title="gigacode.faiss_optimizer.FAISSIndexOptimizer"><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.faiss_optimizer.FAISSIndexOptimizer</span></code></a> - Index optimization</p></li>
+<li><p><a class="reference internal" href="../tutorials/edit_workflows.html"><span class="doc">Edit Workflows</span></a> - Editing tutorial with incremental updates</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="search_service.html" class="btn btn-neutral float-left" title="Search Service" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="semantic_cache.html" class="btn btn-neutral float-right" title="Semantic Cache" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

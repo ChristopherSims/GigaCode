@@ -47,63 +47,16 @@ from gigacode.retry_utils import retry_on_io_error
 from gigacode.size_guard import check_size
 from gigacode.operation_config import OperationType, OperationConfig
 from gigacode.health_status import HealthStatus, HealthStatusTracker
-from gigacode.access_control import User, AccessControl, Permission, Role
-from gigacode.audit_logger import AuditLogger, AuditStatus
-from gigacode.rate_limiter import RateLimiter
+from gigacode.path_utils import validate_buffer_path
+from gigacode.lru_cache import LRUDict
+from gigacode import response_adapters
+from gigacode import tool_validation
+from gigacode.tool_security import ToolSecurityLayer
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger('tool')
 
 _MAX_DIRTY_BEFORE_AUTO_REBUILD = 3
-
-
-class LRUDict(OrderedDict):
-    """Bounded LRU dict. Evicts least-recently-used item when max_size exceeded.
-    
-    Usage:
-        cache = LRUDict(max_size=10)
-        cache['key'] = value  # Auto-evicts oldest if size exceeds max_size
-        val = cache['key']    # Moves 'key' to end (most recently used)
-    """
-
-    def __init__(self, max_size: int = 10) -> None:
-        super().__init__()
-        self.max_size = max_size
-
-    def __getitem__(self, key: str) -> Any:
-        """Get item and move to end (mark as recently used)."""
-        value = super().__getitem__(key)
-        self.move_to_end(key)
-        return value
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        """Set item and move to end. Evict LRU item if size exceeded."""
-        if key in self:
-            self.move_to_end(key)
-        super().__setitem__(key, value)
-        if len(self) > self.max_size:
-            # Pop the oldest (first) item
-            oldest_key = next(iter(self))
-            self.pop(oldest_key)
-            json_logger.debug(
-                operation='lru_eviction',
-                details={'removed_key': oldest_key, 'new_size': len(self)},
-            )
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get with default; moves to end if found."""
-        if key in self:
-            return self[key]
-        return default
-
-    def stats(self) -> dict[str, Any]:
-        """Return cache statistics."""
-        return {
-            "size": len(self),
-            "maxsize": self.max_size,
-            "utilization": len(self) / self.max_size if self.max_size > 0 else 0
-        }
-
 
 
 class CodeEmbeddingTool:
@@ -152,7 +105,14 @@ class CodeEmbeddingTool:
         self.gpu_id = gpu_id
         self.max_buffers = max_buffers
 
-        self._embedder = Embedder(model_name=model_name, device=device)
+        from gigacode.embedder_optimizer import wrap_embedder_with_optimization
+        
+        embedder = Embedder(model_name=model_name, device=device)
+        self._embedder = wrap_embedder_with_optimization(
+            embedder=embedder,
+            use_batch_optimization=True,
+            batch_threshold=100,
+        )
         self._embedding_dim = self._embedder.embedding_dim
 
         # Query result cache with semantic similarity matching
@@ -170,13 +130,8 @@ class CodeEmbeddingTool:
         # Phase 6: Health status tracker for state-based access control
         self._health_tracker = HealthStatusTracker()
         
-        # Phase 7: RBAC, audit logging, and rate limiting
-        self._access_control = AccessControl()
-        self._audit_logger = AuditLogger(self.work_dir / "audit.jsonl")
-        self._rate_limiter = RateLimiter()
-        self._current_user_id = "default"  # Default user for local development
-        # Register default user with AGENT role (full operational access for AI agents)
-        self._access_control.register_user("default", Role.AGENT)
+        # Phase 7: Security layer (RBAC, audit logging, and rate limiting)
+        self._security = ToolSecurityLayer(self.work_dir)
 
         # Phase 4 Integration: Initialize the three manager layers
         # These provide separation of concerns for buffer mgmt, indexing, and search
@@ -195,6 +150,8 @@ class CodeEmbeddingTool:
                 state_manager=self._state_manager,
                 embedding_dim=self._embedding_dim,
                 threshold_mb=threshold_mb,
+                audit_logger=self._security._audit_logger,
+                user_id=self._security._current_user_id,
             )
 
             self._index_manager = IndexManager(
@@ -306,30 +263,14 @@ class CodeEmbeddingTool:
         }
 
     # ------------------------------------------------------------------
-    # Input validation
+    # Input validation (thin wrappers to tool_validation module)
     # ------------------------------------------------------------------
     @staticmethod
     def _make_error_response(
         message: str, buffer_id: str | None = None, operation: str = "", context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        """Create a structured error response with context.
-        
-        Args:
-            message: Human-readable error message.
-            buffer_id: Buffer ID if applicable.
-            operation: Operation name (e.g., 'semantic_search', 'write_code').
-            context: Additional context dict.
-        
-        Returns:
-            Dict with ErrorResponse.to_dict() format (includes context field).
-        """
-        ctx = context or {}
-        if buffer_id is not None:
-            ctx["buffer_id"] = buffer_id
-        if operation:
-            ctx["operation"] = operation
-        response = ErrorResponse(message=message, context=ctx)
-        return response.to_dict()
+        """Thin wrapper to tool_validation.make_error_response."""
+        return tool_validation.make_error_response(message, buffer_id=buffer_id, operation=operation, context=context)
 
     @staticmethod
     def _validate_search_params(
@@ -337,19 +278,11 @@ class CodeEmbeddingTool:
         top_k: int | None = None,
         max_results: int | None = None,
     ) -> dict[str, Any] | None:
-        """Return an error dict when params are invalid, else ``None``."""
-        if not query or not query.strip():
-            return {"status": "error", "message": "query must be a non-empty string."}
-        if top_k is not None:
-            if not isinstance(top_k, int) or top_k < 1 or top_k > 10_000:
-                return {"status": "error", "message": "top_k must be an integer between 1 and 10000."}
-        if max_results is not None:
-            if not isinstance(max_results, int) or max_results < 1 or max_results > 100_000:
-                return {"status": "error", "message": "max_results must be an integer between 1 and 100000."}
-        return None
+        """Thin wrapper to tool_validation.validate_search_params."""
+        return tool_validation.validate_search_params(query, top_k=top_k, max_results=max_results)
 
     # ------------------------------------------------------------------
-    # Phase 5: Response adapters for manager delegation
+    # Phase 5: Response adapters (thin wrappers to response_adapters module)
     # ------------------------------------------------------------------
     @staticmethod
     def _adapt_search_response(
@@ -357,151 +290,29 @@ class CodeEmbeddingTool:
         offset: int = 0,
         top_k: int | None = None,
     ) -> dict[str, Any]:
-        """Adapt SearchService response to CodeEmbeddingTool format.
-        
-        Args:
-            service_result: SearchService.SearchResponse or error dict
-            offset: Results offset for slicing
-            top_k: Number of results to return (if None, return all)
-        
-        Returns:
-            Dict in CodeEmbeddingTool response format
-        """
-        # If it's already an error dict, return as-is
-        if isinstance(service_result, dict) and service_result.get("status") == "error":
-            return service_result
-        
-        # Convert SearchService.SearchResponse to CodeEmbeddingTool format
-        if hasattr(service_result, "to_dict"):
-            service_dict = service_result.to_dict()
-        else:
-            service_dict = service_result
-        
-        # Extract matches and apply offset/slicing
-        matches = service_dict.get("matches", [])
-        if offset > 0 or top_k:
-            end = offset + top_k if top_k else None
-            matches = matches[offset:end]
-        
-        # Convert SearchService.SearchMatch to CodeEmbeddingTool.SearchMatch
-        converted_matches = []
-        for idx, match_dict in enumerate(matches):
-            if isinstance(match_dict, dict):
-                # Build CodeEmbeddingTool.SearchMatch
-                converted = SearchMatch(
-                    file=match_dict.get("file", ""),
-                    start_line=match_dict.get("start_line", 0),
-                    end_line=match_dict.get("end_line", 0),
-                    score=float(match_dict.get("score", 0.0)),
-                    doc_id=match_dict.get("doc_id", idx),  # Use index if no doc_id
-                    type=match_dict.get("type"),
-                    name=match_dict.get("name"),
-                    match_type=match_dict.get("match_type", "semantic"),
-                )
-                converted_matches.append(converted)
-            else:
-                # Already a SearchMatch object
-                converted_matches.append(match_dict)
-        
-        # Build response in CodeEmbeddingTool format
-        response = SearchResponse(
-            status=ResponseStatus.OK,
-            matches=converted_matches,
-            cached=service_dict.get("cache_hit", False),
-        )
-        return response.to_dict()
+        """Thin wrapper to response_adapters.adapt_search_response."""
+        return response_adapters.adapt_search_response(service_result, offset=offset, top_k=top_k)
 
     @staticmethod
     def _adapt_file_response(
         service_result: Any,
     ) -> dict[str, Any]:
-        """Adapt SearchService look_for_file response to CodeEmbeddingTool format.
-        
-        SearchService returns: {"status", "files", "count", "pattern"}
-        CodeEmbeddingTool expects: {"status", "file_location", "absolute_path", "match_type"}
-        """
-        if isinstance(service_result, dict):
-            if service_result.get("status") == "error":
-                return service_result
-            
-            files = service_result.get("files", [])
-            if not files:
-                return {"status": "error", "message": "File not found"}
-            elif len(files) == 1:
-                # Single match
-                return {
-                    "status": "ok",
-                    "file_location": files[0],
-                    "match_type": "found",
-                }
-            else:
-                # Multiple matches
-                return {
-                    "status": "ok",
-                    "candidates": files,
-                    "match_type": "multiple",
-                    "message": f"Found {len(files)} matching files.",
-                }
-        return service_result
+        """Thin wrapper to response_adapters.adapt_file_response."""
+        return response_adapters.adapt_file_response(service_result)
 
     @staticmethod
     def _adapt_cluster_response(
         service_result: Any,
     ) -> dict[str, Any]:
-        """Adapt SearchService ClusterResult to CodeEmbeddingTool format.
-        
-        SearchService returns ClusterResult with dict of clusters
-        CodeEmbeddingTool expects list of ClusterItem with file/start_line/end_line/size/avg_score
-        """
-        if isinstance(service_result, dict) and service_result.get("status") == "error":
-            return service_result
-        
-        # Convert ClusterResult to dict if needed
-        if hasattr(service_result, "to_dict"):
-            service_dict = service_result.to_dict()
-        else:
-            service_dict = service_result
-        
-        clusters_dict = service_dict.get("clusters", {})
-        cluster_list = []
-        
-        # Convert dict-based clusters to list format with aggregated metadata
-        for cluster_id, chunks in clusters_dict.items():
-            if chunks:
-                first_chunk = chunks[0]
-                last_chunk = chunks[-1]
-                cluster_list.append(ClusterItem(
-                    file=first_chunk.get("file", ""),
-                    start_line=first_chunk.get("start_line", 0),
-                    end_line=last_chunk.get("end_line", 0),
-                    size=len(chunks),
-                    avg_score=0.0,  # Would need more data to calculate
-                ))
-        
-        response = ClusterResponse(
-            status=ResponseStatus.OK,
-            clusters=cluster_list,
-        )
-        return response.to_dict()
+        """Thin wrapper to response_adapters.adapt_cluster_response."""
+        return response_adapters.adapt_cluster_response(service_result)
 
     @staticmethod
     def _adapt_duplicate_response(
         service_result: Any,
     ) -> dict[str, Any]:
-        """Adapt SearchService DuplicateResult to CodeEmbeddingTool format.
-        
-        Both formats are similar, just ensure proper dict conversion.
-        """
-        if isinstance(service_result, dict):
-            if service_result.get("status") == "error":
-                return service_result
-            return service_result
-        
-        # Convert DuplicateResult to dict if needed
-        if hasattr(service_result, "to_dict"):
-            return service_result.to_dict()
-        
-        return service_result
+        """Thin wrapper to response_adapters.adapt_duplicate_response."""
+        return response_adapters.adapt_duplicate_response(service_result)
 
     # ------------------------------------------------------------------
     # Pre-flight size check
@@ -557,9 +368,19 @@ class CodeEmbeddingTool:
         """
         t0 = time.perf_counter()
         try:
+            # Validate path to prevent traversal attacks
+            try:
+                validated_path = validate_buffer_path(path, self._work_dir)
+            except ValueError as e:
+                return self._make_error_response(
+                    f"Invalid path: {e}",
+                    operation="embed_codebase",
+                    context={"path": str(path)}
+                )
+            
             # Delegate to BufferManager: handle chunking, validation, registration
             buffer_id, chunks, files = self._buffer_manager.embed_codebase(
-                path=path,
+                path=validated_path,
                 language_hint=language_hint,
                 pattern=pattern,
                 sliding_window_size=sliding_window_size,
@@ -1170,6 +991,16 @@ class CodeEmbeddingTool:
                     context={"requested_file": file}
                 )
             
+            # Validate file path to prevent traversal attacks
+            try:
+                buffer_root = Path(info.get("buffer_dir", self._work_dir))
+                validate_buffer_path(file, buffer_root)
+            except ValueError as e:
+                return self._make_error_response(
+                    f"Invalid file path: {e}", buffer_id=buffer_id, operation="read_code",
+                    context={"requested_file": file}
+                )
+            
             # Read file on-demand from disk
             lines = snapshot_mgr.read_lines(file)
             if lines is None:
@@ -1189,10 +1020,8 @@ class CodeEmbeddingTool:
             }
             
             # Audit log successful file read
-            self._audit_logger.log_success(
+            self._security.log_success(
                 operation="read_code",
-                user_id=self._current_user_id,
-                role=self._access_control.get_user(self._current_user_id).role.name,
                 buffer_id=buffer_id,
                 details={
                     "file": file,
@@ -1230,10 +1059,8 @@ class CodeEmbeddingTool:
         final_result = {"status": "ok", "files": result}
         
         # Audit log successful read-all operation
-        self._audit_logger.log_success(
+        self._security.log_success(
             operation="read_code",
-            user_id=self._current_user_id,
-            role=self._access_control.get_user(self._current_user_id).role.name,
             buffer_id=buffer_id,
             details={
                 "files_count": len(result),
@@ -1284,6 +1111,13 @@ class CodeEmbeddingTool:
             return {"status": "error", "message": "Source snapshot missing."}
         if file not in snapshot:
             return {"status": "error", "message": f"File not in buffer: {file}"}
+        
+        # Validate file path to prevent traversal attacks
+        try:
+            buffer_root = Path(info.get("buffer_dir", self._work_dir))
+            validate_buffer_path(file, buffer_root)
+        except ValueError as e:
+            return {"status": "error", "message": f"Invalid file path: {e}"}
 
         # Phase 2: Detect 3-way merge conflicts before allowing write
         snapshot_mgr = self._get_snapshot_manager(buffer_id)
@@ -1343,10 +1177,8 @@ class CodeEmbeddingTool:
         }
         
         # Audit log successful write
-        self._audit_logger.log_success(
+        self._security.log_success(
             operation="write_code",
-            user_id=self._current_user_id,
-            role=self._access_control.get_user(self._current_user_id).role.name,
             buffer_id=buffer_id,
             details={
                 "file": file,
@@ -1515,6 +1347,17 @@ class CodeEmbeddingTool:
             for rel_path in dirty:
                 lines = snapshot.get(rel_path, [])
                 disk_path = root / rel_path
+                
+                # Validate file path to prevent traversal attacks
+                try:
+                    validate_buffer_path(rel_path, root)
+                except ValueError as e:
+                    logger.warning(f"Invalid file path in dirty files: {rel_path}: {e}")
+                    conflicts.append({
+                        "file": rel_path,
+                        "message": f"Invalid file path: {e}",
+                    })
+                    continue
 
                 if dry_run:
                     # Dry run: just check for conflicts without writing
@@ -1595,11 +1438,9 @@ class CodeEmbeddingTool:
             
             # Audit log commit operation (success or conflict)
             if conflicts:
-                self._audit_logger.log_failure(
+                self._security.log_failure(
                     operation="commit",
-                    user_id=self._current_user_id,
-                    role=self._access_control.get_user(self._current_user_id).role.name,
-                    error_message=f"Commit conflict: {len(conflicts)} files",
+                    message=f"Commit conflict: {len(conflicts)} files",
                     buffer_id=buffer_id,
                     details={
                         "dry_run": dry_run,
@@ -1609,10 +1450,8 @@ class CodeEmbeddingTool:
                     }
                 )
             else:
-                self._audit_logger.log_success(
+                self._security.log_success(
                     operation="commit",
-                    user_id=self._current_user_id,
-                    role=self._access_control.get_user(self._current_user_id).role.name,
                     buffer_id=buffer_id,
                     details={
                         "dry_run": dry_run,
@@ -1966,10 +1805,8 @@ class CodeEmbeddingTool:
         self._health_tracker.update_buffer_state(buffer_id, new_state)
         
         # Log state change
-        self._audit_logger.log_success(
+        self._security.log_success(
             operation="state_transition",
-            user_id=self._current_user_id,
-            role=self._access_control.get_user(self._current_user_id).role.name,
             buffer_id=buffer_id,
             details={
                 "from_state": str(current_state),
@@ -2257,8 +2094,8 @@ class CodeEmbeddingTool:
         
         # Convert role string to enum
         role_enum = Role[role.upper()] if role else Role.ANALYST
-        self._current_user_id = user_id
-        return self._access_control.register_user(user_id, role_enum)
+        self._security._current_user_id = user_id
+        return self._security._access_control.register_user(user_id, role_enum)
     
     def _check_permission(
         self,
@@ -2274,8 +2111,9 @@ class CodeEmbeddingTool:
         Returns:
             (allowed, reason) tuple
         """
-        allowed, reason = self._access_control.check_operation(
-            self._current_user_id,
+        # Access control is now in security layer
+        allowed, reason = self._security._access_control.check_operation(
+            self._security._current_user_id,
             operation,
             buffer_owner,
         )
@@ -2284,8 +2122,8 @@ class CodeEmbeddingTool:
         if not allowed:
             self._audit_logger.log_denied(
                 operation=operation,
-                user_id=self._current_user_id,
-                role=self._access_control.get_user(self._current_user_id).role.value,
+                user_id=self._security._current_user_id,
+                role=self._security.get_current_user_role_name(),
                 reason=reason,
             )
         
@@ -2300,9 +2138,9 @@ class CodeEmbeddingTool:
         Returns:
             (allowed, reason) tuple
         """
-        user = self._access_control.get_user(self._current_user_id)
-        allowed, reason = self._rate_limiter.check_all_limits(
-            self._current_user_id,
+        user = self._security.get_current_user()
+        allowed, reason = self._security._rate_limiter.check_all_limits(
+            self._security._current_user_id,
             user.role,
             buffer_id,
             operation_type="operations",
@@ -2330,7 +2168,7 @@ class CodeEmbeddingTool:
             entries = self._audit_logger.get_buffer_history(buffer_id, limit)
         else:
             entries = self._audit_logger.query_logs(
-                user_id=self._current_user_id,
+                user_id=self._security._current_user_id,
                 limit=limit,
             )
         
@@ -2362,6 +2200,7 @@ class CodeEmbeddingTool:
         self._index_cache.clear()
         self._lexical_cache.clear()
         self._query_cache.clear()
+        self._security.close()
         
         # Stop Prometheus metrics server if running
         if self._prometheus_exporter is not None:

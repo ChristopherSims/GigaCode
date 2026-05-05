@@ -1,0 +1,471 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basic Embedding Workflow &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Search Workflows" href="search_workflows.html" />
+    <link rel="prev" title="Installation" href="../installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Basic Embedding Workflow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-initialize-gigacode">Step 1: Initialize GigaCode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-embed-your-codebase">Step 2: Embed Your Codebase</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-3-inspect-the-embeddings">Step 3: Inspect the Embeddings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-file-selection">Advanced: File Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-streaming-embeddings">Advanced: Streaming Embeddings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-custom-chunking">Advanced: Custom Chunking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#what-s-next">What’s Next?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-complete-workflow">Example: Complete Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#next-step">Next Step</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Basic Embedding Workflow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-initialize-gigacode">Step 1: Initialize GigaCode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-embed-your-codebase">Step 2: Embed Your Codebase</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-3-inspect-the-embeddings">Step 3: Inspect the Embeddings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-file-selection">Advanced: File Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-streaming-embeddings">Advanced: Streaming Embeddings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-custom-chunking">Advanced: Custom Chunking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#what-s-next">What’s Next?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-complete-workflow">Example: Complete Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#next-step">Next Step</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Basic Embedding Workflow</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorials/basic_embed.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="basic-embedding-workflow">
+<h1>Basic Embedding Workflow<a class="headerlink" href="#basic-embedding-workflow" title="Link to this heading"></a></h1>
+<p>This tutorial covers the fundamental workflow: initializing GigaCode, embedding a codebase, and inspecting the results.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The embedding workflow consists of three main steps:</p>
+<ol class="arabic simple">
+<li><p><strong>Initialize</strong> - Create a CodeEmbeddingTool instance</p></li>
+<li><p><strong>Embed</strong> - Process your codebase to create embeddings</p></li>
+<li><p><strong>Inspect</strong> - View metadata about your embedded project</p></li>
+</ol>
+</section>
+<section id="step-1-initialize-gigacode">
+<h2>Step 1: Initialize GigaCode<a class="headerlink" href="#step-1-initialize-gigacode" title="Link to this heading"></a></h2>
+<p>First, import and initialize the tool:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="c1"># Create a work directory for GigaCode</span>
+<span class="n">work_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;.gigacode&quot;</span>
+<span class="n">work_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Initialize the tool</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span>
+    <span class="n">work_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">work_dir</span><span class="p">),</span>
+    <span class="n">max_buffers</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>  <span class="c1"># Maximum concurrent projects</span>
+    <span class="n">enable_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># Use GPU if available</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ GigaCode initialized at </span><span class="si">{</span><span class="n">work_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Configuration Options:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">work_dir</span></code> (str): Directory to store embeddings and caches</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_buffers</span></code> (int): Maximum number of concurrent projects (default: 10)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">enable_gpu</span></code> (bool): Enable GPU acceleration (default: True if CUDA available)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">embedding_model</span></code> (str): Model name for embeddings (default: “all-MiniLM-L6-v2”)</p></li>
+</ul>
+</section>
+<section id="step-2-embed-your-codebase">
+<h2>Step 2: Embed Your Codebase<a class="headerlink" href="#step-2-embed-your-codebase" title="Link to this heading"></a></h2>
+<p>Now embed a Python project:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Path to your project</span>
+<span class="n">project_path</span> <span class="o">=</span> <span class="s2">&quot;/path/to/your/project&quot;</span>
+
+<span class="c1"># Embed the entire codebase</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">include_extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;.py&quot;</span><span class="p">,</span> <span class="s2">&quot;.js&quot;</span><span class="p">,</span> <span class="s2">&quot;.ts&quot;</span><span class="p">],</span>  <span class="c1"># Include these files</span>
+    <span class="n">exclude_dirs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;node_modules&quot;</span><span class="p">,</span> <span class="s2">&quot;.git&quot;</span><span class="p">,</span> <span class="s2">&quot;__pycache__&quot;</span><span class="p">],</span>  <span class="c1"># Skip these dirs</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Embedded project: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>What happens during embedding:</strong></p>
+<ol class="arabic simple">
+<li><p>Files are discovered and filtered by extension</p></li>
+<li><p>Code is chunked into semantic units</p></li>
+<li><p>Each chunk is converted to a vector embedding</p></li>
+<li><p>Embeddings are indexed for fast search</p></li>
+<li><p>Metadata is stored for reconstruction</p></li>
+</ol>
+<p><strong>Progress feedback:</strong></p>
+<p>For larger projects, you’ll see progress:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Enable progress reporting</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;large_project&quot;</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Print progress</span>
+<span class="p">)</span>
+
+<span class="c1"># Output:</span>
+<span class="c1"># Discovering files... (found 1234 files)</span>
+<span class="c1"># Filtering by extension... (1034 Python files)</span>
+<span class="c1"># Chunking code... (2547 chunks)</span>
+<span class="c1"># Embedding chunks... [████████████░░░░░░░░] 60%</span>
+<span class="c1"># Indexing... (FAISS index created)</span>
+<span class="c1"># ✓ Complete!</span>
+</pre></div>
+</div>
+</section>
+<section id="step-3-inspect-the-embeddings">
+<h2>Step 3: Inspect the Embeddings<a class="headerlink" href="#step-3-inspect-the-embeddings" title="Link to this heading"></a></h2>
+<p>View information about your embedded project:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get buffer metadata</span>
+<span class="n">metadata</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_buffer_metadata</span><span class="p">(</span><span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Project: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;buffer_id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Files: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;file_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chunks: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;chunk_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Embedding dimension: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;embedding_dim&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Index type: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;index_type&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total size: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;total_size_mb&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> MB&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Example output:</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Project: my_project
+Files: 145
+Chunks: 2,547
+Embedding dimension: 384
+Index type: FAISS
+Total size: 156.23 MB
+</pre></div>
+</div>
+<p>List all embedded projects:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get all buffers</span>
+<span class="n">buffers</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">list_buffers</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">metadata</span> <span class="ow">in</span> <span class="n">buffers</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;file_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> files, &quot;</span>
+          <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;chunk_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> chunks&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-file-selection">
+<h2>Advanced: File Selection<a class="headerlink" href="#advanced-file-selection" title="Link to this heading"></a></h2>
+<p><strong>Include only specific file types:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;python_only&quot;</span><span class="p">,</span>
+    <span class="n">include_extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;.py&quot;</span><span class="p">],</span>  <span class="c1"># Only Python files</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Exclude directories and patterns:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;src_only&quot;</span><span class="p">,</span>
+    <span class="n">include_extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;.py&quot;</span><span class="p">,</span> <span class="s2">&quot;.ts&quot;</span><span class="p">],</span>
+    <span class="n">exclude_dirs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s2">&quot;build&quot;</span><span class="p">,</span> <span class="s2">&quot;.venv&quot;</span><span class="p">,</span> <span class="s2">&quot;node_modules&quot;</span><span class="p">],</span>
+    <span class="n">exclude_patterns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;*.test.py&quot;</span><span class="p">,</span> <span class="s2">&quot;*.spec.ts&quot;</span><span class="p">],</span>  <span class="c1"># Test files</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Include specific subdirectories:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="n">project_root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">project_path</span><span class="p">)</span>
+<span class="n">src_dirs</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">project_root</span> <span class="o">/</span> <span class="s2">&quot;src&quot;</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">project_root</span> <span class="o">/</span> <span class="s2">&quot;lib&quot;</span><span class="p">)]</span>
+
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">src_dirs</span><span class="p">,</span>  <span class="c1"># Pass list of directories</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;src_and_lib&quot;</span><span class="p">,</span>
+    <span class="n">include_extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;.py&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-streaming-embeddings">
+<h2>Advanced: Streaming Embeddings<a class="headerlink" href="#advanced-streaming-embeddings" title="Link to this heading"></a></h2>
+<p>For very large codebases, use streaming embeddings:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Embed in chunks to avoid memory issues</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase_streaming</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;huge_project&quot;</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>  <span class="c1"># Process 128 chunks at a time</span>
+    <span class="n">chunk_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>  <span class="c1"># Characters per chunk</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Streaming vs. Standard:</strong></p>
+<ul class="simple">
+<li><p><strong>Standard</strong>: Faster for small-medium projects (&lt;10k files)</p></li>
+<li><p><strong>Streaming</strong>: Better for large projects (&gt;10k files), lower memory</p></li>
+<li><p><strong>Performance</strong>: Both produce identical results, streaming is just more memory-efficient</p></li>
+</ul>
+</section>
+<section id="advanced-custom-chunking">
+<h2>Advanced: Custom Chunking<a class="headerlink" href="#advanced-custom-chunking" title="Link to this heading"></a></h2>
+<p>Control how code is split into chunks:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.chunker</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chunker</span>
+
+<span class="c1"># Create a custom chunker</span>
+<span class="n">chunker</span> <span class="o">=</span> <span class="n">Chunker</span><span class="p">(</span>
+    <span class="n">chunk_size</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>  <span class="c1"># Characters per chunk</span>
+    <span class="n">overlap</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>  <span class="c1"># Overlap between chunks</span>
+    <span class="n">language_aware</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># Respect language syntax</span>
+<span class="p">)</span>
+
+<span class="c1"># Embed with custom chunker</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;custom_chunked&quot;</span><span class="p">,</span>
+    <span class="n">chunker</span><span class="o">=</span><span class="n">chunker</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Chunking strategies:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">chunk_size=256</span></code>: Smaller chunks, more precise, more vectors</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">chunk_size=512</span></code>: Balanced approach (recommended)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">chunk_size=1024</span></code>: Larger chunks, fewer vectors, less precise</p></li>
+</ul>
+</section>
+<section id="performance-tips">
+<h2>Performance Tips<a class="headerlink" href="#performance-tips" title="Link to this heading"></a></h2>
+<p><strong>Speed up embedding:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Use GPU:</strong> Auto-enabled if CUDA available</p></li>
+<li><p><strong>Filter extensions:</strong> Only include needed files</p></li>
+<li><p><strong>Exclude large dirs:</strong> Skip <code class="docutils literal notranslate"><span class="pre">node_modules</span></code>, <code class="docutils literal notranslate"><span class="pre">.git</span></code>, etc.</p></li>
+<li><p><strong>Batch operations:</strong> Embed once, search many times</p></li>
+<li><p><strong>Incremental updates:</strong> Use commits instead of re-embedding</p></li>
+</ol>
+<p><strong>Reduce memory usage:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Stream large projects</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase_streaming</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;lean&quot;</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span>  <span class="c1"># Smaller batch = less memory</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Monitor embedding progress:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;timed&quot;</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+<span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+
+<span class="n">metadata</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_buffer_metadata</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+<span class="n">chunks_per_second</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;chunk_count&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">elapsed</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Speed: </span><span class="si">{</span><span class="n">chunks_per_second</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> chunks/sec&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="what-s-next">
+<h2>What’s Next?<a class="headerlink" href="#what-s-next" title="Link to this heading"></a></h2>
+<p>Now that you have embeddings, try:</p>
+<ol class="arabic simple">
+<li><p><strong>Search for code:</strong> See <a class="reference internal" href="search_workflows.html"><span class="doc">Search Workflows</span></a> for search examples</p></li>
+<li><p><strong>Edit and commit:</strong> See <a class="reference internal" href="edit_workflows.html"><span class="doc">Edit Workflows</span></a> for updating your project</p></li>
+<li><p><strong>Advanced search:</strong> Learn about semantic cache and incremental indexing in <a class="reference internal" href="../api_reference.html"><span class="doc">API Reference</span></a></p></li>
+</ol>
+</section>
+<section id="example-complete-workflow">
+<h2>Example: Complete Workflow<a class="headerlink" href="#example-complete-workflow" title="Link to this heading"></a></h2>
+<p>Here’s a complete example combining all the steps:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="c1"># 1. Initialize</span>
+<span class="n">work_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;.gigacode&quot;</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">work_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">work_dir</span><span class="p">),</span> <span class="n">enable_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># 2. Embed a project</span>
+<span class="n">project_path</span> <span class="o">=</span> <span class="s2">&quot;/home/user/my_project&quot;</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">project_path</span><span class="p">,</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">include_extensions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;.py&quot;</span><span class="p">,</span> <span class="s2">&quot;.js&quot;</span><span class="p">],</span>
+    <span class="n">exclude_dirs</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;venv&quot;</span><span class="p">,</span> <span class="s2">&quot;node_modules&quot;</span><span class="p">,</span> <span class="s2">&quot;.git&quot;</span><span class="p">],</span>
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+
+<span class="c1"># 3. Inspect results</span>
+<span class="n">metadata</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_buffer_metadata</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Embedded </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;file_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> files &quot;</span>
+      <span class="sa">f</span><span class="s2">&quot;into </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;chunk_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> chunks&quot;</span><span class="p">)</span>
+
+<span class="c1"># 4. Ready for search!</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Ready to search buffer: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<p><strong>Embedding is very slow:</strong></p>
+<ul class="simple">
+<li><p>First embedding is normal (model download + initial indexing)</p></li>
+<li><p>GPU not detected? Check <a class="reference internal" href="../installation.html"><span class="doc">Installation</span></a></p></li>
+<li><p>Very large codebase? Use streaming embeddings</p></li>
+</ul>
+<p><strong>Out of memory:</strong></p>
+<ul class="simple">
+<li><p>Use streaming embeddings: <code class="docutils literal notranslate"><span class="pre">embed_codebase_streaming()</span></code></p></li>
+<li><p>Reduce <code class="docutils literal notranslate"><span class="pre">batch_size</span></code> parameter</p></li>
+<li><p>Exclude large directories</p></li>
+</ul>
+<p><strong>Files not being embedded:</strong></p>
+<ul class="simple">
+<li><p>Check <code class="docutils literal notranslate"><span class="pre">include_extensions</span></code> includes your file types</p></li>
+<li><p>Verify <code class="docutils literal notranslate"><span class="pre">exclude_dirs</span></code> isn’t too broad</p></li>
+<li><p>Files might be in <code class="docutils literal notranslate"><span class="pre">.gitignore</span></code></p></li>
+</ul>
+<p><strong>Embedding takes too long:</strong></p>
+<ul class="simple">
+<li><p>Remove large binary directories from path</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">include_extensions</span></code> to limit file types</p></li>
+<li><p>Enable GPU acceleration</p></li>
+</ul>
+</section>
+<section id="next-step">
+<h2>Next Step<a class="headerlink" href="#next-step" title="Link to this heading"></a></h2>
+<p>Read <a class="reference internal" href="search_workflows.html"><span class="doc">Search Workflows</span></a> to learn how to search your embeddings.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="search_workflows.html" class="btn btn-neutral float-right" title="Search Workflows" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

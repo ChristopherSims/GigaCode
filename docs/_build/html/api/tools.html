@@ -1,0 +1,747 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tools &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Managers" href="managers.html" />
+    <link rel="prev" title="FAISS Optimizer" href="faiss_optimizer.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tools</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#codeembeddingtool">CodeEmbeddingTool</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.__init__"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_tool_schemas"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_tool_schemas()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.validate_schemas"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.validate_schemas()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.check_codebase"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.check_codebase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.embed_codebase"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.embed_codebase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.reload_codebase"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.reload_codebase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.semantic_search"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.semantic_search()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.hybrid_search"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.hybrid_search()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.search_for"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.search_for()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.look_for_file"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.look_for_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.search_symbols"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.search_symbols()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.cluster_code"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.cluster_code()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.find_duplicates"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.find_duplicates()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.pack_context"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.pack_context()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.read_code"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.read_code()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.write_code"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.write_code()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.diff"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.diff()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.discard"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.discard()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.commit"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.commit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.list_buffers"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.list_buffers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.delete_buffer"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.delete_buffer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_cache_stats"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_cache_stats()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.health_check"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.health_check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_metrics"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_metrics()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.set_user"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.set_user()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_audit_log"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_audit_log()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_audit_stats"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_audit_stats()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.close"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.close()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#key-methods">Key Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example">Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Tools</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#codeembeddingtool">CodeEmbeddingTool</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.__init__"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_tool_schemas"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_tool_schemas()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.validate_schemas"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.validate_schemas()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.check_codebase"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.check_codebase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.embed_codebase"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.embed_codebase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.reload_codebase"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.reload_codebase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.semantic_search"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.semantic_search()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.hybrid_search"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.hybrid_search()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.search_for"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.search_for()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.look_for_file"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.look_for_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.search_symbols"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.search_symbols()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.cluster_code"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.cluster_code()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.find_duplicates"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.find_duplicates()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.pack_context"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.pack_context()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.read_code"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.read_code()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.write_code"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.write_code()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.diff"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.diff()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.discard"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.discard()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.commit"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.commit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.list_buffers"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.list_buffers()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.delete_buffer"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.delete_buffer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_cache_stats"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_cache_stats()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.health_check"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.health_check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_metrics"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_metrics()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.set_user"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.set_user()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_audit_log"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_audit_log()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_audit_stats"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.get_audit_stats()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.gigacode_tool.CodeEmbeddingTool.close"><code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool.close()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#key-methods">Key Methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example">Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Tools</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/tools.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="tools">
+<h1>Tools<a class="headerlink" href="#tools" title="Link to this heading"></a></h1>
+<p>Main tools and API interfaces for GigaCode.</p>
+<section id="codeembeddingtool">
+<h2>CodeEmbeddingTool<a class="headerlink" href="#codeembeddingtool" title="Link to this heading"></a></h2>
+<p>The primary tool for all GigaCode operations.</p>
+<p id="module-gigacode.gigacode_tool">Agent-facing tool interface for GPU-accelerated code embedding.</p>
+<p>Chunks code at AST boundaries, keeps a persistent FAISS index in GPU
+memory when available, and exposes a read-write-commit workflow.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">gigacode.gigacode_tool.</span></span><span class="sig-name descname"><span class="pre">CodeEmbeddingTool</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">work_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold_mb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">500.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_gpu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gpu_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_buffers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_prometheus</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prometheus_port</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">9090</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Embed a codebase into GPU/CPU buffers and expose search + cluster.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>work_dir</strong> – Directory where buffer files and metadata are persisted.</p></li>
+<li><p><strong>model_name</strong> – Sentence-transformers model name.</p></li>
+<li><p><strong>device</strong> – torch device (<code class="docutils literal notranslate"><span class="pre">&quot;cuda&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;cpu&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">None</span></code> for auto).</p></li>
+<li><p><strong>threshold_mb</strong> – Size-guard threshold in megabytes.</p></li>
+<li><p><strong>use_gpu</strong> – Whether to mirror the FAISS index to GPU when possible.</p></li>
+<li><p><strong>max_buffers</strong> – Maximum number of in-memory indices to keep (LRU eviction).</p></li>
+<li><p><strong>enable_prometheus</strong> – Enable Prometheus metrics export (default False).</p></li>
+<li><p><strong>prometheus_port</strong> – Port for Prometheus metrics endpoint (default 9090).</p></li>
+</ul>
+</dd>
+</dl>
+<p>Initialize CodeEmbeddingTool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>work_dir</strong> – Working directory for embeddings and caches.</p></li>
+<li><p><strong>model_name</strong> – Sentence transformer model name (default: ‘all-MiniLM-L6-v2’).</p></li>
+<li><p><strong>device</strong> – PyTorch device (‘cpu’, ‘cuda’, ‘cuda:0’, etc.).</p></li>
+<li><p><strong>threshold_mb</strong> – Codebase size threshold (default 500 MB).</p></li>
+<li><p><strong>use_gpu</strong> – Enable GPU FAISS index mirroring (default True).</p></li>
+<li><p><strong>gpu_id</strong> – GPU device ID for FAISS (default 0). Only used if use_gpu=True.</p></li>
+<li><p><strong>max_buffers</strong> – Max embedded codebases in memory (LRU limit, default 10).</p></li>
+<li><p><strong>enable_prometheus</strong> – Enable Prometheus metrics export via HTTP (default False).</p></li>
+<li><p><strong>prometheus_port</strong> – Port for /metrics endpoint (default 9090).</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">work_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold_mb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">500.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_gpu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gpu_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_buffers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_prometheus</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prometheus_port</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">9090</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize CodeEmbeddingTool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>work_dir</strong> – Working directory for embeddings and caches.</p></li>
+<li><p><strong>model_name</strong> – Sentence transformer model name (default: ‘all-MiniLM-L6-v2’).</p></li>
+<li><p><strong>device</strong> – PyTorch device (‘cpu’, ‘cuda’, ‘cuda:0’, etc.).</p></li>
+<li><p><strong>threshold_mb</strong> – Codebase size threshold (default 500 MB).</p></li>
+<li><p><strong>use_gpu</strong> – Enable GPU FAISS index mirroring (default True).</p></li>
+<li><p><strong>gpu_id</strong> – GPU device ID for FAISS (default 0). Only used if use_gpu=True.</p></li>
+<li><p><strong>max_buffers</strong> – Max embedded codebases in memory (LRU limit, default 10).</p></li>
+<li><p><strong>enable_prometheus</strong> – Enable Prometheus metrics export via HTTP (default False).</p></li>
+<li><p><strong>prometheus_port</strong> – Port for /metrics endpoint (default 9090).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.get_tool_schemas">
+<span class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_tool_schemas</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.get_tool_schemas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_tool_schemas" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.validate_schemas">
+<span class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">validate_schemas</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.validate_schemas"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.validate_schemas" title="Link to this definition"></a></dt>
+<dd><p>Validate that hardcoded schemas match the actual CodeEmbeddingTool code.</p>
+<p>Returns a dict with:
+- “valid”: bool indicating if all schemas are valid
+- “issues”: dict mapping method name to list of validation issues
+- “report”: human-readable validation report
+- “generated_count”: number of schemas generated
+- “validated_count”: number of schemas validated</p>
+<p>Used to detect schema drift and ensure tool_schema.py stays in sync with implementation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.check_codebase">
+<span class="sig-name descname"><span class="pre">check_codebase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">pattern</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'*.py'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.check_codebase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.check_codebase" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.embed_codebase">
+<span class="sig-name descname"><span class="pre">embed_codebase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">language_hint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pattern</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'*.py'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sliding_window_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.embed_codebase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.embed_codebase" title="Link to this definition"></a></dt>
+<dd><p>Embed a codebase: chunk all files, embed chunks, build index.</p>
+<p>Returns: EmbedResponse as dict with buffer_id, chunk_count, and status.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.reload_codebase">
+<span class="sig-name descname"><span class="pre">reload_codebase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.reload_codebase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.reload_codebase" title="Link to this definition"></a></dt>
+<dd><p>Reload codebase from disk, detecting external changes.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.semantic_search">
+<span class="sig-name descname"><span class="pre">semantic_search</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">top_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.semantic_search"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.semantic_search" title="Link to this definition"></a></dt>
+<dd><p>Semantic search via embeddings.</p>
+<p>Delegates to SearchService when available (Phase 5), otherwise uses monolithic implementation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Buffer ID to search</p></li>
+<li><p><strong>query</strong> – Search query</p></li>
+<li><p><strong>top_k</strong> – Number of top results to return</p></li>
+<li><p><strong>offset</strong> – Pagination offset</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict with search results or error</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.hybrid_search">
+<span class="sig-name descname"><span class="pre">hybrid_search</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">top_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semantic_weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lexical_weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.hybrid_search"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.hybrid_search" title="Link to this definition"></a></dt>
+<dd><p>Combine FAISS semantic search with BM25 lexical search via RRF.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Buffer handle.</p></li>
+<li><p><strong>query</strong> – Natural language or keyword query.</p></li>
+<li><p><strong>top_k</strong> – Number of results to return.</p></li>
+<li><p><strong>offset</strong> – Pagination offset.</p></li>
+<li><p><strong>semantic_weight</strong> – Weight for semantic rank contribution.</p></li>
+<li><p><strong>lexical_weight</strong> – Weight for lexical rank contribution.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict with <code class="docutils literal notranslate"><span class="pre">status</span></code> and <code class="docutils literal notranslate"><span class="pre">matches</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.search_for">
+<span class="sig-name descname"><span class="pre">search_for</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">case_sensitive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">50</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.search_for"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.search_for" title="Link to this definition"></a></dt>
+<dd><p>Find every occurrence of <em>query</em> in the buffered source code.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Buffer handle.</p></li>
+<li><p><strong>query</strong> – Substring to search for.</p></li>
+<li><p><strong>case_sensitive</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, match case exactly.</p></li>
+<li><p><strong>max_results</strong> – Cap on the number of matches returned.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict with <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">matches</span></code> (list of file/line/content), and <code class="docutils literal notranslate"><span class="pre">total</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.look_for_file">
+<span class="sig-name descname"><span class="pre">look_for_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.look_for_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.look_for_file" title="Link to this definition"></a></dt>
+<dd><p>Find the location of a file within an embedded buffer.</p>
+<p>Tries exact match, then basename match, then partial substring match.
+Returns the relative file path (within the buffer root) and the
+absolute path on disk.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Buffer handle.</p></li>
+<li><p><strong>file_name</strong> – File name or path fragment to look for.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict with <code class="docutils literal notranslate"><span class="pre">status</span></code>, <code class="docutils literal notranslate"><span class="pre">file_location</span></code>, <code class="docutils literal notranslate"><span class="pre">absolute_path</span></code>,
+<code class="docutils literal notranslate"><span class="pre">match_type</span></code>, and optionally <code class="docutils literal notranslate"><span class="pre">candidates</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.search_symbols">
+<span class="sig-name descname"><span class="pre">search_symbols</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">top_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.search_symbols"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.search_symbols" title="Link to this definition"></a></dt>
+<dd><p>Find variables, functions, classes, and methods matching <em>query</em>.</p>
+<p>Performs two searches in parallel:
+1. <strong>Name match</strong> — chunks whose <code class="docutils literal notranslate"><span class="pre">name</span></code> contains the query string (score=1.0).
+2. <strong>Semantic match</strong> — top-K chunks by embedding similarity, filtered to</p>
+<blockquote>
+<div><p>symbol types (function, class, method, struct, trait, enum, interface).</p>
+</div></blockquote>
+<p>Results are deduplicated and merged (name matches rank first).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Buffer handle.</p></li>
+<li><p><strong>query</strong> – Word or phrase to look for.</p></li>
+<li><p><strong>top_k</strong> – Maximum number of symbol matches to return.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>SearchResponse with <code class="docutils literal notranslate"><span class="pre">matches</span></code> (list of SearchMatch objects with type, name, score).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.cluster_code">
+<span class="sig-name descname"><span class="pre">cluster_code</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.75</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.cluster_code"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.cluster_code" title="Link to this definition"></a></dt>
+<dd><p>Find groups of semantically similar chunks within a buffer.</p>
+<p>Uses a greedy clustering algorithm:
+1. For each chunk, find all subsequent chunks (look-ahead window of 64)</p>
+<blockquote>
+<div><p>with similarity &gt; threshold</p>
+</div></blockquote>
+<ol class="arabic simple" start="2">
+<li><p>Group them into a cluster</p></li>
+<li><p>Return clusters with ≥2 members, sorted by file/line</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Buffer to cluster.</p></li>
+<li><p><strong>threshold</strong> – Cosine similarity threshold (0.0-1.0). Default 0.75.
+Increase for tighter clusters, decrease for looser.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>file: Relative path</p></li>
+<li><p>start_line: First chunk’s start_line</p></li>
+<li><p>end_line: Last chunk’s end_line</p></li>
+<li><p>size: Number of chunks in cluster</p></li>
+<li><p>avg_score: Average pairwise similarity within cluster</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict with status=”ok” and clusters list. Each cluster contains</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<p><a href="#id1"><span class="problematic" id="id2">``</span></a><a href="#id3"><span class="problematic" id="id4">`</span></a>python
+result = tool.cluster_code(“buffer_id”, threshold=0.8)
+for cluster in result[“clusters”]:</p>
+<blockquote>
+<div><dl class="simple">
+<dt>print(f”{cluster[‘file’]} ({cluster[‘size’]} chunks, “</dt><dd><p>f”avg_score={cluster[‘avg_score’]:.3f})”)</p>
+</dd>
+</dl>
+</div></blockquote>
+<p><a href="#id5"><span class="problematic" id="id6">``</span></a><a href="#id7"><span class="problematic" id="id8">`</span></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.find_duplicates">
+<span class="sig-name descname"><span class="pre">find_duplicates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.85</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.find_duplicates"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.find_duplicates" title="Link to this definition"></a></dt>
+<dd><p>Find near-duplicate code chunks within a buffer.</p>
+<p>Detects code snippets with high semantic similarity (≥ threshold).
+Useful for:
+- Finding copy-paste code
+- Identifying dead code (after refactoring)
+- Planning refactoring efforts (consolidate duplicates)</p>
+<p>Algorithm: Uses embedding similarity computed during indexing.
+Delegates to <cite>duplicate_detector.find_duplicates()</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Buffer to analyze.</p></li>
+<li><p><strong>threshold</strong> – Cosine similarity threshold (0.0-1.0). Default 0.85.
+Increase for stricter matching; decrease to catch loose dups.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>file1, start_line1, end_line1 — First chunk location</p></li>
+<li><p>file2, start_line2, end_line2 — Second chunk location</p></li>
+<li><p>similarity: Cosine similarity score</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict with status=”ok” and duplicates list. Each entry contains</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<p><a href="#id9"><span class="problematic" id="id10">``</span></a><a href="#id11"><span class="problematic" id="id12">`</span></a>python
+result = tool.find_duplicates(“buffer_id”, threshold=0.9)
+for dup in result[“duplicates”]:</p>
+<blockquote>
+<div><dl class="simple">
+<dt>print(f”Dup: {dup[‘file1’]}:{dup[‘start_line1’]} ≈ “</dt><dd><p>f”{dup[‘file2’]}:{dup[‘start_line2’]} ”
+f”(similarity={dup[‘similarity’]:.3f})”)</p>
+</dd>
+</dl>
+</div></blockquote>
+<p><a href="#id13"><span class="problematic" id="id14">``</span></a><a href="#id15"><span class="problematic" id="id16">`</span></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.pack_context">
+<span class="sig-name descname"><span class="pre">pack_context</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8192</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">top_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.pack_context"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.pack_context" title="Link to this definition"></a></dt>
+<dd><p>Return an optimally packed set of chunks fitting within <em>max_tokens</em>.</p>
+<p>Uses hybrid search to find the most relevant chunks, then greedily
+packs them by score until the token budget is exhausted.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.read_code">
+<span class="sig-name descname"><span class="pre">read_code</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_line</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_line</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.read_code"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.read_code" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.write_code">
+<span class="sig-name descname"><span class="pre">write_code</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_line</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_lines</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_line</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.write_code"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.write_code" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.diff">
+<span class="sig-name descname"><span class="pre">diff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.diff"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.diff" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.discard">
+<span class="sig-name descname"><span class="pre">discard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.discard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.discard" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.commit">
+<span class="sig-name descname"><span class="pre">commit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dry_run</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.commit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.commit" title="Link to this definition"></a></dt>
+<dd><p>Commit buffer changes to disk with 3-way merge conflict handling and crash recovery.</p>
+<p>Phase 3: Uses SnapshotManager for merge conflicts.
+Phase 4: Wraps with StateManager transactions for crash recovery.</p>
+<ul class="simple">
+<li><p>If both buffer and disk modified: returns “conflict” status instead of aborting</p></li>
+<li><p>Rebuilds embeddings before writing</p></li>
+<li><p>Updates snapshot manifest after successful writes</p></li>
+<li><p>Returns detailed conflict information for user resolution</p></li>
+<li><p>Uses write-ahead logging (WAL) for crash recovery</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Buffer to commit</p></li>
+<li><p><strong>dry_run</strong> – If True, check what would be written without modifying files</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>“status”: “ok”, “conflict”, or “error”</p></li>
+<li><p>”written_files”: List of successfully written files</p></li>
+<li><p>”conflict_files”: List of dicts with conflict details (file, message, line counts)</p></li>
+<li><p>”dry_run”: Whether this was a dry run</p></li>
+<li><p>”transaction_id”: Transaction ID (for debugging)</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict with</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.list_buffers">
+<span class="sig-name descname"><span class="pre">list_buffers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.list_buffers"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.list_buffers" title="Link to this definition"></a></dt>
+<dd><p>List all registered buffers.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.delete_buffer">
+<span class="sig-name descname"><span class="pre">delete_buffer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.delete_buffer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.delete_buffer" title="Link to this definition"></a></dt>
+<dd><p>Delete a buffer.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.get_cache_stats">
+<span class="sig-name descname"><span class="pre">get_cache_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.get_cache_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_cache_stats" title="Link to this definition"></a></dt>
+<dd><p>Return cache utilization statistics (delegated to IndexManager).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.health_check">
+<span class="sig-name descname"><span class="pre">health_check</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.health_check"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.health_check" title="Link to this definition"></a></dt>
+<dd><p>Perform a health check and return system status (delegated to IndexManager).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.get_metrics">
+<span class="property"><span class="k"><span class="pre">static</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_metrics</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.get_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_metrics" title="Link to this definition"></a></dt>
+<dd><p>Export current metrics snapshot.</p>
+<p>Returns a dict with counters (operation counts), gauges, histograms
+(latency and size distributions), and cache hit rates.  Can be
+serialized to JSON for monitoring integration.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.set_user">
+<span class="sig-name descname"><span class="pre">set_user</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">user_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">role</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'analyst'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">User</span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.set_user"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.set_user" title="Link to this definition"></a></dt>
+<dd><p>Set current user for operations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>user_id</strong> – User identifier</p></li>
+<li><p><strong>role</strong> – User role (“admin”, “analyst”, “reader”, “guest”)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>User object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.get_audit_log">
+<span class="sig-name descname"><span class="pre">get_audit_log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.get_audit_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_audit_log" title="Link to this definition"></a></dt>
+<dd><p>Get audit log entries.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer_id</strong> – Filter by buffer (optional)</p></li>
+<li><p><strong>limit</strong> – Max entries to return</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of audit log entries</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.get_audit_stats">
+<span class="sig-name descname"><span class="pre">get_audit_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.get_audit_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.get_audit_stats" title="Link to this definition"></a></dt>
+<dd><p>Get audit log statistics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Statistics dictionary</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.gigacode_tool.CodeEmbeddingTool.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/gigacode_tool.html#CodeEmbeddingTool.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.gigacode_tool.CodeEmbeddingTool.close" title="Link to this definition"></a></dt>
+<dd><p>Release all in-memory resources.</p>
+<p>Clears the FAISS index cache (drops GPU VRAM), the lexical index
+cache, and the query result cache.  The on-disk registry and buffer
+files are left intact — they can be reloaded by constructing a new
+<code class="docutils literal notranslate"><span class="pre">CodeEmbeddingTool</span></code> with the same <em>work_dir</em>.</p>
+<p>Also stops the Prometheus metrics HTTP server if enabled.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="key-methods">
+<h2>Key Methods<a class="headerlink" href="#key-methods" title="Link to this heading"></a></h2>
+<p><strong>Embedding:</strong></p>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">embed_codebase()</span></code> - Embed a codebase</p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">embed_codebase_streaming()</span></code> - Stream large projects</p></li>
+</ul>
+<p><strong>Search:</strong></p>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">semantic_search()</span></code> - Search by meaning</p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">lexical_search()</span></code> - Search by keywords</p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">hybrid_search()</span></code> - Combined search</p></li>
+</ul>
+<p><strong>Editing:</strong></p>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">write_code()</span></code> - Modify code</p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">commit()</span></code> - Save and index changes</p></li>
+</ul>
+<p><strong>Analysis:</strong></p>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">find_duplicates()</span></code> - Find duplicate code</p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">cluster_code()</span></code> - Cluster similar code</p></li>
+</ul>
+<p><strong>Management:</strong></p>
+<ul class="simple">
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_buffer_metadata()</span></code> - Get buffer info</p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">list_buffers()</span></code> - List all buffers</p></li>
+<li><p><code class="xref py py-meth docutils literal notranslate"><span class="pre">delete_buffer()</span></code> - Delete a buffer</p></li>
+</ul>
+</section>
+<section id="example">
+<h2>Example<a class="headerlink" href="#example" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+
+<span class="c1"># Initialize</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>
+
+<span class="c1"># Embed codebase</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
+
+<span class="c1"># Search</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find database functions&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span>
+<span class="p">)</span>
+
+<span class="c1"># Edit and commit</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="s2">&quot;file.py&quot;</span><span class="p">,</span> <span class="n">new_content</span><span class="p">)</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;file.py&quot;</span><span class="p">],</span> <span class="s2">&quot;Update file&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
+<p>Initialize with custom settings:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span>
+    <span class="n">work_dir</span><span class="o">=</span><span class="s2">&quot;/path/to/work&quot;</span><span class="p">,</span>
+    <span class="n">max_buffers</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">enable_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">embedding_model</span><span class="o">=</span><span class="s2">&quot;all-MiniLM-L6-v2&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="search_service.html#gigacode.search_service.SearchService" title="gigacode.search_service.SearchService"><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.search_service.SearchService</span></code></a> - Search implementation</p></li>
+<li><p><a class="reference internal" href="buffer_manager.html#gigacode.buffer_manager.BufferManager" title="gigacode.buffer_manager.BufferManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.buffer_manager.BufferManager</span></code></a> - Buffer management</p></li>
+<li><p><a class="reference internal" href="index_manager.html#gigacode.index_manager.IndexManager" title="gigacode.index_manager.IndexManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.index_manager.IndexManager</span></code></a> - Index management</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="faiss_optimizer.html" class="btn btn-neutral float-left" title="FAISS Optimizer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="managers.html" class="btn btn-neutral float-right" title="Managers" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

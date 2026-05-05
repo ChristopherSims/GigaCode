@@ -1,0 +1,1076 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gigacode.search_service &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gigacode.search_service</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gigacode.search_service</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Search and analysis operations for code embeddings.</span>
+
+<span class="sd">Provides semantic search, hybrid search, literal search, clustering, and deduplication.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">asdict</span><span class="p">,</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">KMeans</span>
+    <span class="n">HAS_SKLEARN</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">HAS_SKLEARN</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.embedder</span><span class="w"> </span><span class="kn">import</span> <span class="n">Embedder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.index_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">IndexManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.json_logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">StructuredJsonLogger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.semantic_cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">SemanticQueryCache</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.hybrid_search</span><span class="w"> </span><span class="kn">import</span> <span class="n">reciprocal_rank_fusion</span>
+    <span class="n">HAS_RRF</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">HAS_RRF</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SearchMatch</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A single search result match.&quot;&quot;&quot;</span>
+
+    <span class="n">file</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">start_line</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">end_line</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># &quot;function&quot;, &quot;class&quot;, etc.</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">score</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SearchResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Response from search operations.&quot;&quot;&quot;</span>
+
+    <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">query</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">matches</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SearchMatch</span><span class="p">]</span>
+    <span class="n">elapsed_ms</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">cache_hit</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;semantic&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to dictionary for backward compatibility.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_id</span><span class="p">,</span>
+            <span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">,</span>
+            <span class="s2">&quot;matches&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">asdict</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">matches</span><span class="p">],</span>
+            <span class="s2">&quot;elapsed_ms&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">elapsed_ms</span><span class="p">,</span>
+            <span class="s2">&quot;cache_hit&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cache_hit</span><span class="p">,</span>
+            <span class="s2">&quot;mode&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
+        <span class="p">}</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ClusterResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result from clustering operation.&quot;&quot;&quot;</span>
+
+    <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">clusters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span>
+    <span class="n">elapsed_ms</span><span class="p">:</span> <span class="nb">float</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to dictionary.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DuplicateResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Result from duplicate detection.&quot;&quot;&quot;</span>
+
+    <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">duplicates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span>
+    <span class="n">elapsed_ms</span><span class="p">:</span> <span class="nb">float</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert to dictionary.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffer_id</span><span class="p">,</span>
+            <span class="s2">&quot;threshold&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span><span class="p">,</span>
+            <span class="s2">&quot;duplicates&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">(</span><span class="n">asdict</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;__dataclass_fields__&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                 <span class="n">asdict</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s2">&quot;__dataclass_fields__&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">duplicates</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;elapsed_ms&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">elapsed_ms</span><span class="p">,</span>
+        <span class="p">}</span>
+
+
+<div class="viewcode-block" id="SearchService">
+<a class="viewcode-back" href="../../api/search_service.html#gigacode.search_service.SearchService">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SearchService</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Search and analysis service for code embeddings.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SearchService.__init__">
+<a class="viewcode-back" href="../../api/search_service.html#gigacode.search_service.SearchService.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">index_manager</span><span class="p">:</span> <span class="n">IndexManager</span><span class="p">,</span>
+        <span class="n">embedder</span><span class="p">:</span> <span class="n">Embedder</span><span class="p">,</span>
+        <span class="n">prometheus_exporter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize SearchService.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            index_manager: IndexManager instance for index access</span>
+<span class="sd">            embedder: Embedder for query embedding</span>
+<span class="sd">            prometheus_exporter: Prometheus exporter (optional)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span> <span class="o">=</span> <span class="n">index_manager</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_embedder</span> <span class="o">=</span> <span class="n">embedder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_prometheus_exporter</span> <span class="o">=</span> <span class="n">prometheus_exporter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">StructuredJsonLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+        
+        <span class="c1"># Semantic cache for query embeddings with paraphrase detection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_semantic_query_cache</span> <span class="o">=</span> <span class="n">SemanticQueryCache</span><span class="p">(</span>
+            <span class="n">max_entries</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+            <span class="n">similarity_threshold</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
+            <span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SearchService.semantic_search">
+<a class="viewcode-back" href="../../api/search_service.html#gigacode.search_service.SearchService.semantic_search">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">semantic_search</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">top_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SearchResponse</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform semantic search using embeddings.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID to search in</span>
+<span class="sd">            query: Search query string</span>
+<span class="sd">            top_k: Number of top results to return</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            SearchResponse with matches or error dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">operation</span> <span class="o">=</span> <span class="s2">&quot;semantic_search&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Validate parameters</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_id</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">query</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;buffer_id and query required&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="k">if</span> <span class="n">top_k</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">top_k</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">:</span>
+                <span class="n">top_k</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">top_k</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="mi">1000</span><span class="p">)</span>
+
+            <span class="c1"># Normalize query</span>
+            <span class="n">normalized_query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_query</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+            <span class="c1"># Check index manager cache</span>
+            <span class="n">cached</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_get_cached_search</span><span class="p">(</span>
+                <span class="n">buffer_id</span><span class="p">,</span> <span class="n">normalized_query</span><span class="p">,</span> <span class="n">top_k</span><span class="p">,</span> <span class="s2">&quot;semantic&quot;</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">cached</span><span class="p">:</span>
+                <span class="n">cached</span><span class="p">[</span><span class="s2">&quot;cache_hit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+                <span class="n">cached</span><span class="p">[</span><span class="s2">&quot;elapsed_ms&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">elapsed</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;ok&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">cached</span>
+            
+            <span class="c1"># Check semantic query cache for paraphrased queries</span>
+            <span class="n">semantic_cached</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_semantic_query_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">normalized_query</span><span class="p">,</span> <span class="n">compute_embedding</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">semantic_cached</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">cached_results</span> <span class="o">=</span> <span class="n">semantic_cached</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="c1"># Filter results by top_k and buffer_id</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cached_results</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">cached_results</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;buffer_id&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">buffer_id</span><span class="p">:</span>
+                    <span class="n">cached_results</span><span class="p">[</span><span class="s2">&quot;cache_hit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+                    <span class="n">cached_results</span><span class="p">[</span><span class="s2">&quot;elapsed_ms&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">elapsed</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;ok&quot;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Semantic cache hit for query: </span><span class="si">{</span><span class="n">normalized_query</span><span class="p">[:</span><span class="mi">50</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">cached_results</span>
+
+            <span class="c1"># Get index and chunks</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_get_index</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_load_chunks</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="p">,</span>
+                    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                    <span class="n">status</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Index or chunks not available&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Buffer not indexed&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Embed query</span>
+            <span class="n">query_embedding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_embedder</span><span class="o">.</span><span class="n">embed</span><span class="p">(</span><span class="n">normalized_query</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">query_embedding</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Failed to embed query&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Search in index</span>
+            <span class="n">scores</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">query_embedding</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">k</span><span class="o">=</span><span class="n">top_k</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Build results</span>
+            <span class="n">matches</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">score</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">):</span>
+                    <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                    <span class="n">matches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">SearchMatch</span><span class="p">(</span>
+                            <span class="n">file</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                            <span class="n">start_line</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">start_line</span><span class="p">,</span>
+                            <span class="n">end_line</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">end_line</span><span class="p">,</span>
+                            <span class="nb">type</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                            <span class="n">name</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                            <span class="n">score</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">score</span><span class="p">),</span>
+                            <span class="n">text</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">]</span> <span class="k">if</span> <span class="n">chunk</span><span class="o">.</span><span class="n">text</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+
+            <span class="n">response</span> <span class="o">=</span> <span class="n">SearchResponse</span><span class="p">(</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+                <span class="n">matches</span><span class="o">=</span><span class="n">matches</span><span class="p">,</span>
+                <span class="n">elapsed_ms</span><span class="o">=</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span>
+                <span class="n">cache_hit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;semantic&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Cache results in index manager</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_record_search_query</span><span class="p">(</span>
+                <span class="n">buffer_id</span><span class="p">,</span> <span class="n">normalized_query</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">top_k</span><span class="p">,</span> <span class="s2">&quot;semantic&quot;</span>
+            <span class="p">)</span>
+            
+            <span class="c1"># Also cache in semantic cache for paraphrase detection</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_semantic_query_cache</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">normalized_query</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cached semantic search result for: </span><span class="si">{</span><span class="n">normalized_query</span><span class="p">[:</span><span class="mi">50</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to cache semantic search result: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;ok&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="n">operation</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+                <span class="n">matches_count</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">matches</span><span class="p">),</span>
+                <span class="n">elapsed_ms</span><span class="o">=</span><span class="n">elapsed</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">response</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="n">operation</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Semantic search failed: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="SearchService.hybrid_search">
+<a class="viewcode-back" href="../../api/search_service.html#gigacode.search_service.SearchService.hybrid_search">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">hybrid_search</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">top_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">semantic_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.6</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SearchResponse</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform hybrid search (semantic + lexical).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID to search in</span>
+<span class="sd">            query: Search query string</span>
+<span class="sd">            top_k: Number of top results to return</span>
+<span class="sd">            semantic_weight: Weight for semantic results (0.0-1.0)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            SearchResponse with deduplicated matches or error dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">operation</span> <span class="o">=</span> <span class="s2">&quot;hybrid_search&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Validate parameters</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_id</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">query</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;buffer_id and query required&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="k">if</span> <span class="n">top_k</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">top_k</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">:</span>
+                <span class="n">top_k</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">top_k</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="mi">1000</span><span class="p">)</span>
+
+            <span class="n">semantic_weight</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">semantic_weight</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+            <span class="n">lexical_weight</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">semantic_weight</span>
+
+            <span class="c1"># Get indices</span>
+            <span class="n">semantic_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_get_index</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="n">lexical_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_get_lexical_index</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_load_chunks</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">semantic_index</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">lexical_index</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Indices not available&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="n">normalized_query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_query</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+            <span class="c1"># Semantic search</span>
+            <span class="n">query_embedding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_embedder</span><span class="o">.</span><span class="n">embed</span><span class="p">(</span><span class="n">normalized_query</span><span class="p">)</span>
+            <span class="n">semantic_scores</span><span class="p">,</span> <span class="n">semantic_indices</span> <span class="o">=</span> <span class="n">semantic_index</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">query_embedding</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">k</span><span class="o">=</span><span class="n">top_k</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Lexical search</span>
+            <span class="n">lexical_results</span> <span class="o">=</span> <span class="n">lexical_index</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">normalized_query</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="n">top_k</span><span class="p">)</span>
+
+            <span class="c1"># Combine results</span>
+            <span class="n">combined_matches</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c1"># Manual combination (RRF approach)</span>
+            <span class="n">semantic_dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">score</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">semantic_indices</span><span class="p">[</span><span class="mi">0</span><span class="p">][:</span><span class="n">top_k</span><span class="p">],</span> <span class="n">semantic_scores</span><span class="p">[</span><span class="mi">0</span><span class="p">][:</span><span class="n">top_k</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">):</span>
+                    <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                    <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="n">chunk</span><span class="o">.</span><span class="n">start_line</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">semantic_dict</span><span class="p">:</span>
+                        <span class="n">semantic_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">semantic_dict</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">score</span><span class="p">,</span> <span class="n">chunk</span> <span class="o">=</span> <span class="n">match</span>
+                <span class="n">combined_matches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">SearchMatch</span><span class="p">(</span>
+                        <span class="n">file</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                        <span class="n">start_line</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">start_line</span><span class="p">,</span>
+                        <span class="n">end_line</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">end_line</span><span class="p">,</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                        <span class="n">name</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                        <span class="n">score</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">score</span><span class="p">)</span> <span class="o">*</span> <span class="n">semantic_weight</span><span class="p">,</span>
+                        <span class="n">text</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">200</span><span class="p">]</span> <span class="k">if</span> <span class="n">chunk</span><span class="o">.</span><span class="n">text</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="n">response</span> <span class="o">=</span> <span class="n">SearchResponse</span><span class="p">(</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+                <span class="n">matches</span><span class="o">=</span><span class="n">combined_matches</span><span class="p">[:</span><span class="n">top_k</span><span class="p">],</span>
+                <span class="n">elapsed_ms</span><span class="o">=</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span>
+                <span class="n">cache_hit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;hybrid&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Cache results</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_record_search_query</span><span class="p">(</span>
+                <span class="n">buffer_id</span><span class="p">,</span> <span class="n">normalized_query</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span> <span class="n">top_k</span><span class="p">,</span> <span class="s2">&quot;hybrid&quot;</span>
+            <span class="p">)</span>
+
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;ok&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">response</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="n">operation</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Hybrid search failed: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="SearchService.search_for">
+<a class="viewcode-back" href="../../api/search_service.html#gigacode.search_service.SearchService.search_for">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">search_for</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">pattern</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">case_sensitive</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SearchResponse</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Perform literal text search (grep-style).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID to search in</span>
+<span class="sd">            query: Search query or regex pattern</span>
+<span class="sd">            pattern: Optional file path pattern to filter</span>
+<span class="sd">            case_sensitive: Whether search is case-sensitive</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            SearchResponse with text matches or error dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">operation</span> <span class="o">=</span> <span class="s2">&quot;search_for&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_id</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;buffer_id required&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Load chunks</span>
+            <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_load_chunks</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Buffer not indexed&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Compile regex</span>
+            <span class="n">flags</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">case_sensitive</span> <span class="k">else</span> <span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">flags</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">re</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+                <span class="c1"># Treat as literal string if not valid regex</span>
+                <span class="n">regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">query</span><span class="p">),</span> <span class="n">flags</span><span class="p">)</span>
+
+            <span class="n">matches</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+                <span class="c1"># Filter by file pattern if provided</span>
+                <span class="k">if</span> <span class="n">pattern</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matches_pattern</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+                    <span class="k">continue</span>
+
+                <span class="c1"># Search in chunk text</span>
+                <span class="k">if</span> <span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">regex</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="p">):</span>
+                        <span class="n">matches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">SearchMatch</span><span class="p">(</span>
+                                <span class="n">file</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                                <span class="n">start_line</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">start_line</span><span class="p">,</span>
+                                <span class="n">end_line</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">end_line</span><span class="p">,</span>
+                                <span class="nb">type</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                                <span class="n">name</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                <span class="n">score</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>  <span class="c1"># Perfect match for literal search</span>
+                                <span class="n">text</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="p">[</span>
+                                    <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">match</span><span class="o">.</span><span class="n">start</span><span class="p">()</span> <span class="o">-</span> <span class="mi">30</span><span class="p">)</span> <span class="p">:</span> <span class="nb">min</span><span class="p">(</span>
+                                        <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="p">),</span> <span class="n">match</span><span class="o">.</span><span class="n">end</span><span class="p">()</span> <span class="o">+</span> <span class="mi">30</span>
+                                    <span class="p">)</span>
+                                <span class="p">],</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
+
+            <span class="n">response</span> <span class="o">=</span> <span class="n">SearchResponse</span><span class="p">(</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+                <span class="n">matches</span><span class="o">=</span><span class="n">matches</span><span class="p">,</span>
+                <span class="n">elapsed_ms</span><span class="o">=</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;literal&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;ok&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">response</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="SearchService.look_for_file">
+<a class="viewcode-back" href="../../api/search_service.html#gigacode.search_service.SearchService.look_for_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">look_for_file</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search for files by path pattern.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID to search in</span>
+<span class="sd">            pattern: File path pattern (glob or regex)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict with matching file paths or error</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">operation</span> <span class="o">=</span> <span class="s2">&quot;look_for_file&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_id</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;buffer_id required&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Load chunks</span>
+            <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_load_chunks</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Buffer not indexed&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Compile pattern</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+                <span class="n">use_regex</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">except</span> <span class="n">re</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+                <span class="n">use_regex</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">fnmatch</span><span class="w"> </span><span class="kn">import</span> <span class="n">fnmatch</span>
+                <span class="n">regex</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="c1"># Find matching files</span>
+            <span class="n">matched_files</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">use_regex</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">regex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">):</span>
+                        <span class="n">matched_files</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">,</span> <span class="n">pattern</span><span class="p">):</span>
+                        <span class="n">matched_files</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">)</span>
+
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;ok&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="s2">&quot;pattern&quot;</span><span class="p">:</span> <span class="n">pattern</span><span class="p">,</span>
+                <span class="s2">&quot;files&quot;</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">matched_files</span><span class="p">)),</span>
+                <span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">matched_files</span><span class="p">),</span>
+                <span class="s2">&quot;elapsed_ms&quot;</span><span class="p">:</span> <span class="n">elapsed</span><span class="p">,</span>
+            <span class="p">}</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="SearchService.search_symbols">
+<a class="viewcode-back" href="../../api/search_service.html#gigacode.search_service.SearchService.search_symbols">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">search_symbols</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">top_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SearchResponse</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Search for functions/classes by name.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID to search in</span>
+<span class="sd">            query: Symbol name query</span>
+<span class="sd">            top_k: Number of top results to return</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            SearchResponse with symbol matches or error dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">operation</span> <span class="o">=</span> <span class="s2">&quot;search_symbols&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_id</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">query</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;buffer_id and query required&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Load chunks</span>
+            <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_load_chunks</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Buffer not indexed&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="n">normalized_query</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_query</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+            <span class="c1"># Score symbols by name similarity</span>
+            <span class="n">scored_symbols</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">chunk</span><span class="o">.</span><span class="n">name</span><span class="p">:</span>
+                    <span class="n">chunk_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_query</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                    <span class="c1"># Simple similarity: contains or prefix match</span>
+                    <span class="k">if</span> <span class="n">normalized_query</span> <span class="ow">in</span> <span class="n">chunk_name</span><span class="p">:</span>
+                        <span class="n">score</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="k">if</span> <span class="n">chunk_name</span> <span class="o">==</span> <span class="n">normalized_query</span> <span class="k">else</span> <span class="mf">0.8</span>
+                    <span class="k">elif</span> <span class="n">chunk_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">normalized_query</span><span class="p">):</span>
+                        <span class="n">score</span> <span class="o">=</span> <span class="mf">0.7</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                    <span class="n">scored_symbols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="p">(</span>
+                            <span class="n">score</span><span class="p">,</span>
+                            <span class="n">SearchMatch</span><span class="p">(</span>
+                                <span class="n">file</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                                <span class="n">start_line</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">start_line</span><span class="p">,</span>
+                                <span class="n">end_line</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">end_line</span><span class="p">,</span>
+                                <span class="nb">type</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                                <span class="n">name</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                <span class="n">score</span><span class="o">=</span><span class="n">score</span><span class="p">,</span>
+                                <span class="n">text</span><span class="o">=</span><span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="p">[:</span><span class="mi">100</span><span class="p">]</span> <span class="k">if</span> <span class="n">chunk</span><span class="o">.</span><span class="n">text</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                            <span class="p">),</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+
+            <span class="c1"># Sort by score and take top_k</span>
+            <span class="n">scored_symbols</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">matches</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">scored_symbols</span><span class="p">[:</span><span class="n">top_k</span><span class="p">]]</span>
+
+            <span class="n">response</span> <span class="o">=</span> <span class="n">SearchResponse</span><span class="p">(</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span>
+                <span class="n">matches</span><span class="o">=</span><span class="n">matches</span><span class="p">,</span>
+                <span class="n">elapsed_ms</span><span class="o">=</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;symbols&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;ok&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">response</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="SearchService.cluster_code">
+<a class="viewcode-back" href="../../api/search_service.html#gigacode.search_service.SearchService.cluster_code">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cluster_code</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClusterResult</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cluster code chunks by semantic similarity.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID to cluster</span>
+<span class="sd">            n_clusters: Number of clusters</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ClusterResult with cluster assignments or error dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">operation</span> <span class="o">=</span> <span class="s2">&quot;cluster_code&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">HAS_SKLEARN</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;sklearn not available for clustering&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_id</span> <span class="ow">or</span> <span class="n">n_clusters</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;buffer_id and valid n_clusters required&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Load index and chunks</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_get_index</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_load_chunks</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">n_clusters</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Insufficient chunks for clustering&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Get embeddings from index</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">embeddings</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">reconstruct_batch</span><span class="p">(</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">))</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="c1"># Fallback: use index vectors directly</span>
+                <span class="n">embeddings</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">reconstruct_n</span><span class="p">()</span>
+
+            <span class="c1"># K-means clustering</span>
+            <span class="n">kmeans</span> <span class="o">=</span> <span class="n">KMeans</span><span class="p">(</span><span class="n">n_clusters</span><span class="o">=</span><span class="n">n_clusters</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span> <span class="n">n_init</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+            <span class="n">cluster_labels</span> <span class="o">=</span> <span class="n">kmeans</span><span class="o">.</span><span class="n">fit_predict</span><span class="p">(</span><span class="n">embeddings</span><span class="p">)</span>
+
+            <span class="c1"># Organize chunks by cluster</span>
+            <span class="n">clusters</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">label</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cluster_labels</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">label</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">clusters</span><span class="p">:</span>
+                    <span class="n">clusters</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+                <span class="n">chunk</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                <span class="n">clusters</span><span class="p">[</span><span class="n">label</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">chunk</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                        <span class="s2">&quot;start_line&quot;</span><span class="p">:</span> <span class="n">chunk</span><span class="o">.</span><span class="n">start_line</span><span class="p">,</span>
+                        <span class="s2">&quot;end_line&quot;</span><span class="p">:</span> <span class="n">chunk</span><span class="o">.</span><span class="n">end_line</span><span class="p">,</span>
+                        <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="n">chunk</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">chunk</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+            <span class="n">result</span> <span class="o">=</span> <span class="n">ClusterResult</span><span class="p">(</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">n_clusters</span><span class="o">=</span><span class="n">n_clusters</span><span class="p">,</span>
+                <span class="n">clusters</span><span class="o">=</span><span class="n">clusters</span><span class="p">,</span>
+                <span class="n">elapsed_ms</span><span class="o">=</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;ok&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="n">operation</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">n_clusters</span><span class="o">=</span><span class="n">n_clusters</span><span class="p">,</span>
+                <span class="n">elapsed_ms</span><span class="o">=</span><span class="n">elapsed</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">result</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="n">operation</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Clustering failed: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="SearchService.find_duplicates">
+<a class="viewcode-back" href="../../api/search_service.html#gigacode.search_service.SearchService.find_duplicates">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_duplicates</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DuplicateResult</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Find semantically similar code chunks.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            buffer_id: Buffer ID to analyze</span>
+<span class="sd">            threshold: Similarity threshold (0.0-1.0)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            DuplicateResult with duplicate pairs or error dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span>
+        <span class="n">operation</span> <span class="o">=</span> <span class="s2">&quot;find_duplicates&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer_id</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;buffer_id required&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="c1"># Validate threshold</span>
+            <span class="n">threshold</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">threshold</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+
+            <span class="c1"># Load index and chunks</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_get_index</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+            <span class="n">chunks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_index_manager</span><span class="o">.</span><span class="n">_load_chunks</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span>
+                    <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+                    <span class="s2">&quot;threshold&quot;</span><span class="p">:</span> <span class="n">threshold</span><span class="p">,</span>
+                    <span class="s2">&quot;duplicates&quot;</span><span class="p">:</span> <span class="p">[],</span>
+                    <span class="s2">&quot;elapsed_ms&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span>
+                <span class="p">}</span>
+
+            <span class="n">duplicates</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="c1"># Manual duplicate detection using cosine similarity</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">)):</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">)):</span>
+                    <span class="n">chunk_i</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="n">chunk_j</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+
+                    <span class="c1"># Simple similarity check (cosine)</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">embedding_i</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">reconstruct</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+                        <span class="n">embedding_j</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">reconstruct</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+
+                        <span class="c1"># Cosine similarity</span>
+                        <span class="n">sim</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">embedding_i</span><span class="p">,</span> <span class="n">embedding_j</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+                            <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">embedding_i</span><span class="p">)</span>
+                            <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">embedding_j</span><span class="p">)</span>
+                        <span class="p">)</span>
+                        <span class="k">if</span> <span class="n">sim</span> <span class="o">&gt;=</span> <span class="n">threshold</span><span class="p">:</span>
+                            <span class="n">duplicates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                                <span class="p">(</span>
+                                    <span class="p">{</span>
+                                        <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">chunk_i</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                                        <span class="s2">&quot;start_line&quot;</span><span class="p">:</span> <span class="n">chunk_i</span><span class="o">.</span><span class="n">start_line</span><span class="p">,</span>
+                                        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">chunk_i</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                    <span class="p">},</span>
+                                    <span class="p">{</span>
+                                        <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="n">chunk_j</span><span class="o">.</span><span class="n">file</span><span class="p">,</span>
+                                        <span class="s2">&quot;start_line&quot;</span><span class="p">:</span> <span class="n">chunk_j</span><span class="o">.</span><span class="n">start_line</span><span class="p">,</span>
+                                        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">chunk_j</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                    <span class="p">},</span>
+                                <span class="p">)</span>
+                            <span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+            <span class="n">result</span> <span class="o">=</span> <span class="n">DuplicateResult</span><span class="p">(</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span>
+                <span class="n">duplicates</span><span class="o">=</span><span class="n">duplicates</span><span class="p">,</span>
+                <span class="n">elapsed_ms</span><span class="o">=</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;ok&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">result</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">elapsed</span> <span class="o">=</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">perf_counter</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time</span><span class="p">)</span> <span class="o">*</span> <span class="mi">1000</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_record_metrics</span><span class="p">(</span><span class="n">operation</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">elapsed</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="n">operation</span><span class="p">,</span>
+                <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                <span class="n">status</span><span class="o">=</span><span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Duplicate detection failed: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;error&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                <span class="s2">&quot;buffer_id&quot;</span><span class="p">:</span> <span class="n">buffer_id</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+
+    <span class="c1"># =========================================================================</span>
+    <span class="c1"># Helper Methods</span>
+    <span class="c1"># =========================================================================</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_normalize_query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize search queries for consistency.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">query</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_matches_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if file path matches pattern.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+            <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">regex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">file_path</span><span class="p">))</span>
+        <span class="k">except</span> <span class="n">re</span><span class="o">.</span><span class="n">error</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">fnmatch</span><span class="w"> </span><span class="kn">import</span> <span class="n">fnmatch</span>
+            <span class="k">return</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">pattern</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_record_metrics</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">buffer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">elapsed_ms</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">status</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Record operation metrics.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prometheus_exporter</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_prometheus_exporter</span><span class="o">.</span><span class="n">record_operation</span><span class="p">(</span>
+                    <span class="n">operation</span><span class="o">=</span><span class="n">operation</span><span class="p">,</span>
+                    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+                    <span class="n">elapsed_ms</span><span class="o">=</span><span class="n">elapsed_ms</span><span class="p">,</span>
+                    <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to record metrics: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

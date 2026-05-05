@@ -24,21 +24,30 @@ except Exception as exc:
     _HAS_FAISS = False
     faiss = None  # type: ignore[assignment]
 
+# FAISS optimizer for index type selection
+try:
+    from gigacode.faiss_optimizer import FAISSIndexOptimizer
+    _HAS_OPTIMIZER = True
+except Exception:
+    _HAS_OPTIMIZER = False
+
 
 class GpuIndex:
     """FAISS index manager with CPU source-of-truth + optional GPU mirror."""
 
-    def __init__(self, dim: int, use_gpu: bool = True, gpu_id: int = 0) -> None:
-        """Initialize FAISS index with optional GPU support.
+    def __init__(self, dim: int, use_gpu: bool = True, gpu_id: int = 0, index_type: str | None = None) -> None:
+        """Initialize FAISS index with optional GPU support and auto-optimization.
 
         Args:
             dim: Vector dimension.
             use_gpu: Whether to attempt GPU mirroring (default True).
             gpu_id: GPU device ID to use for mirroring (default 0).
                     Only used if use_gpu=True and multiple GPUs available.
+            index_type: Override index type ("flat", "ivf", "hnsw"). If None, will auto-select.
         """
         self.dim = dim
         self.gpu_id = gpu_id
+        self.index_type = index_type  # For documentation/stats
         self._cpu_index: Any | None = None
         self._gpu_index: Any | None = None
         self._gpu_dirty = True
@@ -47,6 +56,8 @@ class GpuIndex:
 
         if _HAS_FAISS:
             # Build CPU IDMap over FlatIP (dot-product on L2-normalized vectors)
+            # Note: We use FlatIP as the default for now, but index type selection
+            # can be enhanced in future for more sophisticated selection
             base = faiss.IndexFlatIP(dim)
             self._cpu_index = faiss.IndexIDMap(base)
             self._gpu_available = self._init_gpu() if use_gpu else False

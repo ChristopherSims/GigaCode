@@ -24,6 +24,7 @@ except ImportError:
 from gigacode.embedder import Embedder
 from gigacode.index_manager import IndexManager
 from gigacode.json_logger import StructuredJsonLogger
+from gigacode.semantic_cache import SemanticQueryCache
 
 try:
     from gigacode.hybrid_search import reciprocal_rank_fusion
@@ -127,6 +128,13 @@ class SearchService:
         self._embedder = embedder
         self._prometheus_exporter = prometheus_exporter
         self._logger = StructuredJsonLogger(__name__)
+        
+        # Semantic cache for query embeddings with paraphrase detection
+        self._semantic_query_cache = SemanticQueryCache(
+            max_entries=500,
+            similarity_threshold=0.95,
+            embedder=embedder,
+        )
 
     def semantic_search(
         self,
@@ -162,7 +170,7 @@ class SearchService:
             # Normalize query
             normalized_query = self._normalize_query(query)
 
-            # Check cache
+            # Check index manager cache
             cached = self._index_manager._get_cached_search(
                 buffer_id, normalized_query, top_k, "semantic"
             )
@@ -172,6 +180,21 @@ class SearchService:
                 cached["elapsed_ms"] = elapsed
                 self._record_metrics(operation, buffer_id, elapsed, "ok")
                 return cached
+            
+            # Check semantic query cache for paraphrased queries
+            semantic_cached = self._semantic_query_cache.get(
+                normalized_query, compute_embedding=True
+            )
+            if semantic_cached is not None:
+                cached_results = semantic_cached[0]
+                # Filter results by top_k and buffer_id
+                if isinstance(cached_results, dict) and cached_results.get("buffer_id") == buffer_id:
+                    cached_results["cache_hit"] = True
+                    elapsed = (time.perf_counter() - start_time) * 1000
+                    cached_results["elapsed_ms"] = elapsed
+                    self._record_metrics(operation, buffer_id, elapsed, "ok")
+                    logger.debug(f"Semantic cache hit for query: {normalized_query[:50]}")
+                    return cached_results
 
             # Get index and chunks
             index = self._index_manager._get_index(buffer_id)
@@ -230,10 +253,17 @@ class SearchService:
                 mode="semantic",
             )
 
-            # Cache results
+            # Cache results in index manager
             self._index_manager._record_search_query(
                 buffer_id, normalized_query, response.to_dict(), top_k, "semantic"
             )
+            
+            # Also cache in semantic cache for paraphrase detection
+            try:
+                self._semantic_query_cache.put(normalized_query, response.to_dict())
+                logger.debug(f"Cached semantic search result for: {normalized_query[:50]}")
+            except Exception as e:
+                logger.warning(f"Failed to cache semantic search result: {e}")
 
             elapsed = (time.perf_counter() - start_time) * 1000
             self._record_metrics(operation, buffer_id, elapsed, "ok")

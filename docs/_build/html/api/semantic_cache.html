@@ -1,0 +1,622 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Semantic Cache &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="FAISS Optimizer" href="faiss_optimizer.html" />
+    <link rel="prev" title="Incremental Indexer" href="incremental_indexer.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#module-gigacode.gigacode_tool">Core Tool</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#managers">Managers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#services">Services</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../api_reference.html#phase-3-optimizations">Phase 3 Optimizations</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="incremental_indexer.html">Incremental Indexer</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Semantic Cache</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-benefits">Key Benefits</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#performance-example">Performance Example</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core-class">Core Class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-components">Key Components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#usage-with-searchservice">Usage with SearchService</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cache-statistics">Cache Statistics</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#monitor-cache">Monitor Cache</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#lru-eviction">LRU Eviction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#similarity-matching">Similarity Matching</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#manual-cache-management">Manual Cache Management</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#performance-analysis">Performance Analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-complete-caching-workflow">Example: Complete Caching Workflow</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="faiss_optimizer.html">FAISS Optimizer</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#utilities">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#quick-reference">Quick Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#module-gigacode.gigacode_tool">Core Tool</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#managers">Managers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#services">Services</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../api_reference.html#phase-3-optimizations">Phase 3 Optimizations</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="incremental_indexer.html">Incremental Indexer</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Semantic Cache</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-benefits">Key Benefits</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#performance-example">Performance Example</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core-class">Core Class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-components">Key Components</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#usage-with-searchservice">Usage with SearchService</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cache-statistics">Cache Statistics</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#monitor-cache">Monitor Cache</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#lru-eviction">LRU Eviction</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#similarity-matching">Similarity Matching</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#manual-cache-management">Manual Cache Management</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#performance-analysis">Performance Analysis</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-complete-caching-workflow">Example: Complete Caching Workflow</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="faiss_optimizer.html">FAISS Optimizer</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#utilities">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#quick-reference">Quick Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api_reference.html">API Reference</a></li>
+      <li class="breadcrumb-item active">Semantic Cache</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/semantic_cache.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="semantic-cache">
+<h1>Semantic Cache<a class="headerlink" href="#semantic-cache" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">gigacode.semantic_cache.SemanticQueryCache</span></code> automatically caches query embeddings to achieve 50% faster searches.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The Semantic Cache is responsible for:</p>
+<ul class="simple">
+<li><p>Caching query embeddings (not just results)</p></li>
+<li><p>Detecting paraphrased queries via semantic similarity</p></li>
+<li><p>Automatic LRU eviction</p></li>
+<li><p>Hit rate tracking and statistics</p></li>
+</ul>
+</section>
+<section id="key-benefits">
+<h2>Key Benefits<a class="headerlink" href="#key-benefits" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>25-50% hit rate</strong>: Catch paraphrased queries automatically</p></li>
+<li><p><strong>100x faster hits</strong>: Cached results return in &lt;1ms vs ~15ms search</p></li>
+<li><p><strong>50% faster searches</strong>: Overall throughput improvement on typical workloads</p></li>
+<li><p><strong>Zero configuration</strong>: Automatically tuned defaults</p></li>
+<li><p><strong>Transparent</strong>: Works automatically with SearchService</p></li>
+</ul>
+</section>
+<section id="performance-example">
+<h2>Performance Example<a class="headerlink" href="#performance-example" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># First query: ~15ms (new embedding)</span>
+<span class="c1"># Query: &quot;find database connection functions&quot;</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+
+<span class="c1"># Identical query: ~1ms (cached)</span>
+<span class="c1"># Query: &quot;find database connection functions&quot;</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+<span class="c1"># Speedup: 15x faster!</span>
+
+<span class="c1"># Paraphrased query: ~5ms (semantic cache hit)</span>
+<span class="c1"># Query: &quot;locate DB connection code&quot;</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+<span class="c1"># Speedup: 3x faster than compute, still much faster!</span>
+</pre></div>
+</div>
+</section>
+<section id="core-class">
+<h2>Core Class<a class="headerlink" href="#core-class" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gigacode.semantic_cache.SemanticQueryCache">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">gigacode.semantic_cache.</span></span><span class="sig-name descname"><span class="pre">SemanticQueryCache</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_entries</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">similarity_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/semantic_cache.html#SemanticQueryCache"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.semantic_cache.SemanticQueryCache" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Cache for query embeddings and search results.</p>
+<p>Features:
+- LRU eviction for memory management
+- Semantic similarity matching for paraphrased queries
+- Configurable cache size and similarity threshold
+- Hit/miss statistics</p>
+<p>Initialize semantic cache.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>max_entries</strong> – Maximum cache entries (LRU eviction if exceeded)</p></li>
+<li><p><strong>similarity_threshold</strong> – Cosine similarity threshold for query matching</p></li>
+<li><p><strong>embedder</strong> – Embedder for computing query embeddings</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.semantic_cache.SemanticQueryCache.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">max_entries</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">similarity_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/semantic_cache.html#SemanticQueryCache.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.semantic_cache.SemanticQueryCache.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize semantic cache.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>max_entries</strong> – Maximum cache entries (LRU eviction if exceeded)</p></li>
+<li><p><strong>similarity_threshold</strong> – Cosine similarity threshold for query matching</p></li>
+<li><p><strong>embedder</strong> – Embedder for computing query embeddings</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.semantic_cache.SemanticQueryCache.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/semantic_cache.html#SemanticQueryCache.get"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.semantic_cache.SemanticQueryCache.get" title="Link to this definition"></a></dt>
+<dd><p>Get cached result for query.</p>
+<p>Searches for exact match first, then semantic matches.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>query</strong> – Search query</p></li>
+<li><p><strong>compute_embedding</strong> – Whether to compute embedding for semantic search</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of (cached_results, was_exact_match) or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.semantic_cache.SemanticQueryCache.put">
+<span class="sig-name descname"><span class="pre">put</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/semantic_cache.html#SemanticQueryCache.put"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.semantic_cache.SemanticQueryCache.put" title="Link to this definition"></a></dt>
+<dd><p>Cache result for query.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>query</strong> – Search query</p></li>
+<li><p><strong>results</strong> – Search results to cache</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.semantic_cache.SemanticQueryCache.clear">
+<span class="sig-name descname"><span class="pre">clear</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/semantic_cache.html#SemanticQueryCache.clear"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.semantic_cache.SemanticQueryCache.clear" title="Link to this definition"></a></dt>
+<dd><p>Clear all cache entries.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.semantic_cache.SemanticQueryCache.get_stats">
+<span class="sig-name descname"><span class="pre">get_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/semantic_cache.html#SemanticQueryCache.get_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.semantic_cache.SemanticQueryCache.get_stats" title="Link to this definition"></a></dt>
+<dd><p>Get cache statistics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dictionary with hits, misses, hit rate, size</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="key-components">
+<h2>Key Components<a class="headerlink" href="#key-components" title="Link to this heading"></a></h2>
+<p><strong>CacheEntry</strong></p>
+<p>Represents a cached query:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.semantic_cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheEntry</span>
+
+<span class="n">entry</span> <span class="o">=</span> <span class="n">CacheEntry</span><span class="p">(</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find network requests&quot;</span><span class="p">,</span>
+    <span class="n">embedding</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>  <span class="c1"># 384-dim embedding</span>
+    <span class="n">results</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>    <span class="c1"># Search results</span>
+    <span class="n">timestamp</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span>
+    <span class="n">hits</span><span class="o">=</span><span class="mi">1</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>SemanticQueryCache</strong></p>
+<p>Main cache implementation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.semantic_cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">SemanticQueryCache</span>
+
+<span class="n">cache</span> <span class="o">=</span> <span class="n">SemanticQueryCache</span><span class="p">(</span>
+    <span class="n">max_entries</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>        <span class="c1"># Keep up to 500 queries</span>
+    <span class="n">similarity_threshold</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>  <span class="c1"># Similarity for hits (0-1)</span>
+    <span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span>
+<span class="p">)</span>
+
+<span class="c1"># Try to get cached result</span>
+<span class="n">results</span><span class="p">,</span> <span class="n">was_exact</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find database operations&quot;</span><span class="p">,</span>
+    <span class="n">compute_embedding</span><span class="o">=</span><span class="k">lambda</span> <span class="n">q</span><span class="p">:</span> <span class="n">embedder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+<span class="p">)</span>
+
+<span class="k">if</span> <span class="n">results</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Cache hit! (exact: </span><span class="si">{</span><span class="n">was_exact</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✗ Cache miss, computing search...&quot;</span><span class="p">)</span>
+
+<span class="c1"># Store result for future queries</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">put</span><span class="p">(</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find database operations&quot;</span><span class="p">,</span>
+    <span class="n">results</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="usage-with-searchservice">
+<h2>Usage with SearchService<a class="headerlink" href="#usage-with-searchservice" title="Link to this heading"></a></h2>
+<p>The Semantic Cache is automatically used by SearchService:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.search_service</span><span class="w"> </span><span class="kn">import</span> <span class="n">SearchService</span>
+
+<span class="n">service</span> <span class="o">=</span> <span class="n">SearchService</span><span class="p">(</span>
+    <span class="n">embedder</span><span class="o">=</span><span class="n">embedder</span><span class="p">,</span>
+    <span class="n">index_manager</span><span class="o">=</span><span class="n">index_manager</span><span class="p">,</span>
+    <span class="n">semantic_cache_max_entries</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+    <span class="n">semantic_cache_threshold</span><span class="o">=</span><span class="mf">0.95</span>
+<span class="p">)</span>
+
+<span class="c1"># First search: computes embedding, caches result</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;error handling&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Identical query: from cache</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;error handling&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Similar query: semantic match, from cache</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;handle errors&quot;</span>  <span class="c1"># ~0.98 similarity</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="cache-statistics">
+<h2>Cache Statistics<a class="headerlink" href="#cache-statistics" title="Link to this heading"></a></h2>
+<p>Get cache performance metrics:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cache</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">_semantic_query_cache</span>  <span class="c1"># Access cache</span>
+<span class="n">stats</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hit rate: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;hit_rate&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total queries: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;total_queries&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cache entries: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;entries&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Avg hits per query: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;avg_hits_per_query&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Statistics fields:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">hit_rate</span></code>: Percentage of queries that hit cache</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">total_queries</span></code>: Total queries processed</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">total_hits</span></code>: Total cache hits</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">entries</span></code>: Current entries in cache</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_entries</span></code>: Maximum cache size</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">avg_hits_per_query</span></code>: Average times each query is used</p></li>
+</ul>
+</section>
+<section id="monitor-cache">
+<h2>Monitor Cache<a class="headerlink" href="#monitor-cache" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+
+<span class="c1"># Track hits over time</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">monitor_cache</span><span class="p">(</span><span class="n">cache</span><span class="p">,</span> <span class="n">interval</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mi">60</span><span class="p">):</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="k">while</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span> <span class="o">&lt;</span> <span class="n">duration</span><span class="p">:</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Hit rate: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;hit_rate&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2"> &quot;</span>
+              <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;total_hits&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;total_queries&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">interval</span><span class="p">)</span>
+
+<span class="n">monitor_cache</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
+<p><strong>For better hit rate (aggressive caching):</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cache</span> <span class="o">=</span> <span class="n">SemanticQueryCache</span><span class="p">(</span>
+    <span class="n">max_entries</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>           <span class="c1"># Keep more queries</span>
+    <span class="n">similarity_threshold</span><span class="o">=</span><span class="mf">0.85</span>   <span class="c1"># Lower threshold = more hits</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>For memory efficiency (conservative caching):</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cache</span> <span class="o">=</span> <span class="n">SemanticQueryCache</span><span class="p">(</span>
+    <span class="n">max_entries</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>            <span class="c1"># Keep fewer queries</span>
+    <span class="n">similarity_threshold</span><span class="o">=</span><span class="mf">0.95</span>   <span class="c1"># Higher threshold = fewer false hits</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>For balanced performance:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cache</span> <span class="o">=</span> <span class="n">SemanticQueryCache</span><span class="p">(</span>
+    <span class="n">max_entries</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>            <span class="c1"># Default (good balance)</span>
+    <span class="n">similarity_threshold</span><span class="o">=</span><span class="mf">0.95</span>   <span class="c1"># Default (high precision)</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="lru-eviction">
+<h2>LRU Eviction<a class="headerlink" href="#lru-eviction" title="Link to this heading"></a></h2>
+<p>When cache exceeds max_entries, least-recently-used queries are evicted:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cache</span> <span class="o">=</span> <span class="n">SemanticQueryCache</span><span class="p">(</span><span class="n">max_entries</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+<span class="n">cache</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;query 1&quot;</span><span class="p">,</span> <span class="n">results1</span><span class="p">)</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;query 2&quot;</span><span class="p">,</span> <span class="n">results2</span><span class="p">)</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;query 3&quot;</span><span class="p">,</span> <span class="n">results3</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entries: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># 3</span>
+
+<span class="n">cache</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;query 4&quot;</span><span class="p">,</span> <span class="n">results4</span><span class="p">)</span>
+<span class="c1"># &quot;query 1&quot; evicted (least recently used)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Entries: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># Still 3</span>
+
+<span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;query 1&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>  <span class="c1"># Cache miss (was evicted)</span>
+</pre></div>
+</div>
+</section>
+<section id="similarity-matching">
+<h2>Similarity Matching<a class="headerlink" href="#similarity-matching" title="Link to this heading"></a></h2>
+<p>The threshold controls what counts as a cache hit:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># High threshold (0.95 - strict, high precision)</span>
+<span class="c1"># Only nearly-identical queries match</span>
+<span class="n">cache</span> <span class="o">=</span> <span class="n">SemanticQueryCache</span><span class="p">(</span><span class="n">similarity_threshold</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>
+
+<span class="c1"># Gets hit:</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;find database connections&quot;</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;find database connections&quot;</span><span class="p">)</span>  <span class="c1"># Hit (1.0)</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;find database connection&quot;</span><span class="p">)</span>   <span class="c1"># Hit (0.98)</span>
+
+<span class="c1"># Gets miss:</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;how do I query databases&quot;</span><span class="p">)</span>  <span class="c1"># Miss (0.80)</span>
+
+
+<span class="c1"># Low threshold (0.80 - lenient, high recall)</span>
+<span class="c1"># Even dissimilar queries might match</span>
+<span class="n">cache</span> <span class="o">=</span> <span class="n">SemanticQueryCache</span><span class="p">(</span><span class="n">similarity_threshold</span><span class="o">=</span><span class="mf">0.80</span><span class="p">)</span>
+
+<span class="c1"># All previous ones get hits:</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;find database connections&quot;</span><span class="p">,</span> <span class="n">results</span><span class="p">)</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;find database connections&quot;</span><span class="p">)</span>  <span class="c1"># Hit (1.0)</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;find database connection&quot;</span><span class="p">)</span>   <span class="c1"># Hit (0.98)</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;how do I query databases&quot;</span><span class="p">)</span>   <span class="c1"># Hit (0.80)</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;show me database code&quot;</span><span class="p">)</span>      <span class="c1"># Hit (0.85)</span>
+</pre></div>
+</div>
+</section>
+<section id="manual-cache-management">
+<h2>Manual Cache Management<a class="headerlink" href="#manual-cache-management" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">cache</span> <span class="o">=</span> <span class="n">SemanticQueryCache</span><span class="p">(</span><span class="n">max_entries</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+
+<span class="c1"># Clear entire cache</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+<span class="c1"># Clear specific buffer cache</span>
+<span class="n">cache</span><span class="o">.</span><span class="n">clear_buffer</span><span class="p">(</span><span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">)</span>
+
+<span class="c1"># Check if query is cached</span>
+<span class="n">is_cached</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">is_cached</span><span class="p">(</span><span class="s2">&quot;my query&quot;</span><span class="p">)</span>
+
+<span class="c1"># Get cache size</span>
+<span class="n">size</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="performance-analysis">
+<h2>Performance Analysis<a class="headerlink" href="#performance-analysis" title="Link to this heading"></a></h2>
+<p><strong>Typical hit rates by workload:</strong></p>
+<ul class="simple">
+<li><p><strong>Interactive search</strong>: 40-60% (users often repeat similar searches)</p></li>
+<li><p><strong>Batch processing</strong>: 10-25% (diverse queries)</p></li>
+<li><p><strong>API workload</strong>: 20-40% (mix of patterns)</p></li>
+<li><p><strong>Test suite</strong>: 60-80% (repeated test queries)</p></li>
+</ul>
+<p><strong>Optimization strategies:</strong></p>
+<ol class="arabic simple">
+<li><p>For high variability: Increase similarity_threshold (0.95+)</p></li>
+<li><p>For consistency: Decrease similarity_threshold (0.85-)</p></li>
+<li><p>For memory: Reduce max_entries</p></li>
+<li><p>For hits: Increase max_entries</p></li>
+</ol>
+</section>
+<section id="example-complete-caching-workflow">
+<h2>Example: Complete Caching Workflow<a class="headerlink" href="#example-complete-caching-workflow" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="n">queries</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;find error handlers&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;handle exceptions&quot;</span><span class="p">,</span>  <span class="c1"># Semantic match to above</span>
+    <span class="s2">&quot;find error handlers&quot;</span><span class="p">,</span>  <span class="c1"># Exact match</span>
+    <span class="s2">&quot;database operations&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;query the database&quot;</span><span class="p">,</span>  <span class="c1"># Semantic match</span>
+<span class="p">]</span>
+
+<span class="n">times</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+    <span class="n">times</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">elapsed</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Query: &#39;</span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s2">&#39; - </span><span class="si">{</span><span class="n">elapsed</span><span class="o">*</span><span class="mi">1000</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+
+<span class="c1"># Analyze</span>
+<span class="n">first_searches</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>  <span class="c1"># First time seeing queries</span>
+<span class="n">repeat_searches</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>  <span class="c1"># Semantic or exact repeats</span>
+
+<span class="n">first_avg</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">first_searches</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">first_searches</span><span class="p">)</span>
+<span class="n">repeat_avg</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">times</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">repeat_searches</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">repeat_searches</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">First searches avg: </span><span class="si">{</span><span class="n">first_avg</span><span class="o">*</span><span class="mi">1000</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Repeat searches avg: </span><span class="si">{</span><span class="n">repeat_avg</span><span class="o">*</span><span class="mi">1000</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Speedup: </span><span class="si">{</span><span class="n">first_avg</span><span class="o">/</span><span class="n">repeat_avg</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<p><strong>Low hit rate despite cached queries:</strong></p>
+<ul class="simple">
+<li><p>Increase <code class="docutils literal notranslate"><span class="pre">max_entries</span></code> (cache might be too small)</p></li>
+<li><p>Lower <code class="docutils literal notranslate"><span class="pre">similarity_threshold</span></code> (being too strict)</p></li>
+<li><p>Check that embedder is working (run manual similarity test)</p></li>
+</ul>
+<p><strong>High memory usage:</strong></p>
+<ul class="simple">
+<li><p>Reduce <code class="docutils literal notranslate"><span class="pre">max_entries</span></code></p></li>
+<li><p>Increase <code class="docutils literal notranslate"><span class="pre">similarity_threshold</span></code> (fewer entries)</p></li>
+<li><p>Call <code class="docutils literal notranslate"><span class="pre">cache.clear()</span></code> periodically</p></li>
+</ul>
+<p><strong>Cache not working:</strong></p>
+<ul class="simple">
+<li><p>Verify SearchService has <code class="docutils literal notranslate"><span class="pre">_semantic_query_cache</span></code> initialized</p></li>
+<li><p>Check that embedder is available</p></li>
+<li><p>Enable debug logging</p></li>
+</ul>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="incremental_indexer.html#gigacode.incremental_indexer.IncrementalIndexManager" title="gigacode.incremental_indexer.IncrementalIndexManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.incremental_indexer.IncrementalIndexManager</span></code></a> - Incremental updates</p></li>
+<li><p><a class="reference internal" href="search_service.html#gigacode.search_service.SearchService" title="gigacode.search_service.SearchService"><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.search_service.SearchService</span></code></a> - Main search interface</p></li>
+<li><p><a class="reference internal" href="../tutorials/search_workflows.html"><span class="doc">Search Workflows</span></a> - Search examples with caching</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="incremental_indexer.html" class="btn btn-neutral float-left" title="Incremental Indexer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="faiss_optimizer.html" class="btn btn-neutral float-right" title="FAISS Optimizer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

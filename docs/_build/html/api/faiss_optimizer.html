@@ -1,0 +1,644 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FAISS Optimizer &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tools" href="tools.html" />
+    <link rel="prev" title="Semantic Cache" href="semantic_cache.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#module-gigacode.gigacode_tool">Core Tool</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#managers">Managers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#services">Services</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../api_reference.html#phase-3-optimizations">Phase 3 Optimizations</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="incremental_indexer.html">Incremental Indexer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic_cache.html">Semantic Cache</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">FAISS Optimizer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-benefits">Key Benefits</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#index-types">Index Types</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core-class">Core Class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#auto-selection-logic">Auto-Selection Logic</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#create-optimized-index">Create Optimized Index</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#manual-index-selection">Manual Index Selection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#index-information">Index Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#search-with-index">Search with Index</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#performance-characteristics">Performance Characteristics</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tuning-thresholds">Tuning Thresholds</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-index-selection-at-different-scales">Example: Index Selection at Different Scales</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#benchmarking">Benchmarking</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#integration-with-gpuindex">Integration with GpuIndex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#future-enhancements">Future Enhancements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#utilities">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#quick-reference">Quick Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#module-gigacode.gigacode_tool">Core Tool</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#managers">Managers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#services">Services</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../api_reference.html#phase-3-optimizations">Phase 3 Optimizations</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="incremental_indexer.html">Incremental Indexer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="semantic_cache.html">Semantic Cache</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">FAISS Optimizer</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#key-benefits">Key Benefits</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#index-types">Index Types</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core-class">Core Class</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#auto-selection-logic">Auto-Selection Logic</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#create-optimized-index">Create Optimized Index</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#manual-index-selection">Manual Index Selection</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#index-information">Index Information</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#search-with-index">Search with Index</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#performance-characteristics">Performance Characteristics</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#tuning-thresholds">Tuning Thresholds</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#example-index-selection-at-different-scales">Example: Index Selection at Different Scales</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#benchmarking">Benchmarking</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#integration-with-gpuindex">Integration with GpuIndex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#future-enhancements">Future Enhancements</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#utilities">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#quick-reference">Quick Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api_reference.html">API Reference</a></li>
+      <li class="breadcrumb-item active">FAISS Optimizer</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/faiss_optimizer.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="faiss-optimizer">
+<h1>FAISS Optimizer<a class="headerlink" href="#faiss-optimizer" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">gigacode.faiss_optimizer.FAISSIndexOptimizer</span></code> automatically selects optimal FAISS index types for smart performance tuning.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The FAISS Optimizer is responsible for:</p>
+<ul class="simple">
+<li><p>Auto-selecting optimal index type based on vector count</p></li>
+<li><p>Parameterizing index configuration</p></li>
+<li><p>Benchmarking different index types</p></li>
+<li><p>Providing index statistics and info</p></li>
+</ul>
+</section>
+<section id="key-benefits">
+<h2>Key Benefits<a class="headerlink" href="#key-benefits" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Smart selection</strong>: Index type chosen based on data size</p></li>
+<li><p><strong>Automatic tuning</strong>: Parameters optimized for your data</p></li>
+<li><p><strong>Future flexibility</strong>: Easily switch index types</p></li>
+<li><p><strong>Performance predictions</strong>: Know search latency before running</p></li>
+</ul>
+</section>
+<section id="index-types">
+<h2>Index Types<a class="headerlink" href="#index-types" title="Link to this heading"></a></h2>
+<p>GigaCode supports three FAISS index types, auto-selected based on vector count:</p>
+<p><strong>Flat (&lt;10k vectors)</strong></p>
+<ul class="simple">
+<li><p>Type: Exact nearest neighbor search</p></li>
+<li><p>Memory: Low</p></li>
+<li><p>Speed: Fast for small indexes</p></li>
+<li><p>Use case: Small projects, development</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">index</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">create_optimized_index</span><span class="p">(</span>
+    <span class="n">dim</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span>
+    <span class="n">vector_count</span><span class="o">=</span><span class="mi">5000</span>  <span class="c1"># Uses Flat</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>IVF (10k-100k vectors)</strong></p>
+<ul class="simple">
+<li><p>Type: Inverted file (partitioned search)</p></li>
+<li><p>Memory: Medium</p></li>
+<li><p>Speed: Fast for medium indexes</p></li>
+<li><p>Use case: Most projects</p></li>
+<li><p>Parameters: nlist = sqrt(N), nprobe = nlist/10</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">index</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">create_optimized_index</span><span class="p">(</span>
+    <span class="n">dim</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span>
+    <span class="n">vector_count</span><span class="o">=</span><span class="mi">50000</span>  <span class="c1"># Uses IVF</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>HNSW (&gt;100k vectors)</strong></p>
+<ul class="simple">
+<li><p>Type: Hierarchical navigable small world</p></li>
+<li><p>Memory: Medium-High</p></li>
+<li><p>Speed: Very fast for large indexes</p></li>
+<li><p>Use case: Large projects</p></li>
+<li><p>Parameters: nlinks = 16, efConstruction = 200</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">index</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">create_optimized_index</span><span class="p">(</span>
+    <span class="n">dim</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span>
+    <span class="n">vector_count</span><span class="o">=</span><span class="mi">500000</span>  <span class="c1"># Uses HNSW</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="core-class">
+<h2>Core Class<a class="headerlink" href="#core-class" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="gigacode.faiss_optimizer.FAISSIndexOptimizer">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">gigacode.faiss_optimizer.</span></span><span class="sig-name descname"><span class="pre">FAISSIndexOptimizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">enable_gpu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/faiss_optimizer.html#FAISSIndexOptimizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.faiss_optimizer.FAISSIndexOptimizer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Optimizer for selecting and creating FAISS indexes.</p>
+<p>Auto-selects index type based on vector count:
+- &lt;10k: Flat (exact, fast)
+- 10k-100k: IVF (balanced)
+- &gt;100k: HNSW (approximate, very fast)</p>
+<p>Initialize FAISS optimizer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>enable_gpu</strong> – Whether to use GPU acceleration if available</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.faiss_optimizer.FAISSIndexOptimizer.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">enable_gpu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/faiss_optimizer.html#FAISSIndexOptimizer.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.faiss_optimizer.FAISSIndexOptimizer.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize FAISS optimizer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>enable_gpu</strong> – Whether to use GPU acceleration if available</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.faiss_optimizer.FAISSIndexOptimizer.select_index_type">
+<span class="sig-name descname"><span class="pre">select_index_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector_count</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">384</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/gigacode/faiss_optimizer.html#FAISSIndexOptimizer.select_index_type"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.faiss_optimizer.FAISSIndexOptimizer.select_index_type" title="Link to this definition"></a></dt>
+<dd><p>Select best index type for vector count.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vector_count</strong> – Number of vectors to index</p></li>
+<li><p><strong>embedding_dim</strong> – Embedding dimension</p></li>
+<li><p><strong>force_type</strong> – Force specific index type (“flat”, “ivf”, “hnsw”)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Selected index type as string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.faiss_optimizer.FAISSIndexOptimizer.get_index_params">
+<span class="sig-name descname"><span class="pre">get_index_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">vector_count</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">384</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/faiss_optimizer.html#FAISSIndexOptimizer.get_index_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.faiss_optimizer.FAISSIndexOptimizer.get_index_params" title="Link to this definition"></a></dt>
+<dd><p>Get parameters for creating index.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>index_type</strong> – Type of index (“flat”, “ivf”, “hnsw”)</p></li>
+<li><p><strong>vector_count</strong> – Number of vectors</p></li>
+<li><p><strong>embedding_dim</strong> – Embedding dimension</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary of index parameters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.faiss_optimizer.FAISSIndexOptimizer.create_optimized_index">
+<span class="sig-name descname"><span class="pre">create_optimized_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vectors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><span class="pre">ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/faiss_optimizer.html#FAISSIndexOptimizer.create_optimized_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.faiss_optimizer.FAISSIndexOptimizer.create_optimized_index" title="Link to this definition"></a></dt>
+<dd><p>Create optimized FAISS index.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vectors</strong> – Embedding vectors (N, embedding_dim)</p></li>
+<li><p><strong>index_type</strong> – Index type to create (auto-selected if None)</p></li>
+<li><p><strong>embedding_dim</strong> – Embedding dimension (inferred if None)</p></li>
+<li><p><strong>**kwargs</strong> – Additional parameters (nlist, nprobe, etc.)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>FAISS index or None if creation fails</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.faiss_optimizer.FAISSIndexOptimizer.search_index">
+<span class="sig-name descname"><span class="pre">search_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">query_vector</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><span class="pre">ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a></span></span><a class="reference internal" href="../_modules/gigacode/faiss_optimizer.html#FAISSIndexOptimizer.search_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.faiss_optimizer.FAISSIndexOptimizer.search_index" title="Link to this definition"></a></dt>
+<dd><p>Search in index.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>index</strong> – FAISS index</p></li>
+<li><p><strong>query_vector</strong> – Query embedding (1, embedding_dim) or (embedding_dim,)</p></li>
+<li><p><strong>k</strong> – Number of results</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of (distances, indices)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.faiss_optimizer.FAISSIndexOptimizer.get_index_info">
+<span class="sig-name descname"><span class="pre">get_index_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/faiss_optimizer.html#FAISSIndexOptimizer.get_index_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.faiss_optimizer.FAISSIndexOptimizer.get_index_info" title="Link to this definition"></a></dt>
+<dd><p>Get information about index.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>index</strong> – FAISS index</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with index information</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="auto-selection-logic">
+<h2>Auto-Selection Logic<a class="headerlink" href="#auto-selection-logic" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.faiss_optimizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">FAISSIndexOptimizer</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">FAISSIndexOptimizer</span><span class="p">()</span>
+
+<span class="c1"># Auto-select index type</span>
+<span class="n">index_type</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">select_index_type</span><span class="p">(</span><span class="n">vector_count</span><span class="o">=</span><span class="mi">50000</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Selected: </span><span class="si">{</span><span class="n">index_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>  <span class="c1"># &quot;IVF&quot;</span>
+
+<span class="c1"># Get parameters for selected type</span>
+<span class="n">params</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">get_index_params</span><span class="p">(</span><span class="n">vector_count</span><span class="o">=</span><span class="mi">50000</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameters: </span><span class="si">{</span><span class="n">params</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="c1"># {</span>
+<span class="c1">#     &quot;index_type&quot;: &quot;IVF&quot;,</span>
+<span class="c1">#     &quot;nlist&quot;: 223,  # sqrt(50000)</span>
+<span class="c1">#     &quot;nprobe&quot;: 22   # sqrt(50000)/10</span>
+<span class="c1"># }</span>
+</pre></div>
+</div>
+</section>
+<section id="create-optimized-index">
+<h2>Create Optimized Index<a class="headerlink" href="#create-optimized-index" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.faiss_optimizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">FAISSIndexOptimizer</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">FAISSIndexOptimizer</span><span class="p">()</span>
+
+<span class="c1"># Create index for your data</span>
+<span class="n">index</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">create_optimized_index</span><span class="p">(</span>
+    <span class="n">dim</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span>                    <span class="c1"># Embedding dimension</span>
+    <span class="n">vector_count</span><span class="o">=</span><span class="mi">50000</span><span class="p">,</span>         <span class="c1"># Number of vectors</span>
+    <span class="n">use_gpu</span><span class="o">=</span><span class="kc">True</span>                <span class="c1"># GPU acceleration</span>
+<span class="p">)</span>
+
+<span class="c1"># Add vectors</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">50000</span><span class="p">,</span> <span class="mi">384</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float32&#39;</span><span class="p">)</span>
+<span class="n">index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span>
+
+<span class="c1"># Search</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">384</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float32&#39;</span><span class="p">)</span>
+<span class="n">distances</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="manual-index-selection">
+<h2>Manual Index Selection<a class="headerlink" href="#manual-index-selection" title="Link to this heading"></a></h2>
+<p>You can manually override auto-selection:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.gpu_index</span><span class="w"> </span><span class="kn">import</span> <span class="n">GpuIndex</span>
+
+<span class="c1"># Force specific index type</span>
+<span class="n">index</span> <span class="o">=</span> <span class="n">GpuIndex</span><span class="p">(</span>
+    <span class="n">dim</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span>
+    <span class="n">index_type</span><span class="o">=</span><span class="s2">&quot;ivf&quot;</span>  <span class="c1"># Force IVF even if not auto-selected</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="index-information">
+<h2>Index Information<a class="headerlink" href="#index-information" title="Link to this heading"></a></h2>
+<p>Get information about an index:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">info</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">get_index_info</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Type: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;index_type&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Vectors: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;ntotal&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dimension: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;dim&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GPU: </span><span class="si">{</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;use_gpu&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="search-with-index">
+<h2>Search with Index<a class="headerlink" href="#search-with-index" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="c1"># Search for K nearest neighbors</span>
+<span class="n">query</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="o">...</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float32&#39;</span><span class="p">)</span>  <span class="c1"># 1x384</span>
+
+<span class="c1"># Different methods by index type</span>
+<span class="n">distances</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">distance</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">distances</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Match </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">: distance </span><span class="si">{</span><span class="n">distance</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.faiss_optimizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">FAISSIndexOptimizer</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">FAISSIndexOptimizer</span><span class="p">(</span>
+    <span class="n">use_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>              <span class="c1"># GPU acceleration</span>
+    <span class="n">flat_threshold</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>      <span class="c1"># Threshold for Flat</span>
+    <span class="n">ivf_threshold</span><span class="o">=</span><span class="mi">100000</span><span class="p">,</span>      <span class="c1"># Threshold for IVF</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="performance-characteristics">
+<h2>Performance Characteristics<a class="headerlink" href="#performance-characteristics" title="Link to this heading"></a></h2>
+<p><strong>Flat Index:</strong></p>
+<ul class="simple">
+<li><p>Build time: O(N)</p></li>
+<li><p>Search time: O(N*d)</p></li>
+<li><p>Memory: 4*N*d bytes</p></li>
+<li><p>5k vectors: &lt;1ms search</p></li>
+<li><p>10k vectors: 1-2ms search</p></li>
+</ul>
+<p><strong>IVF Index:</strong></p>
+<ul class="simple">
+<li><p>Build time: O(N*log(N))</p></li>
+<li><p>Search time: O(nlist*nprobe*d)</p></li>
+<li><p>Memory: ~4*N*d bytes</p></li>
+<li><p>50k vectors: 5-10ms search</p></li>
+<li><p>100k vectors: 10-20ms search</p></li>
+</ul>
+<p><strong>HNSW Index:</strong></p>
+<ul class="simple">
+<li><p>Build time: O(N*log(N))</p></li>
+<li><p>Search time: O(log(N)) + constant</p></li>
+<li><p>Memory: 4*N*d + overhead</p></li>
+<li><p>500k vectors: 2-5ms search (faster than IVF!)</p></li>
+<li><p>1M+ vectors: 3-10ms search</p></li>
+</ul>
+</section>
+<section id="tuning-thresholds">
+<h2>Tuning Thresholds<a class="headerlink" href="#tuning-thresholds" title="Link to this heading"></a></h2>
+<p>Adjust when different index types are selected:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">FAISSIndexOptimizer</span><span class="p">(</span>
+    <span class="n">flat_threshold</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>      <span class="c1"># Lower = Flat for smaller projects</span>
+    <span class="n">ivf_threshold</span><span class="o">=</span><span class="mi">50000</span>       <span class="c1"># Lower = IVF for smaller projects</span>
+<span class="p">)</span>
+
+<span class="c1"># Now:</span>
+<span class="c1"># &lt;5k vectors -&gt; Flat</span>
+<span class="c1"># 5k-50k vectors -&gt; IVF</span>
+<span class="c1"># &gt;50k vectors -&gt; HNSW</span>
+</pre></div>
+</div>
+</section>
+<section id="example-index-selection-at-different-scales">
+<h2>Example: Index Selection at Different Scales<a class="headerlink" href="#example-index-selection-at-different-scales" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.faiss_optimizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">FAISSIndexOptimizer</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">FAISSIndexOptimizer</span><span class="p">()</span>
+
+<span class="n">test_sizes</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">5000</span><span class="p">,</span> <span class="mi">10000</span><span class="p">,</span> <span class="mi">50000</span><span class="p">,</span> <span class="mi">100000</span><span class="p">,</span> <span class="mi">500000</span><span class="p">]</span>
+
+<span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="n">test_sizes</span><span class="p">:</span>
+    <span class="n">index_type</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">select_index_type</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">get_index_params</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">size</span><span class="si">:</span><span class="s2">&gt;7</span><span class="si">}</span><span class="s2"> vectors -&gt; </span><span class="si">{</span><span class="n">index_type</span><span class="si">:</span><span class="s2">&gt;4</span><span class="si">}</span><span class="s2"> &quot;</span>
+          <span class="sa">f</span><span class="s2">&quot;(params: </span><span class="si">{</span><span class="n">params</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+<span class="c1"># Output:</span>
+<span class="c1">#    1000 vectors -&gt; flat (no params)</span>
+<span class="c1">#    5000 vectors -&gt; flat (no params)</span>
+<span class="c1">#   10000 vectors -&gt; ivf (nlist: 100, nprobe: 10)</span>
+<span class="c1">#   50000 vectors -&gt; ivf (nlist: 223, nprobe: 22)</span>
+<span class="c1">#  100000 vectors -&gt; ivf (nlist: 316, nprobe: 31)</span>
+<span class="c1">#  500000 vectors -&gt; hnsw (nlinks: 16, efConstruction: 200)</span>
+</pre></div>
+</div>
+</section>
+<section id="benchmarking">
+<h2>Benchmarking<a class="headerlink" href="#benchmarking" title="Link to this heading"></a></h2>
+<p>Compare index types:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="c1"># Create test data</span>
+<span class="n">dim</span> <span class="o">=</span> <span class="mi">384</span>
+<span class="n">vectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">50000</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float32&#39;</span><span class="p">)</span>
+<span class="n">queries</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="n">dim</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float32&#39;</span><span class="p">)</span>
+
+<span class="n">optimizer</span> <span class="o">=</span> <span class="n">FAISSIndexOptimizer</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">index_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;flat&quot;</span><span class="p">,</span> <span class="s2">&quot;ivf&quot;</span><span class="p">,</span> <span class="s2">&quot;hnsw&quot;</span><span class="p">]:</span>
+    <span class="c1"># Create index</span>
+    <span class="k">if</span> <span class="n">index_type</span> <span class="o">==</span> <span class="s2">&quot;flat&quot;</span><span class="p">:</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">create_optimized_index</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">),</span> <span class="n">index_type</span><span class="o">=</span><span class="s2">&quot;flat&quot;</span><span class="p">)</span>
+    <span class="c1"># ... other types</span>
+
+    <span class="n">index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">vectors</span><span class="p">)</span>
+
+    <span class="c1"># Benchmark search</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+        <span class="n">index</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">query</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+
+    <span class="n">avg_per_query</span> <span class="o">=</span> <span class="n">elapsed</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">queries</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">index_type</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">avg_per_query</span><span class="o">*</span><span class="mi">1000</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">ms per query&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="integration-with-gpuindex">
+<h2>Integration with GpuIndex<a class="headerlink" href="#integration-with-gpuindex" title="Link to this heading"></a></h2>
+<p>GpuIndex automatically uses FAISSIndexOptimizer:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.gpu_index</span><span class="w"> </span><span class="kn">import</span> <span class="n">GpuIndex</span>
+
+<span class="c1"># Auto-selection based on vector count</span>
+<span class="n">gpu_index</span> <span class="o">=</span> <span class="n">GpuIndex</span><span class="p">(</span>
+    <span class="n">dim</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span>
+    <span class="n">embeddings</span><span class="o">=</span><span class="n">embeddings</span>  <span class="c1"># Vector count determines type</span>
+<span class="p">)</span>
+
+<span class="c1"># Manual override</span>
+<span class="n">gpu_index</span> <span class="o">=</span> <span class="n">GpuIndex</span><span class="p">(</span>
+    <span class="n">dim</span><span class="o">=</span><span class="mi">384</span><span class="p">,</span>
+    <span class="n">embeddings</span><span class="o">=</span><span class="n">embeddings</span><span class="p">,</span>
+    <span class="n">index_type</span><span class="o">=</span><span class="s2">&quot;ivf&quot;</span>  <span class="c1"># Force IVF</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="future-enhancements">
+<h2>Future Enhancements<a class="headerlink" href="#future-enhancements" title="Link to this heading"></a></h2>
+<p>The infrastructure is in place for future optimizations:</p>
+<ul class="simple">
+<li><p>Adaptive index type switching as data grows</p></li>
+<li><p>Automatic parameter tuning based on workload</p></li>
+<li><p>Mixed index types for heterogeneous data</p></li>
+<li><p>Quantization for memory reduction</p></li>
+</ul>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<p><strong>Index type seems wrong:</strong></p>
+<ul class="simple">
+<li><p>Check vector count: too small uses Flat, too large uses HNSW</p></li>
+<li><p>Verify thresholds: adjust flat_threshold and ivf_threshold</p></li>
+</ul>
+<p><strong>Search is slow:</strong></p>
+<ul class="simple">
+<li><p>Check index type with <code class="docutils literal notranslate"><span class="pre">get_index_info()</span></code></p></li>
+<li><p>May need to switch to GPU: <code class="docutils literal notranslate"><span class="pre">use_gpu=True</span></code></p></li>
+<li><p>Try different nlist/nprobe for IVF</p></li>
+</ul>
+<p><strong>Out of memory:</strong></p>
+<ul class="simple">
+<li><p>Try Flat (smallest memory)</p></li>
+<li><p>Reduce vector dimension</p></li>
+<li><p>Use quantization (future feature)</p></li>
+</ul>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.gpu_index.GpuIndex</span></code> - GPU index implementation</p></li>
+<li><p><a class="reference internal" href="incremental_indexer.html#gigacode.incremental_indexer.IncrementalIndexManager" title="gigacode.incremental_indexer.IncrementalIndexManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">gigacode.incremental_indexer.IncrementalIndexManager</span></code></a> - Incremental updates</p></li>
+<li><p><a class="reference internal" href="../performance_tuning.html"><span class="doc">Performance Tuning</span></a> - Performance optimization guide</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="semantic_cache.html" class="btn btn-neutral float-left" title="Semantic Cache" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tools.html" class="btn btn-neutral float-right" title="Tools" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

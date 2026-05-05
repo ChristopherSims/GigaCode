@@ -1,0 +1,626 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Workflows &mdash; GigaCode 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="API Reference" href="../api_reference.html" />
+    <link rel="prev" title="Search Workflows" href="search_workflows.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Edit Workflows</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-write-code">Step 1: Write Code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-commit-changes">Step 2: Commit Changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#phase-3-optimization-incremental-indexing">Phase 3 Optimization: Incremental Indexing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-batch-commits">Advanced: Batch Commits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-commit-with-verification">Advanced: Commit with Verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-rollback-commits">Advanced: Rollback Commits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-diff-before-commit">Advanced: Diff Before Commit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#complete-workflow-example">Complete Workflow Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-patterns">Common Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/services.html">Services</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Edit Workflows</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-write-code">Step 1: Write Code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-commit-changes">Step 2: Commit Changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#phase-3-optimization-incremental-indexing">Phase 3 Optimization: Incremental Indexing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-batch-commits">Advanced: Batch Commits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-commit-with-verification">Advanced: Commit with Verification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-rollback-commits">Advanced: Rollback Commits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#advanced-diff-before-commit">Advanced: Diff Before Commit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#complete-workflow-example">Complete Workflow Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-patterns">Common Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/tools.html">Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/managers.html">Managers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Edit Workflows</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorials/edit_workflows.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="edit-workflows">
+<h1>Edit Workflows<a class="headerlink" href="#edit-workflows" title="Link to this heading"></a></h1>
+<p>This tutorial covers updating your code and efficiently committing changes with incremental indexing.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The edit workflow consists of:</p>
+<ol class="arabic simple">
+<li><p><strong>Write</strong> - Modify code in your buffer</p></li>
+<li><p><strong>Commit</strong> - Save and re-index your changes</p></li>
+<li><p><strong>Verify</strong> - Confirm changes are indexed correctly</p></li>
+</ol>
+<p>With Phase 3 optimizations, commits are 5-50x faster by only re-embedding changed chunks.</p>
+</section>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h2>
+<p>You need an embedded project. If not, see <a class="reference internal" href="basic_embed.html"><span class="doc">Basic Embedding Workflow</span></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="step-1-write-code">
+<h2>Step 1: Write Code<a class="headerlink" href="#step-1-write-code" title="Link to this heading"></a></h2>
+<p>Update code in your buffer:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Read existing code</span>
+<span class="n">existing_code</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;/path/to/project/example.py&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+<span class="c1"># Modify code</span>
+<span class="n">new_code</span> <span class="o">=</span> <span class="n">existing_code</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+    <span class="s2">&quot;old_function_name&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;new_function_name&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Write modified code to buffer</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;example.py&quot;</span><span class="p">,</span>
+    <span class="n">content</span><span class="o">=</span><span class="n">new_code</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Key parameters:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">buffer_id</span></code> (str): Your project identifier</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">file</span></code> (str): File path relative to project root</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">content</span></code> (str): New file content</p></li>
+</ul>
+<p><strong>Write multiple files:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">files_to_update</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;module1.py&quot;</span><span class="p">:</span> <span class="n">new_content1</span><span class="p">,</span>
+    <span class="s2">&quot;utils/helpers.py&quot;</span><span class="p">:</span> <span class="n">new_content2</span><span class="p">,</span>
+    <span class="s2">&quot;config/settings.json&quot;</span><span class="p">:</span> <span class="n">new_content3</span>
+<span class="p">}</span>
+
+<span class="k">for</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">content</span> <span class="ow">in</span> <span class="n">files_to_update</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span>
+        <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+        <span class="n">file</span><span class="o">=</span><span class="n">file_path</span><span class="p">,</span>
+        <span class="n">content</span><span class="o">=</span><span class="n">content</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Read and modify:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="c1"># Read current code</span>
+<span class="n">file_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;example.py&quot;</span>
+<span class="n">content</span> <span class="o">=</span> <span class="n">file_path</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span>
+
+<span class="c1"># Modify code (example: add docstring)</span>
+<span class="n">new_content</span> <span class="o">=</span> <span class="n">add_docstring</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+
+<span class="c1"># Write back to buffer</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;example.py&quot;</span><span class="p">,</span>
+    <span class="n">content</span><span class="o">=</span><span class="n">new_content</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="step-2-commit-changes">
+<h2>Step 2: Commit Changes<a class="headerlink" href="#step-2-commit-changes" title="Link to this heading"></a></h2>
+<p>Save and re-index your changes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Commit single file</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;example.py&quot;</span><span class="p">],</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Update function names for clarity&quot;</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Committed </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;files_updated&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> files&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Re-indexed </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;chunks_updated&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> chunks&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Took </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;time_ms&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Commit multiple files:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;module1.py&quot;</span><span class="p">,</span> <span class="s2">&quot;utils/helpers.py&quot;</span><span class="p">,</span> <span class="s2">&quot;config/settings.json&quot;</span><span class="p">],</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Refactor: improve code organization&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Commit entire project:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># None means all files</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Major refactor: update architecture&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Commit with metadata:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;feature.py&quot;</span><span class="p">],</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Add new feature: caching&quot;</span><span class="p">,</span>
+    <span class="n">author</span><span class="o">=</span><span class="s2">&quot;Your Name&quot;</span><span class="p">,</span>
+    <span class="n">timestamp</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="phase-3-optimization-incremental-indexing">
+<h2>Phase 3 Optimization: Incremental Indexing<a class="headerlink" href="#phase-3-optimization-incremental-indexing" title="Link to this heading"></a></h2>
+<p>GigaCode automatically uses incremental indexing, which is 5-50x faster:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Before commit (Phase 3 optimization active)</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;example.py&quot;</span><span class="p">],</span>  <span class="c1"># Only changed file</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Small fix&quot;</span>
+<span class="p">)</span>
+
+<span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Commit time: </span><span class="si">{</span><span class="n">elapsed</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s (with incremental indexing)&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chunks changed: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;chunks_changed&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chunks kept (cached): </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;chunks_kept&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Efficiency: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x faster&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Performance comparison:</strong></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Scenario: 1% of 2,500 chunks changed
+
+Without incremental indexing:
+- Re-embed: 2,500 chunks
+- Time: ~30 seconds
+
+With incremental indexing (Phase 3):
+- Re-embed: 25 chunks (changed)
+- Reuse: 2,475 chunks (unchanged)
+- Time: ~0.15 seconds
+- Speedup: 200x faster!
+</pre></div>
+</div>
+<p><a href="#id1"><span class="problematic" id="id2">``</span></a><a href="#id3"><span class="problematic" id="id4">`</span></a></p>
+<p><strong>How incremental indexing works:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Detect changes</strong>: Compare file hash with stored hash</p></li>
+<li><p><strong>Chunk diff</strong>: Find which chunks changed</p></li>
+<li><p><strong>Selective re-embed</strong>: Only embed changed chunks</p></li>
+<li><p><strong>Reuse embeddings</strong>: Keep unchanged chunk embeddings</p></li>
+<li><p><strong>Update index</strong>: Merge new and old embeddings</p></li>
+</ol>
+<p><strong>Configure incremental indexing:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span>
+    <span class="n">incremental_indexing</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># Enable (default)</span>
+    <span class="n">incremental_threshold</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>  <span class="c1"># Fallback to full rebuild if &gt;10% changed</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-batch-commits">
+<h2>Advanced: Batch Commits<a class="headerlink" href="#advanced-batch-commits" title="Link to this heading"></a></h2>
+<p>Efficiently process multiple changes:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="c1"># Track changes</span>
+<span class="n">changes</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="s2">&quot;module1.py&quot;</span><span class="p">,</span> <span class="n">new_content1</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;module2.py&quot;</span><span class="p">,</span> <span class="n">new_content2</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;utils.py&quot;</span><span class="p">,</span> <span class="n">new_content3</span><span class="p">),</span>
+<span class="p">]</span>
+
+<span class="c1"># Apply changes</span>
+<span class="k">for</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">content</span> <span class="ow">in</span> <span class="n">changes</span><span class="p">:</span>
+    <span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span><span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">file_path</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="n">content</span><span class="p">)</span>
+
+<span class="c1"># Single commit for all changes (more efficient)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">changes</span><span class="p">],</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Batch update: multiple modules&quot;</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Committed </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;files_updated&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> files&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;chunks_changed&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> chunks changed&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Took </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;time_ms&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-commit-with-verification">
+<h2>Advanced: Commit with Verification<a class="headerlink" href="#advanced-commit-with-verification" title="Link to this heading"></a></h2>
+<p>Verify changes after commit:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Commit changes</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;module.py&quot;</span><span class="p">],</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Add new function&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Verify by searching for the new code</span>
+<span class="n">new_results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;the new function&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">1</span>
+<span class="p">)</span>
+
+<span class="k">if</span> <span class="n">new_results</span><span class="p">[</span><span class="s2">&quot;total&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✓ New function is searchable&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Found: </span><span class="si">{</span><span class="n">new_results</span><span class="p">[</span><span class="s1">&#39;matches&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✗ New function not indexed (verify commit succeeded)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-rollback-commits">
+<h2>Advanced: Rollback Commits<a class="headerlink" href="#advanced-rollback-commits" title="Link to this heading"></a></h2>
+<p>Revert to a previous version:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get commit history</span>
+<span class="n">history</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_commit_history</span><span class="p">(</span><span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">commit</span> <span class="ow">in</span> <span class="n">history</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">commit</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">commit</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+          <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">commit</span><span class="p">[</span><span class="s1">&#39;timestamp&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+<span class="c1"># Rollback to previous commit</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">rollback_commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">commit_id</span><span class="o">=</span><span class="n">history</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✓ Rolled back to previous version&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="advanced-diff-before-commit">
+<h2>Advanced: Diff Before Commit<a class="headerlink" href="#advanced-diff-before-commit" title="Link to this heading"></a></h2>
+<p>See what changed before committing:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get diff of changes</span>
+<span class="n">diff</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_diff</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;example.py&quot;</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Changes:&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">diff</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;+&quot;</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Added: </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Removed: </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Context: </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="complete-workflow-example">
+<h2>Complete Workflow Example<a class="headerlink" href="#complete-workflow-example" title="Link to this heading"></a></h2>
+<p>Here’s a full edit workflow:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="c1"># Initialize</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>
+<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
+
+<span class="c1"># Step 1: Make changes</span>
+<span class="n">project_root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
+
+<span class="c1"># Read original</span>
+<span class="n">file1</span> <span class="o">=</span> <span class="n">project_root</span> <span class="o">/</span> <span class="s2">&quot;module1.py&quot;</span>
+<span class="n">content1</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span>
+
+<span class="c1"># Modify</span>
+<span class="n">updated_content1</span> <span class="o">=</span> <span class="n">content1</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+    <span class="s2">&quot;old_function&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;new_function&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Step 2: Write to buffer</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+    <span class="n">file</span><span class="o">=</span><span class="s2">&quot;module1.py&quot;</span><span class="p">,</span>
+    <span class="n">content</span><span class="o">=</span><span class="n">updated_content1</span>
+<span class="p">)</span>
+
+<span class="c1"># Step 3: Commit with timing</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;module1.py&quot;</span><span class="p">],</span>
+    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Rename: old_function -&gt; new_function&quot;</span>
+<span class="p">)</span>
+<span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+
+<span class="c1"># Step 4: Display results</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Committed successfully&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Files: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;files_updated&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Chunks changed: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;chunks_changed&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Chunks kept: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;chunks_kept&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Time: </span><span class="si">{</span><span class="n">elapsed</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Efficiency: </span><span class="si">{</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x faster&quot;</span><span class="p">)</span>
+
+<span class="c1"># Step 5: Verify by searching</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;new function&quot;</span><span class="p">,</span>
+    <span class="n">top_k</span><span class="o">=</span><span class="mi">1</span>
+<span class="p">)</span>
+
+<span class="k">if</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;total&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">✓ New function indexed: </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;matches&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="performance-tips">
+<h2>Performance Tips<a class="headerlink" href="#performance-tips" title="Link to this heading"></a></h2>
+<p><strong>Speed up commits:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Batch changes</strong>: Commit multiple files at once</p></li>
+<li><p><strong>Incremental indexing</strong>: Automatic, 5-50x faster</p></li>
+<li><p><strong>Only commit changed files</strong>: Skip unchanged files</p></li>
+<li><p><strong>Use semantic cache</strong>: Next search is instant</p></li>
+</ol>
+<p><strong>Commit time estimates:</strong></p>
+<ul class="simple">
+<li><p>Small change (1-5% changed): &lt;100ms (incremental)</p></li>
+<li><p>Medium change (10-20% changed): 0.5-1s (incremental)</p></li>
+<li><p>Large change (50%+ changed): 2-5s (incremental)</p></li>
+<li><p>Full rebuild: 10-30s (only if incremental fails)</p></li>
+</ul>
+<p><strong>Monitor commit performance:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="n">changes_percent</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">50</span><span class="p">]</span>
+
+<span class="k">for</span> <span class="n">pct</span> <span class="ow">in</span> <span class="n">changes_percent</span><span class="p">:</span>
+    <span class="c1"># Simulate percent changes</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
+        <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+        <span class="n">files</span><span class="o">=</span><span class="n">get_files_to_change</span><span class="p">(</span><span class="n">pct</span><span class="p">),</span>
+        <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Test </span><span class="si">{</span><span class="n">pct</span><span class="si">}</span><span class="s2">% change&quot;</span>
+    <span class="p">)</span>
+    <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">pct</span><span class="si">}</span><span class="s2">% changed: </span><span class="si">{</span><span class="n">elapsed</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s &quot;</span>
+          <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;efficiency_ratio&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">x speedup)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="common-patterns">
+<h2>Common Patterns<a class="headerlink" href="#common-patterns" title="Link to this heading"></a></h2>
+<p><strong>Pattern 1: Modify and commit</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Read -&gt; Modify -&gt; Write -&gt; Commit</span>
+<span class="n">content</span> <span class="o">=</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">project_root</span><span class="p">)</span> <span class="o">/</span> <span class="n">file</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span>
+<span class="n">modified</span> <span class="o">=</span> <span class="n">apply_transformation</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">modified</span><span class="p">)</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="n">file</span><span class="p">],</span> <span class="s2">&quot;Applied transformation&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Pattern 2: Bulk update</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Update multiple files</span>
+<span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">files_to_update</span><span class="p">:</span>
+    <span class="n">content</span> <span class="o">=</span> <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">project_root</span><span class="p">)</span> <span class="o">/</span> <span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">()</span>
+    <span class="n">updated</span> <span class="o">=</span> <span class="n">update_function</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+    <span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">file_path</span><span class="p">,</span> <span class="n">updated</span><span class="p">)</span>
+
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">files_to_update</span><span class="p">,</span> <span class="s2">&quot;Bulk update&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Pattern 3: Auto-save on interval</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">auto_commit_worker</span><span class="p">(</span><span class="n">tool</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">,</span> <span class="n">interval_seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">):</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">interval_seconds</span><span class="p">)</span>
+        <span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;Auto-commit&quot;</span><span class="p">)</span>
+
+<span class="c1"># Start background worker</span>
+<span class="n">thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+    <span class="n">target</span><span class="o">=</span><span class="n">auto_commit_worker</span><span class="p">,</span>
+    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">tool</span><span class="p">,</span> <span class="n">buffer_id</span><span class="p">),</span>
+    <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+<span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>Pattern 4: Track changes</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Before</span>
+<span class="n">before</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_buffer_metadata</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+
+<span class="c1"># Make changes and commit</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="s2">&quot;file.py&quot;</span><span class="p">,</span> <span class="n">new_content</span><span class="p">)</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;file.py&quot;</span><span class="p">],</span> <span class="s2">&quot;Update&quot;</span><span class="p">)</span>
+
+<span class="c1"># After</span>
+<span class="n">after</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">get_buffer_metadata</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>
+
+<span class="c1"># Show diff</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chunks before: </span><span class="si">{</span><span class="n">before</span><span class="p">[</span><span class="s1">&#39;chunk_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chunks after: </span><span class="si">{</span><span class="n">after</span><span class="p">[</span><span class="s1">&#39;chunk_count&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Change: </span><span class="si">{</span><span class="n">after</span><span class="p">[</span><span class="s1">&#39;chunk_count&#39;</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">before</span><span class="p">[</span><span class="s1">&#39;chunk_count&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">+d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<p><strong>Commit failed:</strong></p>
+<ul class="simple">
+<li><p>Check write_code succeeded first</p></li>
+<li><p>Ensure file exists in original project</p></li>
+<li><p>Try committing entire buffer (files=None)</p></li>
+</ul>
+<p><strong>Commit is slow:</strong></p>
+<ul class="simple">
+<li><p>Falling back to full rebuild (check logs)</p></li>
+<li><p>Try committing fewer files</p></li>
+<li><p>Check disk space available</p></li>
+</ul>
+<p><strong>New code not searchable:</strong></p>
+<ul class="simple">
+<li><p>Run commit to finalize changes</p></li>
+<li><p>Search results may be cached (try different query)</p></li>
+<li><p>Verify with get_buffer_metadata that chunks increased</p></li>
+</ul>
+<p><strong>Out of memory during commit:</strong></p>
+<ul class="simple">
+<li><p>Reduce number of files committed at once</p></li>
+<li><p>Check incremental_threshold setting</p></li>
+<li><p>Use streaming mode for large buffers</p></li>
+</ul>
+</section>
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Learn search techniques: <a class="reference internal" href="search_workflows.html"><span class="doc">Search Workflows</span></a></p></li>
+<li><p>Performance optimization: <a class="reference internal" href="../performance_tuning.html"><span class="doc">Performance Tuning</span></a></p></li>
+<li><p>Full API reference: <a class="reference internal" href="../api_reference.html"><span class="doc">API Reference</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="search_workflows.html" class="btn btn-neutral float-left" title="Search Workflows" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../api_reference.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

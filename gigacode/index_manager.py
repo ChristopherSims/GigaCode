@@ -22,6 +22,7 @@ import numpy as np
 from gigacode.chunker import CodeChunk
 from gigacode.embedder import Embedder
 from gigacode.gpu_index import GpuIndex
+from gigacode.incremental_indexer import IncrementalIndexManager
 from gigacode.json_logger import StructuredJsonLogger
 from gigacode.lexical_index import LexicalIndex
 from gigacode.metadata_store import load_metadata, save_metadata
@@ -72,7 +73,7 @@ class IndexManager:
         self._prometheus_exporter = prometheus_exporter
         
         # Index caches (LRU-bounded)
-        from gigacode.gigacode_tool import LRUDict
+        from gigacode.lru_cache import LRUDict
         self._index_cache: LRUDict = LRUDict(max_size=max_buffers)
         self._lexical_cache: LRUDict = LRUDict(max_size=max_buffers)
         
@@ -81,6 +82,11 @@ class IndexManager:
             maxsize=256,
             embedder=self._embedder,
             similarity_threshold=0.95,
+        )
+        
+        # Incremental indexing manager for efficient updates
+        self._incremental_manager = IncrementalIndexManager(
+            embedder=self._embedder,
         )
     
     # ------------------------------------------------------------------
@@ -450,7 +456,9 @@ class IndexManager:
         embeddings: np.ndarray | None = None,
         chunks: list[CodeChunk] | None = None,
     ) -> dict[str, Any]:
-        """Rebuild index for changed files.
+        """Rebuild index for changed files with incremental updates.
+        
+        Uses incremental indexing when possible to skip unchanged chunks.
         
         Args:
             buffer_id: Buffer ID.
@@ -470,6 +478,42 @@ class IndexManager:
                 }
         
         try:
+            # Try incremental update if available
+            incremental_stats = None
+            if self._incremental_manager is not None:
+                try:
+                    # Group chunks by file for incremental processing
+                    from collections import defaultdict
+                    chunks_by_file = defaultdict(list)
+                    for chunk in chunks:
+                        chunks_by_file[chunk.file].append(chunk)
+                    
+                    # Process each changed file incrementally
+                    total_changed = 0
+                    total_kept = 0
+                    for file_path in files:
+                        if file_path in chunks_by_file:
+                            file_chunks = chunks_by_file[file_path]
+                            changed, removed, kept = self._incremental_manager._chunk_tracker.detect_changes(
+                                file_path, file_chunks
+                            )
+                            total_changed += len(changed)
+                            total_kept += len(kept)
+                    
+                    incremental_stats = {
+                        "total_chunks": len(chunks),
+                        "changed_chunks": total_changed,
+                        "kept_chunks": total_kept,
+                    }
+                    
+                    if total_changed > 0:
+                        logger.info(
+                            f"Incremental rebuild: {total_changed} changed, "
+                            f"{total_kept} kept, {len(chunks) - total_changed - total_kept} removed"
+                        )
+                except Exception as e:
+                    logger.warning(f"Incremental update failed, falling back to full rebuild: {e}")
+            
             # Recreate indices
             index = GpuIndex(
                 embedding_dim=self._embedding_dim,
