@@ -2,8 +2,11 @@ Noticed AI is slow at searching/parsing code so I made this.
 AI agents searching for code snippits is blazingly fast now with this tool/skill.
 
 Code benchmarks show that AI agent coding is 4x faster, however AI token rate will always be the bottleneck.
+
 Reduced token usage by about 60% on average
+
 Searching for code is orders of magnitude faster (100x +)(depends on how much GPU VRAM you want to use)
+
 Small code bases don't take up that much memory
 
 After releasing this tool I have noticed that some AI Agents now include semantic code searches. I will still develop this tool for open-source.
