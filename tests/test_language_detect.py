@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from gigacode.language_detect import detect_language, get_tree_sitter_package
 
 

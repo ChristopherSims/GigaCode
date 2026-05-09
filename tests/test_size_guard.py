@@ -11,7 +11,5 @@ def test_check_size_ok() -> None:
 
 
 def test_check_size_exceeds() -> None:
-    result = check_size(
-        token_count=10_000_000, embedding_dim=768, threshold_mb=100
-    )
+    result = check_size(token_count=10_000_000, embedding_dim=768, threshold_mb=100)
     assert result["status"] == "exceeds_threshold"

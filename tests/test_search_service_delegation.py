@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from gigacode.gigacode_tool import CodeEmbeddingTool
-from gigacode.response_types import ResponseStatus, SearchResponse, SearchMatch
+from gigacode.response_types import ResponseStatus, SearchMatch, SearchResponse
 
 
 @pytest.fixture
@@ -24,14 +24,14 @@ def temp_work_dir():
 @pytest.fixture
 def cet_with_service(temp_work_dir):
     """Create CodeEmbeddingTool with SearchService available."""
-    with patch('gigacode.gigacode_tool.Embedder'):
-        with patch('gigacode.gigacode_tool.StateManager'):
+    with patch("gigacode.gigacode_tool.Embedder"):
+        with patch("gigacode.gigacode_tool.StateManager"):
             # Patch search_service import to succeed this time
-            with patch.dict('sys.modules', {'gigacode.search_service': MagicMock()}):
+            with patch.dict("sys.modules", {"gigacode.search_service": MagicMock()}):
                 cet = CodeEmbeddingTool(
                     work_dir=temp_work_dir,
                     model_name=None,
-                    device='cpu',
+                    device="cpu",
                     max_buffers=10,
                     enable_prometheus=False,
                 )
@@ -65,21 +65,19 @@ class TestSemanticSearchDelegation:
             "cache_hit": False,
             "mode": "semantic",
         }
-        
-        cet_with_service._search_service.semantic_search = MagicMock(
-            return_value=mock_response
-        )
-        
+
+        cet_with_service._search_service.semantic_search = MagicMock(return_value=mock_response)
+
         # Call semantic_search
         result = cet_with_service.semantic_search(
             buffer_id="test-buffer",
             query="test query",
             top_k=5,
         )
-        
+
         # Verify delegation happened
         cet_with_service._search_service.semantic_search.assert_called_once()
-        
+
         # Verify response format
         assert result["status"] == "ok"
         assert len(result["matches"]) == 1
@@ -91,34 +89,38 @@ class TestSemanticSearchDelegation:
         cet_with_service._search_service.semantic_search = MagicMock(
             side_effect=RuntimeError("Service error")
         )
-        
+
         # Mock the internal methods for fallback
         cet_with_service._get_buffer_info = MagicMock(return_value={"buffer_id": "test"})
         cet_with_service._query_cache = MagicMock()
         cet_with_service._query_cache.get = MagicMock(return_value=None)
-        cet_with_service._get_index = MagicMock(return_value=MagicMock(
-            is_gpu=False,
-            search=MagicMock(return_value=([[0.95]], [[0]]))  # Return nested lists
-        ))
-        cet_with_service._load_chunks = MagicMock(return_value=[
-            MagicMock(
-                file="test.py",
-                start_line=10,
-                end_line=20,
-                type="function",
-                name="test",
-                text="def test(): pass"
+        cet_with_service._get_index = MagicMock(
+            return_value=MagicMock(
+                is_gpu=False,
+                search=MagicMock(return_value=([[0.95]], [[0]])),  # Return nested lists
             )
-        ])
+        )
+        cet_with_service._load_chunks = MagicMock(
+            return_value=[
+                MagicMock(
+                    file="test.py",
+                    start_line=10,
+                    end_line=20,
+                    type="function",
+                    name="test",
+                    text="def test(): pass",
+                )
+            ]
+        )
         cet_with_service._embedder.encode = MagicMock(return_value=[[0.1, 0.2]])
-        
+
         # Call semantic_search
         result = cet_with_service.semantic_search(
             buffer_id="test-buffer",
             query="test query",
             top_k=5,
         )
-        
+
         # Verify fallback was used (result should not error out)
         assert result is not None
         assert "status" in result
@@ -130,7 +132,7 @@ class TestSemanticSearchDelegation:
             query="",  # Empty query
             top_k=5,
         )
-        
+
         # Should return validation error before delegation
         assert result["status"] == "error"
         assert "non-empty" in result.get("message", "").lower()
@@ -142,9 +144,9 @@ class TestResponseAdaptation:
     def test_adapt_search_response_handles_error_dicts(self, cet_with_service):
         """Test that error dicts are passed through unchanged."""
         error_response = {"status": "error", "error": "Test error"}
-        
+
         result = CodeEmbeddingTool._adapt_search_response(error_response)
-        
+
         assert result == error_response
         assert result["status"] == "error"
 
@@ -167,9 +169,9 @@ class TestResponseAdaptation:
             "cache_hit": False,
             "mode": "semantic",
         }
-        
+
         result = CodeEmbeddingTool._adapt_search_response(service_response)
-        
+
         assert result["status"] == "ok"
         assert len(result["matches"]) == 1
         assert result["matches"][0]["file"] == "test.py"
@@ -180,18 +182,18 @@ class TestResponseAdaptation:
         service_response = {
             "status": "ok",
             "matches": [
-                {"file": f"file{i}.py", "start_line": i, "end_line": i+10, "score": 0.9 - i*0.1}
+                {"file": f"file{i}.py", "start_line": i, "end_line": i + 10, "score": 0.9 - i * 0.1}
                 for i in range(10)
             ],
         }
-        
+
         # Request with offset
         result = CodeEmbeddingTool._adapt_search_response(
             service_response,
             offset=5,
             top_k=3,
         )
-        
+
         # Should return only 3 items starting from offset 5
         assert len(result["matches"]) == 3
         assert result["matches"][0]["file"] == "file5.py"
@@ -202,26 +204,26 @@ class TestDelegationFallback:
 
     def test_semantic_search_without_service(self, temp_work_dir):
         """Test semantic_search falls back when SearchService unavailable."""
-        with patch('gigacode.gigacode_tool.Embedder'):
-            with patch('gigacode.gigacode_tool.StateManager'):
-                with patch.dict('sys.modules', {'gigacode.search_service': None}):
+        with patch("gigacode.gigacode_tool.Embedder"):
+            with patch("gigacode.gigacode_tool.StateManager"):
+                with patch.dict("sys.modules", {"gigacode.search_service": None}):
                     cet = CodeEmbeddingTool(
                         work_dir=temp_work_dir,
                         enable_prometheus=False,
                     )
-                    
+
                     # Ensure SearchService is None
                     cet._search_service = None
-                    
+
                     # Mock internal methods for fallback
                     cet._get_buffer_info = MagicMock(return_value=None)
-                    
+
                     # Call semantic_search (should use fallback and return error)
                     result = cet.semantic_search(
                         buffer_id="unknown",
                         query="test",
                     )
-                    
+
                     # Should return error due to unknown buffer
                     assert result["status"] == "error"
 
@@ -248,25 +250,23 @@ class TestDelegationIntegration:
             ],
             "cache_hit": False,
         }
-        
-        cet_with_service._search_service.semantic_search = MagicMock(
-            return_value=mock_response
-        )
-        
+
+        cet_with_service._search_service.semantic_search = MagicMock(return_value=mock_response)
+
         # Call through CodeEmbeddingTool facade
         result = cet_with_service.semantic_search(
             buffer_id="buffer-1",
             query="search term",
             top_k=10,
         )
-        
+
         # Verify delegation was called with correct parameters
         cet_with_service._search_service.semantic_search.assert_called_with(
             buffer_id="buffer-1",
             query="search term",
             top_k=10,  # top_k + offset (10 + 0)
         )
-        
+
         # Verify response
         assert result["status"] == "ok"
         assert result["cached"] is False
@@ -283,14 +283,14 @@ class TestDelegationBackwardCompatibility:
             matches=[],
             cached=False,
         )
-        
+
         response_dict = response.to_dict()
-        
+
         # Verify expected keys
         assert "status" in response_dict
         assert "matches" in response_dict
         assert "cached" in response_dict
-        
+
         # Verify types
         assert response_dict["status"] == "ok"
         assert isinstance(response_dict["matches"], list)
@@ -305,9 +305,9 @@ class TestDelegationBackwardCompatibility:
             score=0.95,
             doc_id=0,
         )
-        
+
         match_dict = match.to_dict()
-        
+
         # Verify expected keys
         assert match_dict["file"] == "test.py"
         assert match_dict["start_line"] == 1

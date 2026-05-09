@@ -8,7 +8,7 @@ try:
     # Try different ways to access the language
     lang = tree_sitter_python.language
     print("Type:", type(lang))
-    
+
     # Try calling it
     if callable(lang):
         result = lang()
@@ -17,9 +17,10 @@ try:
     else:
         print("Attempting to use directly...")
         grammar = Language(lang)
-    
+
     print("Grammar created successfully:", grammar)
 except Exception as e:
     print(f"Error: {type(e).__name__}: {e}")
     import traceback
+
     traceback.print_exc()

@@ -39,24 +39,16 @@ _TEST_FILE_PATTERNS: dict[str, list[re.Pattern]] = {
 
 # Call statement patterns (very approximate, language-specific)
 _CALL_PATTERNS: dict[str, re.Pattern] = {
-    "python": re.compile(
-        r"(?P<callee>[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\("
-    ),
+    "python": re.compile(r"(?P<callee>[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\("),
     "javascript": re.compile(
         r"(?P<callee>[a-zA-Z_$][a-zA-Z0-9_$]*(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)*)\s*\("
     ),
     "typescript": re.compile(
         r"(?P<callee>[a-zA-Z_$][a-zA-Z0-9_$]*(?:\.[a-zA-Z_$][a-zA-Z0-9_$]*)*)\s*\("
     ),
-    "java": re.compile(
-        r"(?P<callee>[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\("
-    ),
-    "rust": re.compile(
-        r"(?P<callee>[a-zA-Z_][a-zA-Z0-9_]*(?:::[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\("
-    ),
-    "go": re.compile(
-        r"(?P<callee>[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\("
-    ),
+    "java": re.compile(r"(?P<callee>[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\("),
+    "rust": re.compile(r"(?P<callee>[a-zA-Z_][a-zA-Z0-9_]*(?:::[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\("),
+    "go": re.compile(r"(?P<callee>[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\("),
 }
 
 # Import patterns
@@ -105,9 +97,7 @@ def _extract_imports(text: str, language: str = "python") -> list[str]:
         match = pattern.match(line.strip())
         if match:
             module = (
-                match.group("module")
-                or match.group("module_only")
-                or match.group("module_req")
+                match.group("module") or match.group("module_only") or match.group("module_req")
             )
             if module:
                 imports.add(module)
@@ -144,16 +134,18 @@ def _find_callers(
     candidates.sort(key=lambda x: x[1], reverse=True)
     results = []
     for chunk, score in candidates[:top_k]:
-        results.append({
-            "file": chunk.file,
-            "start_line": chunk.start_line,
-            "end_line": chunk.end_line,
-            "type": chunk.type,
-            "name": chunk.name,
-            "text": chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text,
-            "score": score / 100.0,
-            "match_type": "exact_call",
-        })
+        results.append(
+            {
+                "file": chunk.file,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+                "type": chunk.type,
+                "name": chunk.name,
+                "text": chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text,
+                "score": score / 100.0,
+                "match_type": "exact_call",
+            }
+        )
     return results
 
 
@@ -188,16 +180,18 @@ def _find_tests(
     results.sort(key=lambda x: x[1], reverse=True)
     out = []
     for chunk, score in results[:top_k]:
-        out.append({
-            "file": chunk.file,
-            "start_line": chunk.start_line,
-            "end_line": chunk.end_line,
-            "type": chunk.type,
-            "name": chunk.name,
-            "text": chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text,
-            "score": min(score / 100.0, 1.0),
-            "match_type": "test_reference",
-        })
+        out.append(
+            {
+                "file": chunk.file,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+                "type": chunk.type,
+                "name": chunk.name,
+                "text": chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text,
+                "score": min(score / 100.0, 1.0),
+                "match_type": "test_reference",
+            }
+        )
     return out
 
 
@@ -225,16 +219,18 @@ def _find_interfaces(
     results.sort(key=lambda x: x[1], reverse=True)
     out = []
     for chunk, score in results[:top_k]:
-        out.append({
-            "file": chunk.file,
-            "start_line": chunk.start_line,
-            "end_line": chunk.end_line,
-            "type": chunk.type,
-            "name": chunk.name,
-            "text": chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text,
-            "score": score / 100.0,
-            "match_type": "interface",
-        })
+        out.append(
+            {
+                "file": chunk.file,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+                "type": chunk.type,
+                "name": chunk.name,
+                "text": chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text,
+                "score": score / 100.0,
+                "match_type": "interface",
+            }
+        )
     return out
 
 
@@ -260,16 +256,18 @@ def _semantic_neighborhood(
         score = float(scores[idx])
         if score < 0.3:  # Minimum relevance threshold
             continue
-        results.append({
-            "file": chunk.file,
-            "start_line": chunk.start_line,
-            "end_line": chunk.end_line,
-            "type": chunk.type,
-            "name": chunk.name,
-            "text": chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text,
-            "score": score,
-            "match_type": "semantic",
-        })
+        results.append(
+            {
+                "file": chunk.file,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+                "type": chunk.type,
+                "name": chunk.name,
+                "text": chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text,
+                "score": score,
+                "match_type": "semantic",
+            }
+        )
         if len(results) >= top_k:
             break
     return results
@@ -356,11 +354,10 @@ class ContextAssembler:
 
         target_name = target_chunk.name
         target_embedding = (
-            self.embeddings[target_idx]
-            if self.embeddings is not None and target_idx >= 0
-            else None
+            self.embeddings[target_idx] if self.embeddings is not None and target_idx >= 0 else None
         )
 
+        # --- Gather raw candidates ---
         callers: list[dict[str, Any]] = []
         tests: list[dict[str, Any]] = []
         interfaces: list[dict[str, Any]] = []
@@ -368,19 +365,13 @@ class ContextAssembler:
         semantic_neighbors: list[dict[str, Any]] = []
 
         if "callers" in include and target_name:
-            callers = _find_callers(
-                self.chunks, target_name, embeddings=self.embeddings, top_k=10
-            )
+            callers = _find_callers(self.chunks, target_name, embeddings=self.embeddings, top_k=10)
 
         if "tests" in include:
-            tests = _find_tests(
-                self.chunks, file, target_name, top_k=10
-            )
+            tests = _find_tests(self.chunks, file, target_name, top_k=10)
 
         if "interfaces" in include and target_name:
-            interfaces = _find_interfaces(
-                self.chunks, target_name, target_chunk.type, top_k=5
-            )
+            interfaces = _find_interfaces(self.chunks, target_name, target_chunk.type, top_k=5)
 
         if "semantic" in include and target_embedding is not None:
             semantic_neighbors = _semantic_neighborhood(
@@ -391,17 +382,49 @@ class ContextAssembler:
                 exclude_file=file,
             )
 
-        # Estimate token count (approximate)
-        total_chars = len(target_chunk.text)
-        for c in callers:
-            total_chars += len(c.get("text", ""))
-        for t in tests:
-            total_chars += len(t.get("text", ""))
-        for i in interfaces:
-            total_chars += len(i.get("text", ""))
-        for s in semantic_neighbors:
-            total_chars += len(s.get("text", ""))
-        total_tokens = total_chars // 4  # rough 4 chars/token
+        # --- Token-budgeted assembly ---
+        # Priority order: target chunk → callers → tests → interfaces → semantic neighbors
+        # Imports are metadata-only (cheap) and always included.
+        budget = max_tokens
+        used = 0
+
+        def _tokens(text: str | None) -> int:
+            return (len(text or "") // 4) + 1  # rough +1 for metadata overhead
+
+        # Reserve target chunk (truncated if needed)
+        target_text = target_chunk.text or ""
+        target_tok = _tokens(target_text)
+        if target_tok > budget:
+            # Truncate target to fit budget
+            max_chars = budget * 4
+            target_text = target_text[:max_chars] + "\n... [truncated]"
+            target_tok = budget
+        used += target_tok
+
+        def _fit(items: list[dict[str, Any]], reserve: int = 0) -> list[dict[str, Any]]:
+            """Return prefix of items that fits within remaining budget."""
+            nonlocal used
+            remaining = budget - used - reserve
+            fitted: list[dict[str, Any]] = []
+            for it in items:
+                cost = _tokens(it.get("text", ""))
+                if cost > remaining:
+                    break
+                fitted.append(it)
+                remaining -= cost
+                used += cost
+            return fitted
+
+        # Fit callers (high priority)
+        callers = _fit(callers, reserve=0)
+        # Fit tests (medium-high priority)
+        tests = _fit(tests, reserve=0)
+        # Fit interfaces (medium priority)
+        interfaces = _fit(interfaces, reserve=0)
+        # Fit semantic neighbors (lowest priority)
+        semantic_neighbors = _fit(semantic_neighbors, reserve=0)
+
+        total_tokens = used + sum(_tokens(imp) for imp in imports)
 
         return RelatedContext(
             file=file,

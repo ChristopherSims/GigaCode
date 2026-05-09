@@ -1,7 +1,5 @@
 """Tests for src.lexical_index."""
 
-import pytest
-
 from gigacode.lexical_index import LexicalIndex
 
 

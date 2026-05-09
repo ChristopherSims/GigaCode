@@ -1,4 +1,5 @@
 import tree_sitter_python
+
 print("tree_sitter_python imported successfully")
 print("Has language attr:", hasattr(tree_sitter_python, "language"))
 

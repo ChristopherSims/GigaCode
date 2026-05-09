@@ -11,18 +11,19 @@ Key features:
 - Suggested next actions based on result type
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set
-from enum import Enum
 import logging
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Dict, List, Optional, Set
 
-from gigacode.metrics import timer, log_metric
+from gigacode.metrics import log_metric, timer
 
 logger = logging.getLogger(__name__)
 
 
 class RelevanceReason(Enum):
     """Categories of relevance reasons."""
+
     KEYWORD_MATCH = "keyword_match"
     SEMANTIC_SIMILARITY = "semantic_similarity"
     CALL_SITE = "call_site"
@@ -35,6 +36,7 @@ class RelevanceReason(Enum):
 @dataclass
 class RelevanceExplanation:
     """Explanation for why result is relevant."""
+
     primary_reason: RelevanceReason
     confidence: float  # 0.0-1.0
     details: str  # Human-readable explanation
@@ -45,6 +47,7 @@ class RelevanceExplanation:
 @dataclass
 class AnnotatedSearchResult:
     """Search result with "why matters" annotation."""
+
     file: str
     line: int
     score: float
@@ -57,7 +60,7 @@ class AnnotatedSearchResult:
 
 class RelevanceExplainer:
     """Generates "why matters" explanations for search results."""
-    
+
     def __init__(
         self,
         dependency_graph,
@@ -66,7 +69,7 @@ class RelevanceExplainer:
     ):
         """
         Initialize explainer.
-        
+
         Args:
             dependency_graph: DependencyGraph instance
             buffer_manager: BufferManager instance
@@ -75,7 +78,7 @@ class RelevanceExplainer:
         self.dependency_graph = dependency_graph
         self.buffer_manager = buffer_manager
         self.symbol_index = symbol_index
-    
+
     def explain_result(
         self,
         buffer_id: str,
@@ -85,19 +88,19 @@ class RelevanceExplainer:
     ) -> AnnotatedSearchResult:
         """
         Generate explanation for why a search result is relevant.
-        
+
         Args:
             buffer_id: Target buffer
             result: Search result from search_service
             query: Original search query
             edit_context: Files currently being edited
-            
+
         Returns:
             Annotated result with explanation
         """
         with timer("explain_result"):
-            file = result.get('file')
-            
+            file = result.get("file")
+
             # Analyze relevance reasons
             reasons = self._analyze_relevance(
                 buffer_id,
@@ -105,40 +108,47 @@ class RelevanceExplainer:
                 query,
                 edit_context,
             )
-            
+
             # Select primary reason
-            primary_reason = max(
-                reasons.items(),
-                key=lambda x: x[1].get('confidence', 0),
-            ) if reasons else None
-            
+            primary_reason = (
+                max(
+                    reasons.items(),
+                    key=lambda x: x[1].get("confidence", 0),
+                )
+                if reasons
+                else None
+            )
+
             # Generate human-readable explanation
             explanation = self._build_explanation(primary_reason, reasons)
-            
+
             # Suggest next action
             next_action = self._suggest_next_action(file, primary_reason)
-            
+
             # Find related results
             related = self._find_related_results(buffer_id, file)
-            
+
             annotated = AnnotatedSearchResult(
                 file=file,
-                line=result.get('line', 0),
-                score=result.get('score', 0.0),
-                snippet=result.get('snippet', ''),
+                line=result.get("line", 0),
+                score=result.get("score", 0.0),
+                snippet=result.get("snippet", ""),
                 why=explanation,
                 suggested_next_action=next_action,
                 related_results=related,
             )
-            
-            log_metric("explain_result", {
-                "file": file,
-                "primary_reason": primary_reason[0].value if primary_reason else None,
-                "confidence": primary_reason[1].get('confidence') if primary_reason else 0,
-            })
-            
+
+            log_metric(
+                "explain_result",
+                {
+                    "file": file,
+                    "primary_reason": primary_reason[0].value if primary_reason else None,
+                    "confidence": primary_reason[1].get("confidence") if primary_reason else 0,
+                },
+            )
+
             return annotated
-    
+
     def _analyze_relevance(
         self,
         buffer_id: str,
@@ -148,7 +158,7 @@ class RelevanceExplainer:
     ) -> Dict[RelevanceReason, Dict]:
         """Analyze why result is relevant."""
         reasons = {}
-        
+
         # 1. Check for keyword matches
         keywords = self._extract_keywords(query)
         keyword_matches = self._find_keyword_matches(file, keywords)
@@ -158,7 +168,7 @@ class RelevanceExplainer:
                 "details": f"Contains {len(keyword_matches)} query keywords",
                 "evidence": keyword_matches[:3],
             }
-        
+
         # 2. Check semantic similarity
         # (implicitly high if result was returned by semantic search)
         reasons[RelevanceReason.SEMANTIC_SIMILARITY] = {
@@ -166,7 +176,7 @@ class RelevanceExplainer:
             "details": "Semantically similar to query intent",
             "evidence": [],
         }
-        
+
         # 3. Check if called by edited files
         if edit_context:
             call_sites = self._find_call_sites(buffer_id, file, edit_context)
@@ -176,7 +186,7 @@ class RelevanceExplainer:
                     "details": f"Called by {len(call_sites)} edited files",
                     "evidence": call_sites[:2],
                 }
-        
+
         # 4. Check if imported by edited files
         if edit_context:
             imports = self._find_imports(buffer_id, file, edit_context)
@@ -186,7 +196,7 @@ class RelevanceExplainer:
                     "details": f"Imported by {len(imports)} edited files",
                     "evidence": imports[:2],
                 }
-        
+
         # 5. Check if in edit context
         if edit_context and file in edit_context:
             reasons[RelevanceReason.EDIT_CONTEXT] = {
@@ -194,20 +204,17 @@ class RelevanceExplainer:
                 "details": "This is a file you're currently editing",
                 "evidence": [file],
             }
-        
+
         return reasons
-    
+
     @staticmethod
     def _extract_keywords(query: str) -> Set[str]:
         """Extract search keywords."""
         # Simple word extraction; in real impl use NLP
-        stop_words = {'a', 'an', 'the', 'is', 'to', 'for', 'and', 'or'}
-        words = {
-            w.lower() for w in query.split()
-            if w.lower() not in stop_words and len(w) > 3
-        }
+        stop_words = {"a", "an", "the", "is", "to", "for", "and", "or"}
+        words = {w.lower() for w in query.split() if w.lower() not in stop_words and len(w) > 3}
         return words
-    
+
     @staticmethod
     def _find_keyword_matches(file: str, keywords: Set[str]) -> List[str]:
         """Find which keywords appear in file."""
@@ -217,7 +224,7 @@ class RelevanceExplainer:
             if kw in file.lower():
                 matches.append(kw)
         return matches
-    
+
     def _find_call_sites(
         self,
         buffer_id: str,
@@ -248,9 +255,7 @@ class RelevanceExplainer:
                     continue
 
                 # Find references to this symbol across caller files
-                refs_result = self.symbol_index.get_symbol_references(
-                    buffer_id, symbol_name
-                )
+                refs_result = self.symbol_index.get_symbol_references(buffer_id, symbol_name)
                 if isinstance(refs_result, dict) and refs_result.get("status") == "ok":
                     refs = refs_result.get("references", [])
                     for ref in refs:
@@ -299,7 +304,7 @@ class RelevanceExplainer:
                     imports.append(f"{imp_file} may import from {target_file}")
 
         return imports[:5]
-    
+
     @staticmethod
     def _build_explanation(
         primary_reason: Optional[tuple],
@@ -308,38 +313,39 @@ class RelevanceExplainer:
         """Build human-readable explanation."""
         if not primary_reason:
             return "Relevant to your query"
-        
+
         reason_type, reason_data = primary_reason
-        base = reason_data.get('details', '')
-        
+        base = reason_data.get("details", "")
+
         # Add supporting evidence
-        evidence = reason_data.get('evidence', [])
+        evidence = reason_data.get("evidence", [])
         if evidence and len(evidence) > 0:
-            evidence_str = f"\nIt matches your query because:\n"
+            evidence_str = "\nIt matches your query because:\n"
             for i, ev in enumerate(evidence[:2], 1):
                 evidence_str += f"({i}) {ev}\n"
             base += evidence_str
-        
+
         # Add secondary reasons if applicable
         other_reasons = [
-            r for r in all_reasons.items()
-            if r[0] != reason_type and r[1].get('confidence', 0) > 0.7
+            r
+            for r in all_reasons.items()
+            if r[0] != reason_type and r[1].get("confidence", 0) > 0.7
         ]
         if other_reasons:
             base += "\n(Also relevant because: "
-            base += ", ".join(r[1].get('details', '') for r in other_reasons[:1])
+            base += ", ".join(r[1].get("details", "") for r in other_reasons[:1])
             base += ")"
-        
+
         return base
-    
+
     @staticmethod
     def _suggest_next_action(file: str, primary_reason: Optional[tuple]) -> str:
         """Suggest what to do with this result."""
         if not primary_reason:
             return ""
-        
+
         reason_type, _ = primary_reason
-        
+
         if reason_type == RelevanceReason.KEYWORD_MATCH:
             return f"Read {file} to understand existing pattern"
         elif reason_type == RelevanceReason.SEMANTIC_SIMILARITY:
@@ -352,7 +358,7 @@ class RelevanceExplainer:
             return f"Continue editing {file}"
         else:
             return f"Read {file} for more context"
-    
+
     @staticmethod
     def _find_related_results(buffer_id: str, file: str) -> List[str]:
         """Find other related files."""
@@ -362,11 +368,11 @@ class RelevanceExplainer:
 
 class AnnotationService:
     """Service for annotating search results with explanations."""
-    
+
     def __init__(self, explainer: RelevanceExplainer):
         """Initialize service."""
         self.explainer = explainer
-    
+
     def annotate_results(
         self,
         buffer_id: str,
@@ -376,18 +382,18 @@ class AnnotationService:
     ) -> List[Dict]:
         """
         Annotate search results with explanations.
-        
+
         Args:
             buffer_id: Target buffer
             results: Raw search results
             query: Original search query
             edit_context: Files being edited
-            
+
         Returns:
             Annotated results as dicts
         """
         annotated = []
-        
+
         for result in results:
             annotated_result = self.explainer.explain_result(
                 buffer_id,
@@ -395,27 +401,29 @@ class AnnotationService:
                 query,
                 edit_context,
             )
-            
-            annotated.append({
-                "file": annotated_result.file,
-                "line": annotated_result.line,
-                "score": annotated_result.score,
-                "snippet": annotated_result.snippet,
-                "why": annotated_result.why,
-                "suggested_next_action": annotated_result.suggested_next_action,
-                "related_results": annotated_result.related_results,
-            })
-        
+
+            annotated.append(
+                {
+                    "file": annotated_result.file,
+                    "line": annotated_result.line,
+                    "score": annotated_result.score,
+                    "snippet": annotated_result.snippet,
+                    "why": annotated_result.why,
+                    "suggested_next_action": annotated_result.suggested_next_action,
+                    "related_results": annotated_result.related_results,
+                }
+            )
+
         return annotated
 
 
 class WhyAnnotator:
     """Public interface for "why matters" annotations."""
-    
+
     def __init__(self, annotation_service: AnnotationService):
         """Initialize annotator."""
         self.annotation_service = annotation_service
-    
+
     def annotate_search_results(
         self,
         buffer_id: str,
@@ -425,13 +433,13 @@ class WhyAnnotator:
     ) -> List[Dict]:
         """
         Annotate search results with "why this matters" explanations.
-        
+
         Args:
             buffer_id: Target buffer
             results: Search results from search_service
             query: Original search query
             edit_context: Files currently being edited
-            
+
         Returns:
             Annotated results with explanations
         """

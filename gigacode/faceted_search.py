@@ -320,6 +320,7 @@ class FacetedSearcher:
             FacetedSearchResult with matches, uncertain matches, and explanations.
         """
         import time
+
         start_time = time.perf_counter()
 
         if self.embeddings is None or len(self.chunks) == 0:
@@ -357,9 +358,7 @@ class FacetedSearcher:
             breakdown = _compute_score_breakdown(semantic_score, chunk, query)
 
             # Determine confidence
-            confidence = _compute_confidence(
-                breakdown.total, all_scores[: max(top_k * 3, 20)]
-            )
+            confidence = _compute_confidence(breakdown.total, all_scores[: max(top_k * 3, 20)])
 
             # Build explanation
             why = _build_why(breakdown, confidence, chunk.name, chunk.type)

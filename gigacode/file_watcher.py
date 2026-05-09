@@ -32,8 +32,8 @@ __all__ = [
 
 
 try:
-    from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
 
     _HAS_WATCHDOG = True
 except ImportError:
@@ -181,7 +181,9 @@ class BufferWatcher:
             def on_modified(self, event) -> None:
                 if event.is_directory:
                     return
-                if self.suffixes and not any(str(event.src_path).endswith(s) for s in self.suffixes):
+                if self.suffixes and not any(
+                    str(event.src_path).endswith(s) for s in self.suffixes
+                ):
                     return
                 self.outer._on_change(self.bid)
 

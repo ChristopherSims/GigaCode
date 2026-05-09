@@ -23,6 +23,7 @@ __all__ = [
 # faiss optional import handled gracefully
 try:
     import faiss
+
     _HAS_FAISS = True
 except (ImportError, ModuleNotFoundError) as exc:
     logger.warning("faiss not available (%s). Vector search will be brute-force.", exc)
@@ -32,6 +33,7 @@ except (ImportError, ModuleNotFoundError) as exc:
 # FAISS optimizer for index type selection
 try:
     from gigacode.faiss_optimizer import FAISSIndexOptimizer
+
     _HAS_OPTIMIZER = True
 except (ImportError, ModuleNotFoundError):
     _HAS_OPTIMIZER = False
@@ -40,7 +42,9 @@ except (ImportError, ModuleNotFoundError):
 class GpuIndex:
     """FAISS index manager with CPU source-of-truth + optional GPU mirror."""
 
-    def __init__(self, dim: int, use_gpu: bool = True, gpu_id: int = 0, index_type: str | None = None) -> None:
+    def __init__(
+        self, dim: int, use_gpu: bool = True, gpu_id: int = 0, index_type: str | None = None
+    ) -> None:
         """Initialize FAISS index with optional GPU support and auto-optimization.
 
         Args:
@@ -100,8 +104,10 @@ class GpuIndex:
             # Plus index overhead (~20% for metadata)
             vectors_in_index = self._cpu_index.ntotal
             bytes_per_vector = self.dim * 4
-            estimated_gpu_bytes = int(vectors_in_index * bytes_per_vector * 1.2)  # +20% for overhead
-            
+            estimated_gpu_bytes = int(
+                vectors_in_index * bytes_per_vector * 1.2
+            )  # +20% for overhead
+
             # Check available GPU memory
             # Note: This is a soft check; exact allocation depends on FAISS internals
             available_bytes = self._get_available_gpu_memory()
@@ -114,12 +120,16 @@ class GpuIndex:
                 )
                 self._gpu_index = None
                 return
-            
+
             self._gpu_index = faiss.index_cpu_to_gpu(self._gpu_res, self.gpu_id, self._cpu_index)
             self._gpu_dirty = False
-            logger.debug("GPU index synced to device %d (%d vectors).", self.gpu_id, self._cpu_index.ntotal)
+            logger.debug(
+                "GPU index synced to device %d (%d vectors).", self.gpu_id, self._cpu_index.ntotal
+            )
         except (RuntimeError, OSError, ValueError) as exc:
-            logger.warning("GPU sync to device %d failed (%s); falling back to CPU search.", self.gpu_id, exc)
+            logger.warning(
+                "GPU sync to device %d failed (%s); falling back to CPU search.", self.gpu_id, exc
+            )
             self._gpu_index = None
 
     def _get_available_gpu_memory(self) -> int | None:
@@ -130,7 +140,11 @@ class GpuIndex:
             # FAISS StandardGpuResources.getMemory() returns (used, total) in bytes
             mem_used, mem_total = self._gpu_res.getMemory()
             available = mem_total - mem_used
-            logger.debug("GPU memory: %.1f MB used / %.1f MB total", mem_used / 1024 / 1024, mem_total / 1024 / 1024)
+            logger.debug(
+                "GPU memory: %.1f MB used / %.1f MB total",
+                mem_used / 1024 / 1024,
+                mem_total / 1024 / 1024,
+            )
             return available
         except (RuntimeError, AttributeError, OSError) as exc:
             logger.debug("Could not query GPU memory (%s); skipping check", exc)
@@ -163,7 +177,7 @@ class GpuIndex:
 
     def sync_gpu(self) -> None:
         """Explicitly sync GPU mirror from CPU index.
-        
+
         Call this after bulk adds to pre-load the GPU before first search.
         Avoids lazy sync latency on first query.
         """
@@ -177,7 +191,9 @@ class GpuIndex:
             indices: int64 array ``(n_queries, k)``.
         """
         if self._cpu_index is None:
-            return np.zeros((queries.shape[0], k), dtype=np.float32), np.full((queries.shape[0], k), -1, dtype=np.int64)
+            return np.zeros((queries.shape[0], k), dtype=np.float32), np.full(
+                (queries.shape[0], k), -1, dtype=np.int64
+            )
 
         # Use GPU if available and synced; no lazy sync (sync happens in embed_codebase)
         index = self._gpu_index if self._gpu_index is not None else self._cpu_index
@@ -229,6 +245,7 @@ class GpuIndex:
 # ---------------------------------------------------------------------------
 # Brute-force fallback when faiss is unavailable
 # ---------------------------------------------------------------------------
+
 
 class _BruteForceIndex:
     """Simple in-memory brute-force index (for testing without faiss)."""

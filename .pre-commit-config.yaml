@@ -1,0 +1,67 @@
+repos:
+  # ------------------------------------------------------------------
+  # Ruff — lint + import sorting
+  # ------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.0
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^(gigacode|tests)/.*\.py$
+
+  # ------------------------------------------------------------------
+  # Black — format
+  # ------------------------------------------------------------------
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.12
+        files: ^(gigacode|tests)/.*\.py$
+
+  # ------------------------------------------------------------------
+  # MyPy — type check (fast mode)
+  # ------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.0
+    hooks:
+      - id: mypy
+        args: [--ignore-missing-imports, --show-error-codes]
+        files: ^gigacode/.*\.py$
+        additional_dependencies:
+          - pydantic~=2.0.0
+          - types-all
+
+  # ------------------------------------------------------------------
+  # Trailing whitespace & EOF fixer
+  # ------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+
+  # ------------------------------------------------------------------
+  # Check pyproject.toml version matches git tag
+  # ------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: check-version-sync
+        name: Check VERSION matches pyproject.toml
+        entry: |
+          python -c "
+          import sys, tomllib;
+          with open('pyproject.toml','rb') as f: v = tomllib.load(f)['project']['version'];
+          with open('VERSION') as f: vf = f.read().strip();
+          assert v == vf, f'Version mismatch: pyproject.toml={v}, VERSION={vf}';
+          print(f'Version OK: {v}')
+          "
+        language: system
+        pass_filenames: false
+        always_run: true

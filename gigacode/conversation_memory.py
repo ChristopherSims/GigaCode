@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["ConversationMemory", "MemoryEntry"]
 
+
 @dataclass
 class MemoryEntry:
     key: str
@@ -24,6 +25,7 @@ class MemoryEntry:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
 
 class ConversationMemory:
     def __init__(self, memory_file: Path) -> None:
@@ -43,7 +45,9 @@ class ConversationMemory:
     def _save(self) -> None:
         try:
             data = [m.to_dict() for m in self._memories]
-            self.memory_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+            self.memory_file.write_text(
+                json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
         except (OSError, TypeError) as e:
             logger.warning(f"Failed to save memories: {e}")
 

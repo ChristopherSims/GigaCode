@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -25,6 +24,9 @@ __all__ = [
     "rename_symbol",
     "add_import_statement",
     "apply_unified_diff",
+    "edit_symbol",
+    "add_parameter",
+    "extract_method",
 ]
 
 
@@ -156,14 +158,16 @@ class RefactorEngine:
                 # This chunk defines the symbol
                 new_text = word_re.sub(new_name, chunk.text)
                 if new_text != chunk.text:
-                    changes.append(RefactorChange(
-                        file=chunk.file,
-                        start_line=chunk.start_line,
-                        end_line=chunk.end_line,
-                        old_text=chunk.text,
-                        new_text=new_text,
-                        change_type="rename",
-                    ))
+                    changes.append(
+                        RefactorChange(
+                            file=chunk.file,
+                            start_line=chunk.start_line,
+                            end_line=chunk.end_line,
+                            old_text=chunk.text,
+                            new_text=new_text,
+                            change_type="rename",
+                        )
+                    )
                     changed_files.add(chunk.file)
                     if not dry_run:
                         chunk.text = new_text
@@ -172,14 +176,16 @@ class RefactorEngine:
                 # Check if this chunk references the symbol
                 new_text = word_re.sub(new_name, chunk.text)
                 if new_text != chunk.text:
-                    changes.append(RefactorChange(
-                        file=chunk.file,
-                        start_line=chunk.start_line,
-                        end_line=chunk.end_line,
-                        old_text=chunk.text,
-                        new_text=new_text,
-                        change_type="rename",
-                    ))
+                    changes.append(
+                        RefactorChange(
+                            file=chunk.file,
+                            start_line=chunk.start_line,
+                            end_line=chunk.end_line,
+                            old_text=chunk.text,
+                            new_text=new_text,
+                            change_type="rename",
+                        )
+                    )
                     changed_files.add(chunk.file)
                     if not dry_run:
                         chunk.text = new_text
@@ -446,7 +452,7 @@ class DiffHunk:
                         if 0 <= check_idx < len(old_lines) and old_lines[check_idx] == expected:
                             # Adjust: add intervening lines to new_lines
                             if offset > 0:
-                                new_lines.extend(old_lines[len(new_lines):check_idx])
+                                new_lines.extend(old_lines[len(new_lines) : check_idx])
                             elif offset < 0:
                                 # Backtrack
                                 backtrack = -offset
@@ -542,7 +548,12 @@ def _parse_unified_diff(diff_text: str) -> dict[str, list[DiffHunk]]:
             continue
 
         # Hunk line
-        if line.startswith(" ") or line.startswith("+") or line.startswith("-") or line.startswith("\\"):
+        if (
+            line.startswith(" ")
+            or line.startswith("+")
+            or line.startswith("-")
+            or line.startswith("\\")
+        ):
             hunk_lines.append(line)
         elif line.strip() == "" and current_hunk:
             # Empty lines in hunk context
@@ -638,14 +649,16 @@ class PatchApplier:
             # Only proceed if there are actual changes
             if new_lines != old_lines:
                 new_text = "\n".join(new_lines)
-                all_changes.append(RefactorChange(
-                    file=file_path,
-                    start_line=1,
-                    end_line=len(old_lines),
-                    old_text="\n".join(old_lines),
-                    new_text=new_text,
-                    change_type="diff",
-                ))
+                all_changes.append(
+                    RefactorChange(
+                        file=file_path,
+                        start_line=1,
+                        end_line=len(old_lines),
+                        old_text="\n".join(old_lines),
+                        new_text=new_text,
+                        change_type="diff",
+                    )
+                )
                 changed_files.add(file_path)
 
                 if not dry_run:
@@ -689,3 +702,454 @@ def apply_unified_diff(
     applier = PatchApplier(chunks)
     result = applier.apply_patch(diff_text, dry_run)
     return result.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: AST-Aware Edit Operations
+# ---------------------------------------------------------------------------
+
+
+def _find_python_function_range(
+    lines: list[str], symbol_name: str
+) -> tuple[int, int, list[str]] | None:
+    """Find (body_start_1based, body_end_exclusive_1based, decorator_lines).
+
+    Returns None if symbol not found or is a one-liner.
+    """
+    # Pattern: optional decorators followed by def symbol_name(...):
+    sig_re = re.compile(rf"^(?P<indent>\s*)(?P<async>async\s+)?def\s+{re.escape(symbol_name)}\s*\(")
+    for i, line in enumerate(lines):
+        m = sig_re.match(line)
+        if not m:
+            continue
+        indent = m.group("indent")
+        base_indent_len = len(indent)
+
+        # Collect decorators immediately above
+        decorators: list[str] = []
+        d = i - 1
+        while d >= 0 and lines[d].strip().startswith("@"):
+            decorators.insert(0, lines[d])
+            d -= 1
+
+        # Find where body starts (line after signature, or one-liner)
+        # Check if it's a one-liner
+        if line.rstrip().endswith(":"):
+            # Multi-line body
+            body_start = i + 2  # 1-based index of first body line
+            for j in range(i + 1, len(lines)):
+                stripped = lines[j].rstrip()
+                if not stripped:
+                    continue
+                line_indent_len = len(lines[j]) - len(lines[j].lstrip())
+                if line_indent_len <= base_indent_len and not stripped.startswith("#"):
+                    body_end = j  # exclusive, 1-based would be j+1, but we use 0-based here
+                    return (body_start, body_end + 1, decorators)
+            # Ran to EOF
+            return (body_start, len(lines) + 1, decorators)
+        else:
+            # One-liner: e.g., "def foo(): return 1" — no separate body
+            return None
+    return None
+
+
+def _replace_body(
+    lines: list[str],
+    body_start_1based: int,
+    body_end_exclusive_1based: int,
+    new_body_lines: list[str],
+) -> list[str]:
+    """Replace lines [body_start_1based-1 : body_end_exclusive_1based-1] with new_body_lines."""
+    start_idx = body_start_1based - 1
+    end_idx = body_end_exclusive_1based - 1
+    return lines[:start_idx] + new_body_lines + lines[end_idx:]
+
+
+def _add_parameter_to_signature(
+    lines: list[str],
+    symbol_name: str,
+    param: str,
+    default: str | None,
+) -> list[str] | None:
+    """Add a parameter to a function signature. Returns new lines or None if not found."""
+    sig_re = re.compile(
+        rf"^(?P<pre>\s*(?P<async>async\s+)?def\s+{re.escape(symbol_name)}\s*\()(?P<params>.*)(?P<post>\)\s*:.*)$"
+    )
+    for i, line in enumerate(lines):
+        m = sig_re.match(line)
+        if m:
+            pre = m.group("pre")
+            params = m.group("params").strip()
+            post = m.group("post")
+            new_param = f"{param}={default}" if default else param
+            if params:
+                new_params = f"{params}, {new_param}"
+            else:
+                new_params = new_param
+            lines[i] = f"{pre}{new_params}{post}"
+            return lines
+
+    # Try multi-line signature: find the closing ):
+    start_re = re.compile(rf"^\s*(?:async\s+)?def\s+{re.escape(symbol_name)}\s*\(")
+    for i, line in enumerate(lines):
+        if start_re.match(line):
+            # Scan forward for closing ) followed by :
+            for j in range(i, len(lines)):
+                stripped = lines[j].strip()
+                if re.search(r"\)\s*:", stripped):
+                    # Insert parameter before the closing )
+                    # Find last ) before :
+                    match = re.search(r"\)(\s*:\s*)$", stripped)
+                    if match:
+                        colon_part = match.group(1)
+                        line_before = stripped[: match.start()]
+                        new_param = f", {param}={default}" if default else f", {param}"
+                        lines[j] = (
+                            lines[j].rstrip()[: -len(stripped) + match.start()]
+                            + new_param
+                            + colon_part
+                        )
+                    else:
+                        match = re.search(r"\)(\s*:\s*)", stripped)
+                        if match:
+                            colon_part = match.group(1)
+                            lines[j] = (
+                                stripped[: match.start()] + f", {param}={default}" + colon_part
+                                if default
+                                else stripped[: match.start()] + f", {param}" + colon_part
+                            )
+                    return lines
+            break
+    return None
+
+
+class SymbolEditor:
+    """AST-aware symbol editing utilities.
+
+    Works on lists of file lines (not chunks) so that line numbers are stable.
+    """
+
+    @staticmethod
+    def edit_symbol_body(
+        lines: list[str],
+        symbol_name: str,
+        new_body_lines: list[str],
+        language: str = "python",
+    ) -> tuple[list[str], int, int] | None:
+        """Replace the body of a symbol while preserving its signature.
+
+        Returns:
+            Tuple of (new_lines, body_start_1based, body_end_exclusive_1based)
+            or None if symbol not found.
+        """
+        if language != "python":
+            # Fallback: simple regex for other languages — best-effort
+            return SymbolEditor._edit_symbol_body_fallback(lines, symbol_name, new_body_lines)
+
+        rng = _find_python_function_range(lines, symbol_name)
+        if rng is None:
+            return None
+        body_start, body_end, _ = rng
+        new_lines = _replace_body(lines, body_start, body_end, new_body_lines)
+        return (new_lines, body_start, body_end)
+
+    @staticmethod
+    def _edit_symbol_body_fallback(
+        lines: list[str],
+        symbol_name: str,
+        new_body_lines: list[str],
+    ) -> tuple[list[str], int, int] | None:
+        """Best-effort body replacement for non-Python languages."""
+        # Very naive: find "function name(...)" or "name(...)" then replace
+        # everything until next line with same or less indentation
+        sig_re = re.compile(
+            rf"^(?P<indent>\s*)(?:function\s+)?{re.escape(symbol_name)}\s*[\(:]|\b{re.escape(symbol_name)}\s*[=:]\s*(?:function|=>|{{)"
+        )
+        for i, line in enumerate(lines):
+            if sig_re.search(line):
+                indent = len(line) - len(line.lstrip())
+                body_start = i + 2
+                for j in range(i + 1, len(lines)):
+                    stripped = lines[j].rstrip()
+                    if not stripped:
+                        continue
+                    line_indent = len(lines[j]) - len(lines[j].lstrip())
+                    if (
+                        line_indent <= indent
+                        and not stripped.startswith("//")
+                        and not stripped.startswith("/*")
+                    ):
+                        body_end = j + 1
+                        new_lines = _replace_body(lines, body_start, body_end, new_body_lines)
+                        return (new_lines, body_start, body_end)
+                body_end = len(lines) + 1
+                new_lines = _replace_body(lines, body_start, body_end, new_body_lines)
+                return (new_lines, body_start, body_end)
+        return None
+
+    @staticmethod
+    def add_parameter(
+        lines: list[str],
+        symbol_name: str,
+        param: str,
+        default: str | None = None,
+        language: str = "python",
+    ) -> tuple[list[str], int] | None:
+        """Add a parameter to a function signature.
+
+        Returns:
+            Tuple of (new_lines, modified_line_1based) or None if not found.
+        """
+        if language != "python":
+            return None  # Not yet supported for other languages
+        result = _add_parameter_to_signature(lines, symbol_name, param, default)
+        if result is None:
+            return None
+        # Find the modified line
+        for i, (old, new) in enumerate(zip(lines, result, strict=False)):
+            if old != new:
+                return (result, i + 1)
+        return (result, 1)
+
+    @staticmethod
+    def extract_method(
+        lines: list[str],
+        start_line_1based: int,
+        end_line_1based: int,
+        new_name: str,
+        language: str = "python",
+    ) -> tuple[list[str], int, int] | None:
+        """Extract a range of lines into a new method.
+
+        Returns:
+            Tuple of (new_lines, inserted_at_line_1based, call_line_1based)
+            or None on failure.
+        """
+        if language != "python":
+            return None
+
+        start_idx = start_line_1based - 1
+        end_idx = end_line_1based - 1
+        if start_idx < 0 or end_idx > len(lines) or start_idx >= end_idx:
+            return None
+
+        extracted = lines[start_idx:end_idx]
+        if not extracted:
+            return None
+
+        # Determine indentation of extracted block
+        indents = [len(line) - len(line.lstrip()) for line in extracted if line.strip()]
+        if not indents:
+            return None
+        min_indent = min(indents)
+
+        # Dedent extracted lines
+        dedented = []
+        for line in extracted:
+            if line.strip():
+                dedented.append(line[min_indent:])
+            else:
+                dedented.append(line)
+
+        # Find the function/class that contains the extracted block
+        # to determine where to insert the new method
+        container_indent = 0
+        for i in range(start_idx - 1, -1, -1):
+            stripped = lines[i].strip()
+            if (
+                stripped.startswith("def ")
+                or stripped.startswith("class ")
+                or stripped.startswith("async def ")
+            ):
+                container_indent = len(lines[i]) - len(lines[i].lstrip())
+                break
+
+        # Build new function with same indentation as container
+        prefix = " " * container_indent
+        new_func_lines = [
+            f"{prefix}def {new_name}():",
+        ]
+        for line in dedented:
+            new_func_lines.append(prefix + "    " + line)
+        new_func_lines.append("")  # blank line after function
+
+        # Replace extracted block with a call to the new function
+        call_line = f"{prefix}    {new_name}()"
+        new_lines = lines[:start_idx] + [call_line] + lines[end_idx:]
+
+        # Insert new function before the container function
+        insert_at = start_line_1based  # 1-based line where extracted block was
+        # Actually, we should insert before the container. Let's insert right before the start_line
+        # but at container indentation level.
+        # Better: insert right before the block we extracted (same position, but at container indent)
+        new_lines = new_lines[: insert_at - 1] + new_func_lines + new_lines[insert_at - 1 :]
+
+        return (new_lines, insert_at, start_line_1based + len(new_func_lines))
+
+
+def edit_symbol(
+    chunks: list[Any],
+    symbol_name: str,
+    new_body: str,
+    language: str = "python",
+    dry_run: bool = True,
+) -> RefactorResult:
+    """Replace the body of a symbol while preserving its signature.
+
+    Returns a RefactorResult with a single RefactorChange.
+    """
+    # Find the chunk defining the symbol
+    target_chunk = None
+    for chunk in chunks:
+        if chunk.name == symbol_name or symbol_name in (chunk.symbols_defined or []):
+            target_chunk = chunk
+            break
+
+    if target_chunk is None:
+        return RefactorResult(
+            status="error",
+            changed_files=[],
+            changes=[],
+            message=f"Symbol '{symbol_name}' not found in chunks.",
+            dry_run=dry_run,
+        )
+
+    lines = target_chunk.text.splitlines()
+    result = SymbolEditor.edit_symbol_body(lines, symbol_name, new_body.splitlines(), language)
+    if result is None:
+        return RefactorResult(
+            status="error",
+            changed_files=[],
+            changes=[],
+            message=f"Could not parse body of '{symbol_name}'. Is it a one-liner or unsupported language?",
+            dry_run=dry_run,
+        )
+
+    new_lines, body_start, body_end = result
+    new_text = "\n".join(new_lines)
+    change = RefactorChange(
+        file=target_chunk.file,
+        start_line=body_start,
+        end_line=body_end,
+        old_text="\n".join(lines),
+        new_text=new_text,
+        change_type="edit_symbol",
+    )
+
+    if not dry_run:
+        target_chunk.text = new_text
+
+    return RefactorResult(
+        status="ok",
+        changed_files=[target_chunk.file],
+        changes=[change],
+        message=f"Edited body of '{symbol_name}' (lines {body_start}-{body_end}).",
+        dry_run=dry_run,
+    )
+
+
+def add_parameter(
+    chunks: list[Any],
+    symbol_name: str,
+    param: str,
+    default: str | None = None,
+    language: str = "python",
+    dry_run: bool = True,
+) -> RefactorResult:
+    """Add a parameter to a function signature.
+
+    Returns a RefactorResult with a single RefactorChange.
+    """
+    target_chunk = None
+    for chunk in chunks:
+        if chunk.name == symbol_name or symbol_name in (chunk.symbols_defined or []):
+            target_chunk = chunk
+            break
+
+    if target_chunk is None:
+        return RefactorResult(
+            status="error",
+            changed_files=[],
+            changes=[],
+            message=f"Symbol '{symbol_name}' not found in chunks.",
+            dry_run=dry_run,
+        )
+
+    lines = target_chunk.text.splitlines()
+    result = SymbolEditor.add_parameter(lines, symbol_name, param, default, language)
+    if result is None:
+        return RefactorResult(
+            status="error",
+            changed_files=[],
+            changes=[],
+            message=f"Could not find signature of '{symbol_name}'.",
+            dry_run=dry_run,
+        )
+
+    new_lines, modified_line = result
+    new_text = "\n".join(new_lines)
+    change = RefactorChange(
+        file=target_chunk.file,
+        start_line=modified_line,
+        end_line=modified_line,
+        old_text="\n".join(lines),
+        new_text=new_text,
+        change_type="add_parameter",
+    )
+
+    if not dry_run:
+        target_chunk.text = new_text
+
+    return RefactorResult(
+        status="ok",
+        changed_files=[target_chunk.file],
+        changes=[change],
+        message=f"Added parameter '{param}' to '{symbol_name}' at line {modified_line}.",
+        dry_run=dry_run,
+    )
+
+
+def extract_method(
+    file_lines: list[str],
+    start_line_1based: int,
+    end_line_1based: int,
+    new_name: str,
+    language: str = "python",
+    dry_run: bool = True,
+) -> RefactorResult:
+    """Extract a range of lines into a new method.
+
+    Works on full file lines (not chunks) to preserve line numbering.
+    """
+    result = SymbolEditor.extract_method(
+        file_lines, start_line_1based, end_line_1based, new_name, language
+    )
+    if result is None:
+        return RefactorResult(
+            status="error",
+            changed_files=[],
+            changes=[],
+            message="Extract method failed: invalid range or unsupported language.",
+            dry_run=dry_run,
+        )
+
+    new_lines, insert_at, call_line = result
+    # Two changes: insertion of new function + replacement of extracted block
+    changes = [
+        RefactorChange(
+            file="<input>",
+            start_line=start_line_1based,
+            end_line=end_line_1based,
+            old_text="\n".join(file_lines),
+            new_text="\n".join(new_lines),
+            change_type="extract_method",
+        ),
+    ]
+
+    return RefactorResult(
+        status="ok",
+        changed_files=["<input>"],
+        changes=changes,
+        message=f"Extracted lines {start_line_1based}-{end_line_1based} into '{new_name}' (inserted at line {insert_at}, call at line {call_line}).",
+        dry_run=dry_run,
+    )

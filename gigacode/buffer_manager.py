@@ -13,13 +13,12 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import shutil
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from gigacode.audit_logger import AuditLogger
@@ -27,14 +26,12 @@ if TYPE_CHECKING:
 from gigacode.buffer_state import BufferState, BufferStateTransition
 from gigacode.chunker import CodeChunk, chunk_file, chunk_text
 from gigacode.json_logger import StructuredJsonLogger
-from gigacode.lexical_index import LexicalIndex
-from gigacode.metadata_store import load_metadata, save_metadata
 from gigacode.size_guard import check_size
 from gigacode.snapshot_manager import SnapshotManager
 from gigacode.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
-json_logger = StructuredJsonLogger('buffer_manager')
+json_logger = StructuredJsonLogger("buffer_manager")
 
 _MAX_DIRTY_BEFORE_AUTO_REBUILD = 3
 
@@ -46,32 +43,32 @@ __all__ = [
 
 class BufferManager:
     """Manages buffer registry, persistence, and file I/O operations.
-    
+
     Responsibilities:
     - Maintain registry of embedded codebases
     - Manage buffer lifecycle (create, reload, delete)
     - Handle file read/write/commit with 3-way merge
     - Snapshot management for change detection
     - Audit logging for compliance
-    
+
     Args:
         work_dir: Directory where buffers and registry are persisted.
         state_manager: StateManager for crash recovery and transactions.
         embedding_dim: Dimension of embeddings (for size checks).
         threshold_mb: Size-guard threshold in megabytes.
     """
-    
+
     def __init__(
         self,
         work_dir: Path,
         state_manager: StateManager,
         embedding_dim: int,
         threshold_mb: float = 500.0,
-        audit_logger: Optional['AuditLogger'] = None,
+        audit_logger: Optional["AuditLogger"] = None,
         user_id: str = "default",
     ) -> None:
         """Initialize BufferManager.
-        
+
         Args:
             work_dir: Directory for buffer storage and registry
             state_manager: StateManager for crash recovery
@@ -87,7 +84,7 @@ class BufferManager:
         self.threshold_mb = threshold_mb
         self._audit_logger = audit_logger
         self._user_id = user_id
-        
+
         # Registry of embedded codebases: buffer_id -> metadata dict
         self._registry_path = self.work_dir / "registry.json"
         self._registry: dict[str, dict[str, Any]] = (
@@ -95,10 +92,10 @@ class BufferManager:
             if self._registry_path.exists()
             else {}
         )
-        
+
         # Snapshot managers: buffer_id -> SnapshotManager (one per buffer)
         self._snapshot_managers: dict[str, SnapshotManager] = {}
-    
+
     # ------------------------------------------------------------------
     # Directory hash helpers (session persistence)
     # ------------------------------------------------------------------
@@ -247,11 +244,13 @@ class BufferManager:
                     payload = json.loads(fp.read_text(encoding="utf-8"))
                 except (OSError, json.JSONDecodeError):
                     continue
-                sessions.append({
-                    "alias": payload.get("alias", fp.stem),
-                    "saved_at": payload.get("saved_at"),
-                    "buffer_count": len(payload.get("buffer_ids", [])),
-                })
+                sessions.append(
+                    {
+                        "alias": payload.get("alias", fp.stem),
+                        "saved_at": payload.get("saved_at"),
+                        "buffer_count": len(payload.get("buffer_ids", [])),
+                    }
+                )
         return {"sessions": sessions}
 
     # ------------------------------------------------------------------
@@ -265,9 +264,9 @@ class BufferManager:
         details: dict[str, Any] | None = None,
     ) -> None:
         """Log an operation to the audit logger.
-        
+
         Delegates to AuditLogger if available; otherwise skips (minimal footprint).
-        
+
         Args:
             operation: Operation name (e.g., 'embed_codebase', 'write_code')
             buffer_id: Buffer ID associated with operation
@@ -276,11 +275,10 @@ class BufferManager:
         """
         if not self._audit_logger:
             return
-        
+
         try:
             # Map status to AuditStatus
-            from gigacode.audit_logger import AuditStatus
-            
+
             if status == "error":
                 error_msg = details.get("error", "Unknown error") if details else "Unknown error"
                 self._audit_logger.log_failure(
@@ -301,93 +299,92 @@ class BufferManager:
                 )
         except (OSError, ValueError, AttributeError) as exc:
             json_logger.warning(
-                operation='audit_log',
-                status='error',
-                message=f'Could not write audit log: {exc}',
+                operation="audit_log",
+                status="error",
+                message=f"Could not write audit log: {exc}",
             )
-    
+
     # ------------------------------------------------------------------
     # Registry helpers
     # ------------------------------------------------------------------
     def _get_buffer_info(self, buffer_id: str) -> dict[str, Any] | None:
         """Get buffer metadata from registry."""
         return self._registry.get(buffer_id)
-    
+
     def _get_snapshot_manager(self, buffer_id: str) -> SnapshotManager | None:
         """Get or load SnapshotManager for a buffer."""
         if buffer_id in self._snapshot_managers:
             return self._snapshot_managers[buffer_id]
-        
+
         info = self._get_buffer_info(buffer_id)
         if not info:
             return None
-        
+
         buffer_dir = Path(info["buffer_dir"])
         if not buffer_dir.exists():
             return None
-        
+
         # Load snapshot manager from disk
         snapshot_mgr = SnapshotManager(buffer_dir)
         self._snapshot_managers[buffer_id] = snapshot_mgr
         return snapshot_mgr
-    
+
     def _save_registry(self) -> None:
         """Atomically save registry to disk."""
         try:
             temp_path = self._registry_path.parent / f"{self._registry_path.name}.tmp"
             temp_path.write_text(
-                json.dumps(self._registry, ensure_ascii=False, indent=2),
-                encoding="utf-8"
+                json.dumps(self._registry, ensure_ascii=False, indent=2), encoding="utf-8"
             )
             temp_path.replace(self._registry_path)
         except (OSError, ValueError, TypeError) as exc:
             logger.error(f"Failed to save registry: {exc}")
             raise
-    
+
     # ------------------------------------------------------------------
     # Buffer state machine management
     # ------------------------------------------------------------------
     def _get_buffer_state(self, buffer_id: str) -> BufferState:
         """Get current buffer state.
-        
+
         Args:
             buffer_id: Buffer ID
-            
+
         Returns:
             Current BufferState (defaults to READY if not set)
         """
         info = self._get_buffer_info(buffer_id)
         if not info:
             raise ValueError(f"Unknown buffer_id: {buffer_id}")
-        
+
         state_str = info.get("state", BufferState.READY.value)
         return BufferState(state_str)
-    
+
     def _set_buffer_state(self, buffer_id: str, new_state: BufferState) -> None:
         """Set buffer state with validation.
-        
+
         Args:
             buffer_id: Buffer ID
             new_state: Desired new state
-            
+
         Raises:
             ValueError: If state transition is invalid
         """
         info = self._get_buffer_info(buffer_id)
         if not info:
             raise ValueError(f"Unknown buffer_id: {buffer_id}")
-        
+
         current_state = self._get_buffer_state(buffer_id)
-        
+
         # Validate transition
         BufferStateTransition.validate_or_raise(current_state, new_state)
-        
+
         # Update state and timestamp
         info["state"] = new_state.value
         info["state_changed_at"] = time.time()
-        
+
         self._save_registry()
-        
+
         # Log state change
         self._audit_log(
             operation="state_transition",
@@ -396,41 +393,41 @@ class BufferManager:
             details={
                 "from_state": str(current_state),
                 "to_state": str(new_state),
-            }
+            },
         )
-    
+
     def _is_buffer_dirty(self, buffer_id: str) -> bool:
         """Check if buffer has dirty files.
-        
+
         Args:
             buffer_id: Buffer ID
-            
+
         Returns:
             True if buffer has dirty files
         """
         info = self._get_buffer_info(buffer_id)
         if not info:
             return False
-        
+
         dirty_files = info.get("dirty_files", {})
         return len(dirty_files) > 0
-    
+
     def _load_source_snapshot(self, buffer_id: str) -> dict[str, list[str]] | None:
         """Load source code snapshot from disk."""
         info = self._get_buffer_info(buffer_id)
         if not info:
             return None
-        
+
         snapshot_path = Path(info["buffer_dir"]) / "source_snapshot.json"
         if not snapshot_path.exists():
             return None
-        
+
         try:
             return json.loads(snapshot_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError, TypeError) as exc:
             logger.error(f"Failed to load source snapshot: {exc}")
             return None
-    
+
     def _save_source_snapshot(
         self,
         buffer_id: str,
@@ -440,16 +437,15 @@ class BufferManager:
         info = self._get_buffer_info(buffer_id)
         if not info:
             return
-        
+
         snapshot_path = Path(info["buffer_dir"]) / "source_snapshot.json"
         try:
             snapshot_path.write_text(
-                json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")),
-                encoding="utf-8"
+                json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
             )
         except (OSError, ValueError, TypeError) as exc:
             logger.error(f"Failed to save source snapshot: {exc}")
-    
+
     # ------------------------------------------------------------------
     # Buffer lifecycle
     # ------------------------------------------------------------------
@@ -461,19 +457,19 @@ class BufferManager:
         sliding_window_size: int = 30,
     ) -> tuple[str, list[CodeChunk], list[Path]]:
         """Embed a codebase and return buffer_id, chunks, and file list.
-        
+
         This method handles chunking and basic validation, but delegates
         actual index/embedding to IndexManager.
-        
+
         Returns:
             (buffer_id, chunks, files) - Use to pass to IndexManager
         """
         root = Path(path)
         files = [root] if root.is_file() else sorted(root.rglob(pattern))
-        
+
         if not files:
             raise ValueError(f"No files matched '{pattern}' in {root}")
-        
+
         # Size-guard check
         preflight = self.check_codebase(path, pattern)
         if preflight["status"] == "exceeds_threshold":
@@ -481,35 +477,33 @@ class BufferManager:
                 f"Codebase too large ({preflight['estimated_mb']:.1f} MB "
                 f"exceeds threshold {preflight['threshold_mb']:.1f} MB)"
             )
-        
+
         # Chunk all files
         all_chunks: list[CodeChunk] = []
         file_chunks_map: dict[str, list[int]] = {}
-        
+
         for f in files:
             try:
                 chunks = chunk_file(
-                    f,
-                    language_hint=language_hint,
-                    sliding_window_size=sliding_window_size
+                    f, language_hint=language_hint, sliding_window_size=sliding_window_size
                 )
             except (OSError, ValueError, TypeError) as exc:
                 json_logger.warning(
-                    operation='chunk_file',
-                    message=f'Failed to chunk {f}: {exc}',
+                    operation="chunk_file",
+                    message=f"Failed to chunk {f}: {exc}",
                 )
                 continue
-            
+
             rel = str(f.relative_to(root))
             file_chunks_map[rel] = []
             for ch in chunks:
                 ch.file = rel
                 file_chunks_map[rel].append(len(all_chunks))
                 all_chunks.append(ch)
-        
+
         if not all_chunks:
             raise ValueError("No chunks extracted from input files.")
-        
+
         # Size check
         token_count = len(all_chunks)
         size_check = check_size(token_count, self._embedding_dim, self.threshold_mb)
@@ -518,34 +512,33 @@ class BufferManager:
                 f"Codebase too large ({size_check['estimated_mb']:.1f} MB "
                 f"exceeds threshold {size_check['threshold_mb']:.1f} MB)"
             )
-        
+
         # Create buffer directory and register
         buffer_id = str(uuid.uuid4())
         buffer_dir = self.work_dir / f"{buffer_id}.gcbuff"
         buffer_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create snapshot
         snapshot_mgr = SnapshotManager(buffer_dir)
         files_dict = {str(f.relative_to(root)): f for f in files}
         manifest = snapshot_mgr.create_snapshot(buffer_id, root, files_dict)
-        
+
         # Create source snapshot
         source_snapshot: dict[str, list[str]] = {}
         for rel_path, file_path in files_dict.items():
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 source_snapshot[rel_path] = f.read().splitlines()
-        
+
         snapshot_path = buffer_dir / "source_snapshot.json"
         snapshot_path.write_bytes(
             json.dumps(source_snapshot, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         )
-        
+
         # Get file hashes
         file_hashes: dict[str, str] = {
-            rel_path: meta.hash
-            for rel_path, meta in manifest.files.items()
+            rel_path: meta.hash for rel_path, meta in manifest.files.items()
         }
-        
+
         # Compute source hash for change-detection
         source_hash = self._compute_dir_hash(root, pattern)
 
@@ -565,12 +558,12 @@ class BufferManager:
             "state_changed_at": time.time(),
             "source_hash": source_hash,
         }
-        
+
         self._snapshot_managers[buffer_id] = snapshot_mgr
         self._save_registry()
-        
+
         return buffer_id, all_chunks, files
-    
+
     def check_codebase(
         self,
         path: str | Path,
@@ -579,7 +572,7 @@ class BufferManager:
         """Check if codebase is within size threshold."""
         root = Path(path)
         files = [root] if root.is_file() else sorted(root.rglob(pattern))
-        
+
         if not files:
             return {
                 "status": "ok",
@@ -587,43 +580,39 @@ class BufferManager:
                 "estimated_mb": 0.0,
                 "threshold_mb": self.threshold_mb,
             }
-        
+
         # Rough estimate: average source file is ~10KB
         total_size_bytes = sum(f.stat().st_size for f in files if f.is_file())
         total_size_mb = total_size_bytes / 1024 / 1024
-        
+
         return {
             "status": "exceeds_threshold" if total_size_mb > self.threshold_mb else "ok",
             "file_count": len(files),
             "estimated_mb": total_size_mb,
             "threshold_mb": self.threshold_mb,
         }
-    
+
     def list_buffers(self) -> dict[str, Any]:
         """List all registered buffers."""
         return {
             "status": "ok",
             "buffers": [{"buffer_id": bid, **info} for bid, info in self._registry.items()],
         }
-    
+
     def delete_buffer(self, buffer_id: str) -> dict[str, Any]:
         """Delete a buffer and its data."""
         info = self._registry.pop(buffer_id, None)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-        
+
         self._save_registry()
         self._snapshot_managers.pop(buffer_id, None)
         shutil.rmtree(info["buffer_dir"], ignore_errors=True)
-        
-        self._audit_log(
-            operation="delete_buffer",
-            buffer_id=buffer_id,
-            status="ok"
-        )
-        
+
+        self._audit_log(operation="delete_buffer", buffer_id=buffer_id, status="ok")
+
         return {"status": "ok", "message": f"Deleted buffer {buffer_id}"}
-    
+
     # ------------------------------------------------------------------
     # Read/Write/Commit operations
     # ------------------------------------------------------------------
@@ -639,21 +628,21 @@ class BufferManager:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-        
+
         snapshot_mgr = self._get_snapshot_manager(buffer_id)
         if snapshot_mgr is None:
             return {"status": "error", "message": "Snapshot not available."}
-        
+
         if file is not None:
             if file not in snapshot_mgr.manifest.files:
                 return {"status": "error", "message": f"File not in buffer: {file}"}
-            
+
             lines = snapshot_mgr.read_lines(file)
             if lines is None:
                 return {"status": "error", "message": f"Failed to read file: {file}"}
-            
+
             end = end_line if end_line is not None else len(lines) + 1
-            selected = lines[start_line - 1:end - 1]
+            selected = lines[start_line - 1 : end - 1]
             result = {
                 "status": "ok",
                 "file": file,
@@ -661,7 +650,7 @@ class BufferManager:
                 "end_line": end,
                 "lines": selected,
             }
-            
+
             self._audit_log(
                 operation="read_code",
                 buffer_id=buffer_id,
@@ -671,26 +660,26 @@ class BufferManager:
                     "start_line": start_line,
                     "end_line": end,
                     "lines_count": len(selected),
-                }
+                },
             )
-            
+
             return result
-        
+
         # Read all files
         result_dict: dict[str, list[str]] = {}
         for fname in snapshot_mgr.manifest.files.keys():
             lines = snapshot_mgr.read_lines(fname)
             if lines is None:
                 json_logger.warning(
-                    operation='read_code',
-                    message=f'Failed to read file {fname}',
+                    operation="read_code",
+                    message=f"Failed to read file {fname}",
                 )
                 continue
             end = end_line if end_line is not None else len(lines) + 1
-            result_dict[fname] = lines[start_line - 1:end - 1]
-        
+            result_dict[fname] = lines[start_line - 1 : end - 1]
+
         final_result = {"status": "ok", "files": result_dict}
-        
+
         self._audit_log(
             operation="read_code",
             buffer_id=buffer_id,
@@ -699,11 +688,11 @@ class BufferManager:
                 "files_count": len(result_dict),
                 "start_line": start_line,
                 "end_line": end_line,
-            }
+            },
         )
-        
+
         return final_result
-    
+
     def write_code(
         self,
         buffer_id: str,
@@ -717,13 +706,13 @@ class BufferManager:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-        
+
         snapshot = self._load_source_snapshot(buffer_id)
         if snapshot is None:
             return {"status": "error", "message": "Source snapshot missing."}
         if file not in snapshot:
             return {"status": "error", "message": f"File not in buffer: {file}"}
-        
+
         # Check for conflicts
         snapshot_mgr = self._get_snapshot_manager(buffer_id)
         if snapshot_mgr is not None:
@@ -740,19 +729,19 @@ class BufferManager:
                     "disk_lines": len(diff_result.get("disk_lines") or []),
                     "buffer_lines": len(diff_result.get("buffer_lines") or []),
                 }
-        
+
         # Apply changes
         old_lines = snapshot[file]
         end = end_line if end_line is not None else len(old_lines) + 1
         sanitized_new_lines = [line.rstrip("\n\r") for line in new_lines]
-        new_file_lines = old_lines[:start_line - 1] + sanitized_new_lines + old_lines[end:]
+        new_file_lines = old_lines[: start_line - 1] + sanitized_new_lines + old_lines[end:]
         snapshot[file] = new_file_lines
         self._save_source_snapshot(buffer_id, snapshot)
-        
+
         dirty = info.setdefault("dirty_files", {})
         dirty[file] = True
         self._save_registry()
-        
+
         result = {
             "status": "ok",
             "file": file,
@@ -760,7 +749,7 @@ class BufferManager:
             "replaced_lines": end - start_line,
             "total_lines": len(new_file_lines),
         }
-        
+
         self._audit_log(
             operation="write_code",
             buffer_id=buffer_id,
@@ -770,11 +759,11 @@ class BufferManager:
                 "start_line": start_line,
                 "end_line": end,
                 "changed_lines": len(sanitized_new_lines),
-            }
+            },
         )
-        
+
         return result
-    
+
     def commit(
         self,
         buffer_id: str,
@@ -786,12 +775,12 @@ class BufferManager:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-        
+
         root = Path(info["root"])
         snapshot = self._load_source_snapshot(buffer_id)
         if snapshot is None:
             return {"status": "error", "message": "Source snapshot missing."}
-        
+
         dirty = info.get("dirty_files", {})
         if not dirty:
             return {
@@ -801,7 +790,7 @@ class BufferManager:
                 "dry_run": dry_run,
                 "transaction_id": None,
             }
-        
+
         # Begin transaction
         transaction_id = None
         if not dry_run:
@@ -813,28 +802,28 @@ class BufferManager:
                 end_line=None,
                 new_lines=None,
             )
-        
+
         try:
             # Rebuild embeddings for dirty files
             if not dry_run and index_manager:
                 index_manager._rebuild_files(buffer_id, list(dirty.keys()))
-            
+
             # Get snapshot manager
             snapshot_mgr = self._get_snapshot_manager(buffer_id)
             if snapshot_mgr is None:
                 if transaction_id:
                     self._state_manager.rollback_transaction(transaction_id)
                 return {"status": "error", "message": "Snapshot manager not available"}
-            
+
             written: list[str] = []
             conflicts: list[dict[str, Any]] = []
             new_hashes: dict[str, str] = {}
             updated_files: dict[str, Path] = {}
-            
+
             for rel_path in dirty:
                 lines = snapshot.get(rel_path, [])
                 disk_path = root / rel_path
-                
+
                 if dry_run:
                     diff_result = snapshot_mgr.compute_diff(rel_path, lines)
                     if diff_result.get("has_conflict"):
@@ -842,14 +831,18 @@ class BufferManager:
                     else:
                         written.append(rel_path)
                 else:
-                    merge_result = snapshot_mgr.write_file_with_merge(rel_path, lines, allow_conflicts=False)
-                    
+                    merge_result = snapshot_mgr.write_file_with_merge(
+                        rel_path, lines, allow_conflicts=False
+                    )
+
                     if merge_result["status"] == "conflict":
                         diff_result = snapshot_mgr.compute_diff(rel_path, lines)
-                        conflicts.append({
-                            "file": rel_path,
-                            "message": "3-way merge conflict",
-                        })
+                        conflicts.append(
+                            {
+                                "file": rel_path,
+                                "message": "3-way merge conflict",
+                            }
+                        )
                     elif merge_result["status"] == "ok":
                         written.append(rel_path)
                         updated_files[rel_path] = disk_path
@@ -860,20 +853,20 @@ class BufferManager:
                         if transaction_id:
                             self._state_manager.rollback_transaction(transaction_id)
                         return {"status": "error", "message": f"Failed to write {rel_path}"}
-            
+
             if not dry_run:
                 info["file_hashes"].update(new_hashes)
                 for f in written:
                     info["dirty_files"].pop(f, None)
                 self._save_registry()
-                
+
                 if updated_files:
                     snapshot_mgr.update_manifest_after_commit(updated_files)
-                
+
                 if transaction_id:
                     self._state_manager.commit_transaction(transaction_id)
                     self._state_manager.save_registry()
-            
+
             status = "conflict" if conflicts else "ok"
             self._audit_log(
                 operation="commit",
@@ -883,19 +876,19 @@ class BufferManager:
                     "dry_run": dry_run,
                     "written_files_count": len(written),
                     "conflict_files_count": len(conflicts),
-                }
+                },
             )
-            
+
             if index_manager:
                 elapsed = time.perf_counter() - t0
                 if index_manager._prometheus_exporter:
                     index_manager._prometheus_exporter.record_operation(
-                        operation='commit',
+                        operation="commit",
                         duration_s=elapsed,
                         status=status,
                         chunk_count=len(written),
                     )
-            
+
             return {
                 "status": status,
                 "written_files": written,
@@ -903,34 +896,34 @@ class BufferManager:
                 "dry_run": dry_run,
                 "transaction_id": transaction_id,
             }
-        
+
         except (OSError, ValueError, RuntimeError) as e:
             if transaction_id:
                 json_logger.error(
-                    operation='commit',
+                    operation="commit",
                     buffer_id=buffer_id,
-                    message=f'Commit failed: {e}; rolling back',
+                    message=f"Commit failed: {e}; rolling back",
                 )
                 self._state_manager.rollback_transaction(transaction_id)
             raise
-    
+
     def discard(self, buffer_id: str) -> dict[str, Any]:
         """Discard unsaved changes to buffer."""
         t0 = time.perf_counter()
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-        
+
         # Reload source snapshot from disk
         buffer_dir = Path(info["buffer_dir"])
         snapshot_mgr = self._get_snapshot_manager(buffer_id)
         if snapshot_mgr is None:
             return {"status": "error", "message": "Snapshot not available"}
-        
+
         # Reset dirty files
         dirty = info.get("dirty_files", {})
         discarded_files = list(dirty.keys())
-        
+
         # Reload snapshot from disk
         for fname in discarded_files:
             lines = snapshot_mgr.read_lines(fname)
@@ -939,24 +932,24 @@ class BufferManager:
                 if source_snapshot:
                     source_snapshot[fname] = lines
                     self._save_source_snapshot(buffer_id, source_snapshot)
-        
+
         info["dirty_files"] = {}
         self._save_registry()
-        
+
         self._audit_log(
             operation="discard",
             buffer_id=buffer_id,
             status="ok",
-            details={"discarded_files_count": len(discarded_files)}
+            details={"discarded_files_count": len(discarded_files)},
         )
-        
+
         elapsed = time.perf_counter() - t0
         return {
             "status": "ok",
             "discarded_files": discarded_files,
             "elapsed_s": elapsed,
         }
-    
+
     def diff(
         self,
         buffer_id: str,
@@ -967,21 +960,21 @@ class BufferManager:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-        
+
         snapshot_mgr = self._get_snapshot_manager(buffer_id)
         if snapshot_mgr is None:
             return {"status": "error", "message": "Snapshot not available"}
-        
+
         snapshot = self._load_source_snapshot(buffer_id)
         if snapshot is None:
             return {"status": "error", "message": "Source snapshot missing"}
-        
+
         diffs: dict[str, Any] = {}
-        
+
         if file:
             if file not in snapshot:
                 return {"status": "error", "message": f"File not in buffer: {file}"}
-            
+
             diff_result = snapshot_mgr.compute_diff(file, snapshot[file])
             diffs[file] = {
                 "has_conflict": diff_result.get("has_conflict", False),
@@ -998,16 +991,16 @@ class BufferManager:
                     "added_lines": diff_result.get("added_lines", []),
                     "removed_lines": diff_result.get("removed_lines", []),
                 }
-        
+
         has_conflicts = any(d.get("has_conflict", False) for d in diffs.values())
         status = "conflict" if has_conflicts else "ok"
-        
+
         self._audit_log(
             operation="diff",
             buffer_id=buffer_id,
             status=status,
         )
-        
+
         elapsed = time.perf_counter() - t0
         return {
             "status": status,
@@ -1015,14 +1008,14 @@ class BufferManager:
             "has_conflicts": has_conflicts,
             "elapsed_s": elapsed,
         }
-    
+
     def reload_codebase(
         self,
         buffer_id: str,
         index_manager: Any = None,  # Avoid circular import
     ) -> dict[str, Any]:
         """Reload buffer from disk, detecting external changes.
-        
+
         This performs a 3-way merge if both buffer and disk have changed:
         1. Compare disk version with last snapshot
         2. Compare buffer version with last snapshot
@@ -1032,61 +1025,65 @@ class BufferManager:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-        
+
         snapshot_mgr = self._get_snapshot_manager(buffer_id)
         if snapshot_mgr is None:
             return {"status": "error", "message": "Snapshot not available"}
-        
+
         snapshot = self._load_source_snapshot(buffer_id)
         if snapshot is None:
             return {"status": "error", "message": "Source snapshot missing"}
-        
+
         # Check for external changes
         diffs: dict[str, Any] = {}
         merge_results: list[dict[str, Any]] = []
-        
+
         for fname in snapshot_mgr.manifest.files.keys():
             diff_result = snapshot_mgr.compute_diff(fname, snapshot.get(fname, []))
             diffs[fname] = diff_result
-            
+
             if diff_result.get("has_conflict", False):
-                merge_results.append({
-                    "file": fname,
-                    "status": "conflict",
-                    "message": "3-way merge conflict between disk and buffer changes",
-                })
+                merge_results.append(
+                    {
+                        "file": fname,
+                        "status": "conflict",
+                        "message": "3-way merge conflict between disk and buffer changes",
+                    }
+                )
             elif diff_result.get("external_changes"):
                 # Load disk version
                 disk_lines = snapshot_mgr.read_lines(fname)
                 if disk_lines is not None:
                     snapshot[fname] = disk_lines
-                    merge_results.append({
-                        "file": fname,
-                        "status": "merged",
-                        "message": "Loaded disk version",
-                    })
-        
+                    merge_results.append(
+                        {
+                            "file": fname,
+                            "status": "merged",
+                            "message": "Loaded disk version",
+                        }
+                    )
+
         # Save merged snapshot
         self._save_source_snapshot(buffer_id, snapshot)
-        
+
         # Clear dirty flags for merged files
         dirty = info.get("dirty_files", {})
         for result in merge_results:
             if result["status"] == "merged":
                 dirty.pop(result["file"], None)
-        
+
         info["dirty_files"] = dirty
         self._save_registry()
-        
+
         # Rebuild indices if needed
         if index_manager and merge_results:
             rebuilt_files = [r["file"] for r in merge_results if r["status"] == "merged"]
             if rebuilt_files:
                 index_manager._rebuild_files(buffer_id, rebuilt_files)
-        
+
         has_conflicts = any(r["status"] == "conflict" for r in merge_results)
         status = "conflict" if has_conflicts else "ok"
-        
+
         self._audit_log(
             operation="reload_codebase",
             buffer_id=buffer_id,
@@ -1094,24 +1091,24 @@ class BufferManager:
             details={
                 "merged_files": sum(1 for r in merge_results if r["status"] == "merged"),
                 "conflict_files": sum(1 for r in merge_results if r["status"] == "conflict"),
-            }
+            },
         )
-        
+
         if index_manager:
             elapsed = time.perf_counter() - t0
             if index_manager._prometheus_exporter:
                 index_manager._prometheus_exporter.record_operation(
-                    operation='reload_codebase',
+                    operation="reload_codebase",
                     duration_s=elapsed,
                     status=status,
                 )
-        
+
         return {
             "status": status,
             "merge_results": merge_results,
             "elapsed_s": time.perf_counter() - t0,
         }
-    
+
     def _rebuild_files(
         self,
         buffer_id: str,
@@ -1120,31 +1117,31 @@ class BufferManager:
         chunks: list[CodeChunk] | None = None,
     ) -> dict[str, Any]:
         """Rebuild embeddings for specific files (called by IndexManager).
-        
+
         This is an internal method called by IndexManager after file changes.
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-        
+
         # Update hash for rebuilt files
         snapshot = self._load_source_snapshot(buffer_id)
         if snapshot is None:
             return {"status": "error"}
-        
+
         for fname in files:
             lines = snapshot.get(fname, [])
             content = "\n".join(lines)
             file_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
             info["file_hashes"][fname] = file_hash
-        
+
         self._save_registry()
-        
+
         return {
             "status": "ok",
             "rebuilt_files": files,
         }
-    
+
     def _rebuild_dirty(
         self,
         buffer_id: str,
@@ -1154,7 +1151,7 @@ class BufferManager:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return {"status": "ok", "rebuilt": False}
-        
+
         dirty_files = info.get("dirty_files", {})
         if len(dirty_files) >= _MAX_DIRTY_BEFORE_AUTO_REBUILD:
             if index_manager:
@@ -1166,9 +1163,9 @@ class BufferManager:
                     "rebuilt": True,
                     "rebuilt_files_count": len(dirty_files),
                 }
-        
+
         return {"status": "ok", "rebuilt": False}
-    
+
     def embed_file_with_streaming(
         self,
         file_path: str | Path,
@@ -1176,48 +1173,48 @@ class BufferManager:
         streaming_threshold_mb: int = 50,
     ) -> list[CodeChunk]:
         """Chunk a file using streaming for large files.
-        
+
         Automatically detects large files and uses streaming to avoid OOM.
         For small files, uses standard chunking.
-        
+
         Args:
             file_path: Path to file to chunk
             language_hint: Programming language hint for chunking
             streaming_threshold_mb: Size threshold for streaming (default 50MB)
-        
+
         Returns:
             List of CodeChunk objects
         """
         from gigacode.streaming_support import StreamingChunker, supports_streaming
-        
+
         file_path = Path(file_path)
         file_size = file_path.stat().st_size if file_path.exists() else 0
-        
+
         # For small files, use standard chunking
         if not supports_streaming(file_size, threshold_mb=streaming_threshold_mb):
             try:
                 return chunk_file(file_path, language_hint=language_hint)
             except (OSError, ValueError, TypeError) as e:
                 json_logger.warning(
-                    operation='embed_file_with_streaming',
-                    message=f'Failed to chunk {file_path}: {e}',
+                    operation="embed_file_with_streaming",
+                    message=f"Failed to chunk {file_path}: {e}",
                 )
                 return []
-        
+
         # For large files, use streaming
         json_logger.info(
-            operation='embed_file_with_streaming',
-            message=f'Using streaming for {file_size / 1024 / 1024:.1f}MB file',
+            operation="embed_file_with_streaming",
+            message=f"Using streaming for {file_size / 1024 / 1024:.1f}MB file",
             file=str(file_path),
         )
-        
+
         chunker = StreamingChunker(
             max_chunk_bytes=1024 * 1024,  # 1MB chunks
             language=language_hint or "python",
         )
-        
+
         all_chunks: list[CodeChunk] = []
-        
+
         def process_chunk(content: str, start_line: int, end_line: int) -> None:
             """Process a file chunk using standard chunking."""
             try:
@@ -1231,21 +1228,21 @@ class BufferManager:
                     all_chunks.append(chunk)
             except (OSError, ValueError, TypeError) as e:
                 json_logger.warning(
-                    operation='embed_file_with_streaming',
-                    message=f'Failed to chunk text block {start_line}-{end_line}: {e}',
+                    operation="embed_file_with_streaming",
+                    message=f"Failed to chunk text block {start_line}-{end_line}: {e}",
                 )
-        
+
         try:
             chunker.stream_chunks(str(file_path), process_chunk)
         except (OSError, ValueError, RuntimeError) as e:
             json_logger.error(
-                operation='embed_file_with_streaming',
-                message=f'Streaming failed for {file_path}: {e}',
+                operation="embed_file_with_streaming",
+                message=f"Streaming failed for {file_path}: {e}",
             )
             # Fall back to standard chunking
             try:
                 return chunk_file(file_path, language_hint=language_hint)
             except (OSError, ValueError, TypeError):
                 return []
-        
+
         return all_chunks

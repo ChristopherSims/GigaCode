@@ -10,7 +10,6 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
-
 __all__ = [
     "ResponseStatus",
     "SearchMatch",
@@ -31,6 +30,7 @@ __all__ = [
 
 class ResponseStatus(str, Enum):
     """Standard response status values."""
+
     OK = "ok"
     WARNING = "warning"
     ERROR = "error"
@@ -39,6 +39,7 @@ class ResponseStatus(str, Enum):
 @dataclass
 class SearchMatch:
     """A single match in a search result."""
+
     file: str
     start_line: int
     end_line: int
@@ -59,6 +60,7 @@ class SearchMatch:
 @dataclass
 class SearchResponse:
     """Generic search result response."""
+
     status: ResponseStatus
     matches: list[SearchMatch] = field(default_factory=list)
     cached: bool = False
@@ -82,6 +84,7 @@ class SearchResponse:
 @dataclass
 class ClusterItem:
     """A single cluster of similar code chunks."""
+
     file: str
     start_line: int
     end_line: int
@@ -95,6 +98,7 @@ class ClusterItem:
 @dataclass
 class ClusterResponse:
     """Code clustering result."""
+
     status: ResponseStatus
     clusters: list[ClusterItem] = field(default_factory=list)
     message: Optional[str] = None
@@ -112,6 +116,7 @@ class ClusterResponse:
 @dataclass
 class DuplicateItem:
     """A single duplicate pair."""
+
     file1: str
     start_line1: int
     end_line1: int
@@ -127,6 +132,7 @@ class DuplicateItem:
 @dataclass
 class DuplicateResponse:
     """Duplicate detection result."""
+
     status: ResponseStatus
     duplicates: list[DuplicateItem] = field(default_factory=list)
     total: Optional[int] = None
@@ -147,6 +153,7 @@ class DuplicateResponse:
 @dataclass
 class CodeLine:
     """A single line of code in a read/write response."""
+
     line_no: int
     content: str
 
@@ -154,6 +161,7 @@ class CodeLine:
 @dataclass
 class ReadResponse:
     """Code read result."""
+
     status: ResponseStatus
     file: Optional[str] = None
     start_line: Optional[int] = None
@@ -179,6 +187,7 @@ class ReadResponse:
 @dataclass
 class WriteResponse:
     """Code write result."""
+
     status: ResponseStatus
     file: Optional[str] = None
     changed_lines: Optional[int] = None
@@ -201,6 +210,7 @@ class WriteResponse:
 @dataclass
 class CommitResponse:
     """Commit result."""
+
     status: ResponseStatus
     written_files: list[str] = field(default_factory=list)
     dry_run: bool = False
@@ -220,6 +230,7 @@ class CommitResponse:
 @dataclass
 class EmbedResponse:
     """Embedding result."""
+
     status: ResponseStatus
     buffer_id: Optional[str] = None
     chunk_count: Optional[int] = None
@@ -240,6 +251,7 @@ class EmbedResponse:
 @dataclass
 class ErrorResponse:
     """Generic error response."""
+
     status: ResponseStatus = ResponseStatus.ERROR
     message: str = ""
     context: dict[str, Any] = field(default_factory=dict)
@@ -257,6 +269,7 @@ class ErrorResponse:
 @dataclass
 class ListResponse:
     """List buffers response."""
+
     status: ResponseStatus
     buffers: list[dict[str, Any]] = field(default_factory=list)
     message: Optional[str] = None

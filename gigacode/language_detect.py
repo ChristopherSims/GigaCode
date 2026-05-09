@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
-
 
 __all__ = [
     "detect_language",

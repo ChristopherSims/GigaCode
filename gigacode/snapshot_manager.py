@@ -7,7 +7,7 @@ and reading lines on-demand from disk. Supports 3-way merge for conflict detecti
 import hashlib
 import json
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -26,49 +26,45 @@ __all__ = [
 @dataclass
 class FileMetadata:
     """Lightweight metadata for a file in the snapshot."""
-    
+
     path: str
     mtime: float
     size: int
     hash: str  # SHA-256 of file content at snapshot time
     lines: Optional[int] = None  # Number of lines (cached for reference)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dict for JSON serialization."""
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "FileMetadata":
         """Create from dict."""
         return cls(**data)
-    
+
     @classmethod
     def from_file(cls, file_path: Path) -> "FileMetadata":
         """Create metadata from actual file."""
         stat = file_path.stat()
         content = file_path.read_bytes()
         hash_val = hashlib.sha256(content).hexdigest()
-        lines = len(content.decode('utf-8', errors='ignore').splitlines())
-        
+        lines = len(content.decode("utf-8", errors="ignore").splitlines())
+
         return cls(
-            path=str(file_path),
-            mtime=stat.st_mtime,
-            size=stat.st_size,
-            hash=hash_val,
-            lines=lines
+            path=str(file_path), mtime=stat.st_mtime, size=stat.st_size, hash=hash_val, lines=lines
         )
 
 
 @dataclass
 class SnapshotManifest:
     """Lightweight snapshot manifest (metadata only, no source code)."""
-    
+
     buffer_id: str
     root_path: str
     created_at: str
     modified_at: str
     files: dict[str, FileMetadata]  # path -> metadata
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dict for JSON serialization."""
         return {
@@ -76,9 +72,9 @@ class SnapshotManifest:
             "root_path": self.root_path,
             "created_at": self.created_at,
             "modified_at": self.modified_at,
-            "files": {path: meta.to_dict() for path, meta in self.files.items()}
+            "files": {path: meta.to_dict() for path, meta in self.files.items()},
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "SnapshotManifest":
         """Create from dict."""
@@ -87,53 +83,51 @@ class SnapshotManifest:
             root_path=data["root_path"],
             created_at=data["created_at"],
             modified_at=data["modified_at"],
-            files={path: FileMetadata.from_dict(meta) 
-                   for path, meta in data.get("files", {}).items()}
+            files={
+                path: FileMetadata.from_dict(meta) for path, meta in data.get("files", {}).items()
+            },
         )
 
 
 class SnapshotManager:
     """Manages lightweight snapshots with on-demand file reading.
-    
+
     Features:
     - Metadata-only snapshots (no source code duplication)
     - On-demand file reading from disk
     - 3-way merge for conflict detection
     - File change detection via mtime + hash
     """
-    
+
     def __init__(self, buffer_dir: Path):
         """Initialize snapshot manager.
-        
+
         Args:
             buffer_dir: Directory where snapshot manifest is stored
         """
         self.buffer_dir = Path(buffer_dir)
         self.buffer_dir.mkdir(parents=True, exist_ok=True)
         self.manifest_path = self.buffer_dir / "snapshot_manifest.json"
-        
+
         self.manifest: Optional[SnapshotManifest] = None
         self._load_manifest()
-    
+
     def create_snapshot(
-        self,
-        buffer_id: str,
-        root_path: Path,
-        files: dict[str, Path]
+        self, buffer_id: str, root_path: Path, files: dict[str, Path]
     ) -> SnapshotManifest:
         """Create a new snapshot from current files.
-        
+
         Args:
             buffer_id: Unique buffer identifier
             root_path: Root directory of codebase
             files: Dict mapping relative paths to absolute file paths
-        
+
         Returns:
             Created SnapshotManifest
         """
         now = datetime.utcnow().isoformat() + "Z"
         file_metadata = {}
-        
+
         for rel_path, file_path in files.items():
             if file_path.is_file():
                 try:
@@ -142,26 +136,26 @@ class SnapshotManager:
                     logger.debug(f"Snapshot: {rel_path} ({meta.size} bytes, {meta.lines} lines)")
                 except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
                     logger.warning(f"Failed to snapshot {rel_path}: {e}")
-        
+
         manifest = SnapshotManifest(
             buffer_id=buffer_id,
             root_path=str(root_path),
             created_at=now,
             modified_at=now,
-            files=file_metadata
+            files=file_metadata,
         )
-        
+
         self.manifest = manifest
         self._save_manifest()
         logger.info(f"Created snapshot for {buffer_id}: {len(file_metadata)} files")
-        
+
         return manifest
-    
+
     def _load_manifest(self) -> None:
         """Load snapshot manifest from disk."""
         if self.manifest_path.exists():
             try:
-                data = json.loads(self.manifest_path.read_text(encoding='utf-8'))
+                data = json.loads(self.manifest_path.read_text(encoding="utf-8"))
                 self.manifest = SnapshotManifest.from_dict(data)
                 logger.debug(f"Loaded snapshot with {len(self.manifest.files)} files")
             except json.JSONDecodeError as e:
@@ -169,47 +163,46 @@ class SnapshotManager:
                 self.manifest = None
         else:
             self.manifest = None
-    
+
     def _save_manifest(self) -> None:
         """Save snapshot manifest to disk."""
         if self.manifest:
             self.manifest_path.write_text(
-                json.dumps(self.manifest.to_dict(), indent=2),
-                encoding='utf-8'
+                json.dumps(self.manifest.to_dict(), indent=2), encoding="utf-8"
             )
             logger.debug("Snapshot manifest saved")
-    
+
     def read_file(self, relative_path: str) -> Optional[str]:
         """Read file content from disk (on-demand).
-        
+
         Args:
             relative_path: Relative path from root
-        
+
         Returns:
             File content or None if file not found
         """
         if not self.manifest:
             return None
-        
+
         root = Path(self.manifest.root_path)
         file_path = root / relative_path
-        
+
         if not file_path.exists():
             logger.warning(f"File not found on disk: {relative_path}")
             return None
-        
+
         try:
-            return file_path.read_text(encoding='utf-8')
+            return file_path.read_text(encoding="utf-8")
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
             logger.error(f"Failed to read {relative_path}: {e}")
             return None
-    
+
     def read_lines(self, relative_path: str) -> Optional[list[str]]:
         """Read file lines from disk (on-demand).
-        
+
         Args:
             relative_path: Relative path from root
-        
+
         Returns:
             List of lines or None if file not found
         """
@@ -217,10 +210,10 @@ class SnapshotManager:
         if content is None:
             return None
         return content.splitlines()
-    
+
     def detect_external_changes(self) -> dict[str, Any]:
         """Detect changes to files since snapshot was created.
-        
+
         Returns:
             Dict with keys:
             - "changed": Files modified (mtime or hash changed)
@@ -229,18 +222,18 @@ class SnapshotManager:
         """
         if not self.manifest:
             return {"changed": [], "deleted": [], "new": []}
-        
+
         root = Path(self.manifest.root_path)
         changes = {"changed": [], "deleted": [], "new": []}
-        
+
         # Check for changed/deleted files
         for rel_path, meta in self.manifest.files.items():
             file_path = root / rel_path
-            
+
             if not file_path.exists():
                 changes["deleted"].append(rel_path)
                 continue
-            
+
             # Check mtime and hash
             stat = file_path.stat()
             if stat.st_mtime != meta.mtime:
@@ -253,30 +246,28 @@ class SnapshotManager:
                 except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
                     logger.warning(f"Failed to check {rel_path}: {e}")
                     changes["changed"].append(rel_path)
-        
+
         logger.debug(
             f"Detected changes: {len(changes['changed'])} modified, "
             f"{len(changes['deleted'])} deleted, {len(changes['new'])} new"
         )
-        
+
         return changes
-    
+
     def compute_diff(
-        self,
-        relative_path: str,
-        buffer_lines: Optional[list[str]] = None
+        self, relative_path: str, buffer_lines: Optional[list[str]] = None
     ) -> dict[str, Any]:
         """Compute diff between disk, snapshot, and buffer versions.
-        
+
         This is the foundation for 3-way merge:
         - disk_lines: Current file on disk
         - snapshot_lines: File state at snapshot time (reconstruct if needed)
         - buffer_lines: Edited lines in buffer
-        
+
         Args:
             relative_path: File to diff
             buffer_lines: Current buffer lines (if None, read from disk)
-        
+
         Returns:
             Dict with:
             - "disk_lines": Current lines on disk
@@ -289,20 +280,20 @@ class SnapshotManager:
                 "disk_lines": None,
                 "snapshot_lines": None,
                 "buffer_lines": buffer_lines,
-                "has_conflict": False
+                "has_conflict": False,
             }
-        
+
         # Read current disk state
         disk_lines = self.read_lines(relative_path)
-        
+
         # Get snapshot metadata
         meta = self.manifest.files.get(relative_path)
         snapshot_line_count = meta.lines if meta else None
-        
+
         # If buffer not provided, use disk
         if buffer_lines is None:
             buffer_lines = disk_lines
-        
+
         # Detect 3-way conflicts
         has_conflict = False
         if disk_lines and buffer_lines:
@@ -316,27 +307,24 @@ class SnapshotManager:
                         f"3-way merge conflict in {relative_path}: "
                         f"disk modified AND buffer modified"
                     )
-        
+
         return {
             "disk_lines": disk_lines,
             "snapshot_line_count": snapshot_line_count,
             "buffer_lines": buffer_lines,
-            "has_conflict": has_conflict
+            "has_conflict": has_conflict,
         }
-    
+
     def write_file_with_merge(
-        self,
-        relative_path: str,
-        buffer_lines: list[str],
-        allow_conflicts: bool = False
+        self, relative_path: str, buffer_lines: list[str], allow_conflicts: bool = False
     ) -> dict[str, Any]:
         """Write buffer lines to disk with 3-way merge conflict handling.
-        
+
         Args:
             relative_path: File to write
             buffer_lines: Lines to write from buffer
             allow_conflicts: If False, fail on conflicts; if True, buffer wins
-        
+
         Returns:
             Dict with:
             - "status": "ok" or "error"
@@ -346,51 +334,47 @@ class SnapshotManager:
         """
         if not self.manifest:
             return {"status": "error", "message": "No active snapshot"}
-        
+
         # Compute 3-way diff
         diff = self.compute_diff(relative_path, buffer_lines)
-        
+
         if diff["has_conflict"] and not allow_conflicts:
             return {
                 "status": "conflict",
                 "conflict": True,
-                "message": f"3-way merge conflict in {relative_path}: disk and buffer both modified"
+                "message": f"3-way merge conflict in {relative_path}: disk and buffer both modified",
             }
-        
+
         # Write to disk
         root = Path(self.manifest.root_path)
         file_path = root / relative_path
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         try:
-            file_path.write_text('\n'.join(buffer_lines), encoding='utf-8')
+            file_path.write_text("\n".join(buffer_lines), encoding="utf-8")
             logger.debug(f"Wrote {relative_path} ({len(buffer_lines)} lines)")
-            
+
             return {
                 "status": "ok",
                 "conflict": diff["has_conflict"],
                 "merged": True,
-                "message": "File written successfully"
+                "message": "File written successfully",
             }
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
             logger.error(f"Failed to write {relative_path}: {e}")
-            return {
-                "status": "error",
-                "conflict": False,
-                "message": f"Write failed: {e}"
-            }
-    
+            return {"status": "error", "conflict": False, "message": f"Write failed: {e}"}
+
     def update_manifest_after_commit(self, updated_files: dict[str, Path]) -> None:
         """Update snapshot manifest after successful commit.
-        
+
         Args:
             updated_files: Dict of relative path -> absolute path for files that changed
         """
         if not self.manifest:
             return
-        
+
         now = datetime.utcnow().isoformat() + "Z"
-        
+
         # Update metadata for changed files
         for rel_path, file_path in updated_files.items():
             if file_path.exists():
@@ -399,7 +383,7 @@ class SnapshotManager:
                     self.manifest.files[rel_path] = meta
                 except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
                     logger.warning(f"Failed to update metadata for {rel_path}: {e}")
-        
+
         self.manifest.modified_at = now
         self._save_manifest()
         logger.debug(f"Updated snapshot manifest: {len(updated_files)} files changed")
@@ -407,14 +391,13 @@ class SnapshotManager:
 
 class SnapshotDiffer:
     """Compute line-level diffs between versions (foundation for merge)."""
-    
+
     @staticmethod
     def diff_lines(
-        old_lines: list[str],
-        new_lines: list[str]
+        old_lines: list[str], new_lines: list[str]
     ) -> list[tuple[str, int, Optional[str]]]:
         """Compute simple line-level diff.
-        
+
         Returns:
             List of (operation, line_num, line_content) tuples:
             - ('=', idx, line) for unchanged lines
@@ -425,59 +408,57 @@ class SnapshotDiffer:
         diffs = []
         old_set = set(enumerate(old_lines))
         new_set = set(enumerate(new_lines))
-        
+
         # Find common lines
         common = old_set & new_set
         added = new_set - old_set
         deleted = old_set - new_set
-        
+
         # This is simplified - a real diff would preserve line order
         for idx, line in sorted(common):
-            diffs.append(('=', idx, line))
-        
+            diffs.append(("=", idx, line))
+
         for idx, line in sorted(added):
-            diffs.append(('+', idx, line))
-        
+            diffs.append(("+", idx, line))
+
         for idx, _ in sorted(deleted):
-            diffs.append(('-', idx, None))
-        
+            diffs.append(("-", idx, None))
+
         return diffs
-    
+
     @staticmethod
     def apply_diff(
-        snapshot_base: list[str],
-        disk_current: list[str],
-        buffer_lines: list[str]
+        snapshot_base: list[str], disk_current: list[str], buffer_lines: list[str]
     ) -> tuple[list[str], bool]:
         """Apply 3-way merge using snapshot as base.
-        
+
         Logic:
         - If buffer unchanged from snapshot, use disk (user didn't edit, disk did)
         - If disk unchanged from snapshot, use buffer (disk didn't change, user did)
         - If both changed, return buffer with conflict flag (safer than auto-merge)
-        
+
         Args:
             snapshot_base: Snapshot state (common ancestor)
             disk_current: Current state on disk
             buffer_lines: Buffer state (user edits)
-        
+
         Returns:
             (merged_lines, has_conflict)
         """
         buffer_changed = buffer_lines != snapshot_base
         disk_changed = disk_current != snapshot_base
-        
+
         if not buffer_changed and not disk_changed:
             # Nothing changed
             return buffer_lines, False
-        
+
         if not buffer_changed:
             # Only disk changed, user didn't edit
             return disk_current, False
-        
+
         if not disk_changed:
             # Only buffer changed, disk unchanged
             return buffer_lines, False
-        
+
         # Both changed - return buffer, but flag as conflict
         return buffer_lines, True

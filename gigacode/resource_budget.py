@@ -9,7 +9,6 @@ Provides:
 from __future__ import annotations
 
 import logging
-import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -127,10 +126,7 @@ class ConfidenceScorer:
                 return f"Very strong match (score={score:.3f}). High confidence."
             if len(sorted_scores) >= 2:
                 gap = sorted_scores[0] - sorted_scores[1]
-                return (
-                    f"Top result stands out from rest "
-                    f"(gap={gap:.3f}, score={score:.3f})."
-                )
+                return f"Top result stands out from rest " f"(gap={gap:.3f}, score={score:.3f})."
             return f"Strong signal (score={score:.3f})."
 
         if confidence == "low":
@@ -139,7 +135,9 @@ class ConfidenceScorer:
             if len(sorted_scores) >= 2:
                 gap = sorted_scores[0] - sorted_scores[1]
                 if gap < 0.03:
-                    return f"Results are tightly clustered (gap={gap:.3f}). Low discriminative power."
+                    return (
+                        f"Results are tightly clustered (gap={gap:.3f}). Low discriminative power."
+                    )
             return f"Below average signal (score={score:.3f})."
 
         # Medium
@@ -218,11 +216,15 @@ def estimate_budget(
 
     warnings: list[str] = []
     if total_ram_mb > 8000:
-        warnings.append(f"Large codebase: estimated {total_ram_mb:.0f}MB RAM. Consider splitting into multiple buffers.")
+        warnings.append(
+            f"Large codebase: estimated {total_ram_mb:.0f}MB RAM. Consider splitting into multiple buffers."
+        )
     if num_files > 10000:
         warnings.append(f"Many files ({num_files}). File discovery may take time.")
     if estimated_chunks > 100000:
-        warnings.append(f"Very large index ({estimated_chunks} chunks). Consider using GPU or quantized index.")
+        warnings.append(
+            f"Very large index ({estimated_chunks} chunks). Consider using GPU or quantized index."
+        )
 
     estimate = ResourceEstimate(
         estimated_ram_mb=round(total_ram_mb, 1),
@@ -265,7 +267,9 @@ def score_confidence(
         "mean": round(float(np.mean(all_scores)), 3) if all_scores else 0.0,
         "std": round(float(np.std(all_scores)), 3) if len(all_scores) > 1 else 0.0,
         "max": round(sorted_scores[0], 3) if sorted_scores else 0.0,
-        "gap_to_second": round(sorted_scores[0] - sorted_scores[1], 3) if len(sorted_scores) >= 2 else 0.0,
+        "gap_to_second": (
+            round(sorted_scores[0] - sorted_scores[1], 3) if len(sorted_scores) >= 2 else 0.0
+        ),
     }
 
     return {

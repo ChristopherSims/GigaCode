@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from gigacode.retry_utils import retry_on_io_error, retry_on_exception
 from gigacode.cleanup_utils import ResourceTracker, cleanup_on_error
+from gigacode.retry_utils import retry_on_exception, retry_on_io_error
 
 
 def test_retry_on_io_error_success() -> None:
@@ -54,7 +55,7 @@ def test_retry_on_io_error_exhausts_attempts() -> None:
 
     try:
         always_fails()
-        assert False, "Should have raised IOError"
+        raise AssertionError("Should have raised IOError")
     except IOError as exc:
         assert "Persistent error #2" in str(exc)
         assert call_count == 2, "Should attempt max_attempts times"
@@ -139,23 +140,23 @@ if __name__ == "__main__":
     print("Testing retry utilities...")
     test_retry_on_io_error_success()
     print("✓ test_retry_on_io_error_success")
-    
+
     test_retry_on_io_error_retries()
     print("✓ test_retry_on_io_error_retries")
-    
+
     test_retry_on_io_error_exhausts_attempts()
     print("✓ test_retry_on_io_error_exhausts_attempts")
-    
+
     test_retry_on_exception()
     print("✓ test_retry_on_exception")
-    
+
     test_resource_tracker()
     print("✓ test_resource_tracker")
-    
+
     test_resource_tracker_on_error()
     print("✓ test_resource_tracker_on_error")
-    
+
     test_cleanup_on_error_context()
     print("✓ test_cleanup_on_error_context")
-    
+
     print("\n✅ All retry and cleanup tests passed!")

@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 from typing import Sequence
 
-
 __all__ = [
     "hash_lines",
     "compute_diff",

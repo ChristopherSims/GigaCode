@@ -19,7 +19,7 @@ __all__ = [
 
 class LRUDict(OrderedDict):
     """Bounded LRU dict. Evicts least-recently-used item when max_size exceeded.
-    
+
     Usage:
         cache = LRUDict(max_size=10)
         cache['key'] = value  # Auto-evicts oldest if size exceeds max_size
@@ -46,8 +46,8 @@ class LRUDict(OrderedDict):
             oldest_key = next(iter(self))
             self.pop(oldest_key)
             json_logger.debug(
-                operation='lru_eviction',
-                details={'removed_key': oldest_key, 'new_size': len(self)},
+                operation="lru_eviction",
+                details={"removed_key": oldest_key, "new_size": len(self)},
             )
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -61,5 +61,5 @@ class LRUDict(OrderedDict):
         return {
             "size": len(self),
             "maxsize": self.max_size,
-            "utilization": len(self) / self.max_size if self.max_size > 0 else 0
+            "utilization": len(self) / self.max_size if self.max_size > 0 else 0,
         }

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from gigacode.tool_schema import (
     ALL_SCHEMAS,
     get_schema,
@@ -53,8 +51,10 @@ def test_output_schemas_never_contain_source_text() -> None:
         props = out.get("properties", {})
         assert "source_text" not in props, f"{schema['name']} leaks source_text"
         # Check nested items too
-        for key, val in props.items():
+        for _key, val in props.items():
             if isinstance(val, dict) and val.get("type") == "array":
                 items = val.get("items", {})
                 item_props = items.get("properties", {})
-                assert "source_text" not in item_props, f"{schema['name']} leaks source_text in array items"
+                assert (
+                    "source_text" not in item_props
+                ), f"{schema['name']} leaks source_text in array items"

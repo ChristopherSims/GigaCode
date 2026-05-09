@@ -7,7 +7,6 @@ resource cleanup, and GPU/CPU fallback under various conditions.
 import sys
 import tempfile
 import threading
-import time
 from pathlib import Path
 
 # Add parent directory to path
@@ -25,12 +24,12 @@ class TestWriteCodeAndCommitIntegration:
         """Test writing code, committing changes, and verifying on-disk persistence."""
         with tempfile.TemporaryDirectory() as tmpdir:
             work_dir = Path(tmpdir)
-            
+
             # Create initial codebase
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("def add(a, b):\n    return a + b\n")
-            
+
             # Embed codebase
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             embed_response = tool.embed_codebase(str(code_dir))
@@ -38,39 +37,39 @@ class TestWriteCodeAndCommitIntegration:
             assert embed_response.get("status") == "ok"
             buffer_id = embed_response.get("buffer_id")
             assert buffer_id is not None
-            
+
             # Verify initial state
             result = tool.read_code(buffer_id, "module.py")
             assert result is not None
             assert "add" in str(result)
-            
+
             # Modify code via write_code
             new_code = "def add(a, b):\n    '''Add two numbers.'''\n    return a + b\n"
             write_result = tool.write_code(buffer_id, "module.py", new_code)
             assert write_result is not None
-            
+
             # Commit changes
             commit_result = tool.commit(buffer_id)
             assert commit_result is not None
             assert commit_result.get("status") == "ok"
-            
+
             # Verify on-disk change persisted
             on_disk = (code_dir / "module.py").read_text()
             assert "Add two numbers" in on_disk
             assert "return a + b" in on_disk
-            
+
             tool.close()
 
     def test_write_code_without_embed_fails(self):
         """Test that write_code fails gracefully when buffer doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tool = CodeEmbeddingTool(Path(tmpdir) / "tool", use_gpu=False)
-            
+
             # Try to write to non-existent buffer
             result = tool.write_code("nonexistent_buffer", "file.py", "code")
             assert result is not None
             assert result.get("status") == "error" or result.get("error") is not None
-            
+
             tool.close()
 
     def test_multiple_commits_accumulate(self):
@@ -80,23 +79,23 @@ class TestWriteCodeAndCommitIntegration:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("# Start\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             buffer_id = tool.embed_codebase(str(code_dir))
-            
+
             # First write + commit
             tool.write_code(buffer_id, "module.py", "# First\n")
             tool.commit(buffer_id)
-            
+
             # Second write + commit
             tool.write_code(buffer_id, "module.py", "# First\n# Second\n")
             tool.commit(buffer_id)
-            
+
             # Verify both changes persisted
             on_disk = (code_dir / "module.py").read_text()
             assert "First" in on_disk
             assert "Second" in on_disk
-            
+
             tool.close()
 
 
@@ -109,16 +108,16 @@ class TestConcurrentOperations:
             code_dir = Path(tmpdir) / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("def func(): pass\n")
-            
+
             work_dir = Path(tmpdir) / "work"
             work_dir.mkdir()
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False, max_buffers=5)
-            
+
             # Concurrent embeds of same codebase
             results = []
             errors = []
-            
+
             def embed_task(task_id):
                 try:
                     response = tool.embed_codebase(str(code_dir))
@@ -129,20 +128,20 @@ class TestConcurrentOperations:
                         errors.append((task_id, response.get("error", "Unknown error")))
                 except Exception as e:
                     errors.append((task_id, e))
-            
+
             threads = [threading.Thread(target=embed_task, args=(i,)) for i in range(3)]
             for t in threads:
                 t.start()
             for t in threads:
                 t.join()
-            
+
             # Should have some results (may reuse same buffer_id due to same root)
             assert len(results) > 0, f"Errors: {errors}"
             assert len(errors) == 0, f"Errors occurred: {errors}"
-            
+
             # Registry should be consistent
             assert len(tool._registry) >= 1
-            
+
             tool.close()
 
     def test_concurrent_searches_on_same_buffer(self):
@@ -151,28 +150,28 @@ class TestConcurrentOperations:
             work_dir = Path(tmpdir)
             code_dir = work_dir / "code"
             code_dir.mkdir()
-            
+
             # Create some code
             for i in range(3):
                 (code_dir / f"module{i}.py").write_text(f"def function_{i}(): pass\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             embed_response = tool.embed_codebase(str(code_dir))
             assert embed_response.get("status") == "ok"
             buffer_id = embed_response.get("buffer_id")
             assert buffer_id is not None
-            
+
             # Concurrent searches
             results = []
             errors = []
-            
+
             def search_task(task_id, query):
                 try:
                     result = tool.semantic_search(buffer_id, query, top_k=5)
                     results.append((task_id, result))
                 except Exception as e:
                     errors.append((task_id, e))
-            
+
             threads = [
                 threading.Thread(target=search_task, args=(0, "function")),
                 threading.Thread(target=search_task, args=(1, "def")),
@@ -182,10 +181,10 @@ class TestConcurrentOperations:
                 t.start()
             for t in threads:
                 t.join()
-            
+
             assert len(results) == 3, f"Expected 3 results, got {len(results)}, errors: {errors}"
             assert len(errors) == 0
-            
+
             tool.close()
 
 
@@ -199,25 +198,25 @@ class TestCacheInvalidation:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("def add(a, b): return a + b\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             embed_response = tool.embed_codebase(str(code_dir))
             assert embed_response.get("status") == "ok"
             buffer_id = embed_response.get("buffer_id")
             assert buffer_id is not None
-            
+
             # First search (should cache)
             result1 = tool.semantic_search(buffer_id, "add function", top_k=5)
             cache_stats1 = tool._query_cache.stats()
             initial_size = cache_stats1["size"]
-            
+
             # Write code (should invalidate caches)
             tool.write_code(buffer_id, "module.py", "def add(a, b, c): return a + b + c\n")
-            
+
             # Query cache should be cleared for this buffer
             cache_stats2 = tool._query_cache.stats()
             assert cache_stats2["size"] < initial_size or cache_stats2["size"] == 0
-            
+
             tool.close()
 
     def test_write_code_invalidates_index_cache(self):
@@ -227,22 +226,22 @@ class TestCacheInvalidation:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("def func(): pass\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             embed_response = tool.embed_codebase(str(code_dir))
             assert embed_response.get("status") == "ok"
             buffer_id = embed_response.get("buffer_id")
             assert buffer_id is not None
-            
+
             # Load index into cache
             initial_size = tool._index_cache.stats()["size"]
-            
+
             # Write code
             tool.write_code(buffer_id, "module.py", "def new_func(): pass\n")
-            
+
             # Index cache may be cleared on commit, not on write_code
             # This depends on implementation, but should be documented behavior
-            
+
             tool.close()
 
 
@@ -254,23 +253,23 @@ class TestMemoryManagement:
         with tempfile.TemporaryDirectory() as tmpdir:
             work_dir = Path(tmpdir)
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False, max_buffers=2)
-            
+
             # Create multiple codebases
             for i in range(4):
                 code_dir = work_dir / f"code{i}"
                 code_dir.mkdir()
                 (code_dir / "module.py").write_text(f"def func{i}(): pass\n")
-            
+
             # Embed multiple codebases (should trigger eviction)
             buffer_ids = []
             for i in range(4):
                 code_dir = work_dir / f"code{i}"
                 buffer_id = tool.embed_codebase(str(code_dir))
                 buffer_ids.append(buffer_id)
-            
+
             # Cache should not exceed max_buffers
             assert tool._index_cache.stats()["size"] <= 2
-            
+
             tool.close()
 
     def test_no_memory_leaks_on_close(self):
@@ -280,19 +279,19 @@ class TestMemoryManagement:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("def func(): pass\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             buffer_id = tool.embed_codebase(str(code_dir))
-            
+
             # Populate caches
             tool.semantic_search(buffer_id, "function", top_k=5)
-            
+
             assert tool._index_cache.stats()["size"] > 0
             assert tool._query_cache.stats()["size"] > 0
-            
+
             # Close should clear caches
             tool.close()
-            
+
             # Verify caches cleared
             assert tool._index_cache.stats()["size"] == 0
             assert tool._query_cache.stats()["size"] == 0
@@ -308,17 +307,17 @@ class TestErrorRecovery:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "existing.py").write_text("pass\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             buffer_id = tool.embed_codebase(str(code_dir))
-            
+
             # Write to non-existent file
             result = tool.write_code(buffer_id, "nonexistent.py", "def new(): pass\n")
-            
+
             # Should either create file or return error gracefully
             # (behavior depends on implementation)
             assert result is not None
-            
+
             tool.close()
 
     def test_corrupted_registry_recovery(self):
@@ -328,28 +327,28 @@ class TestErrorRecovery:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("pass\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             buffer_id = tool.embed_codebase(str(code_dir))
             tool.close()
-            
+
             # Corrupt registry file
             registry_file = work_dir / "tool" / "registry.json"
             if registry_file.exists():
                 registry_file.write_text("{invalid json}")
-            
+
             # Try to load tool again (should handle gracefully)
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
-            
+
             # Should either recover or skip corrupted registry
             # Fresh embed should work
             code_dir2 = work_dir / "code2"
             code_dir2.mkdir()
             (code_dir2 / "module.py").write_text("pass\n")
-            
+
             buffer_id2 = tool.embed_codebase(str(code_dir2))
             assert buffer_id2 is not None
-            
+
             tool.close()
 
 
@@ -363,41 +362,33 @@ class TestGpuCpuFallback:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("def func(): pass\n")
-            
+
             # Try to create tool with GPU enabled but it will fall back to CPU
             # (since we don't have CUDA available in test environment)
-            tool = CodeEmbeddingTool(
-                work_dir / "tool",
-                use_gpu=True,  # Request GPU
-                gpu_id=0
-            )
-            
+            tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=True, gpu_id=0)  # Request GPU
+
             # Should embed successfully even if GPU unavailable
             buffer_id = tool.embed_codebase(str(code_dir))
             assert buffer_id is not None
-            
+
             # Search should work (CPU-only)
             result = tool.semantic_search(buffer_id, "function", top_k=5)
             assert result is not None
             assert result.get("status") == "ok"
-            
+
             tool.close()
 
     def test_custom_gpu_device_selection(self):
         """Test that gpu_id parameter is stored and usable."""
         with tempfile.TemporaryDirectory() as tmpdir:
             work_dir = Path(tmpdir)
-            
+
             # Create with custom gpu_id
-            tool = CodeEmbeddingTool(
-                work_dir / "tool",
-                use_gpu=False,
-                gpu_id=2  # Custom device
-            )
-            
+            tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False, gpu_id=2)  # Custom device
+
             # Verify gpu_id is stored
             assert tool.gpu_id == 2
-            
+
             tool.close()
 
 
@@ -411,22 +402,22 @@ class TestSemanticQueryCaching:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "math.py").write_text("def add(a, b): return a + b\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             buffer_id = tool.embed_codebase(str(code_dir))
-            
+
             # First search
             result1 = tool.semantic_search(buffer_id, "addition function", top_k=5)
             assert result1 is not None
-            
+
             # Cache should be populated
             assert tool._query_cache.stats()["size"] >= 1
-            
+
             # Paraphrased query (if embedder available)
             # May or may not hit semantic cache depending on embedder availability
             result2 = tool.semantic_search(buffer_id, "add method", top_k=5)
             assert result2 is not None
-            
+
             tool.close()
 
 
@@ -440,17 +431,17 @@ class TestHealthCheckAndMetrics:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("pass\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             buffer_id = tool.embed_codebase(str(code_dir))
-            
+
             # Check health
             health = tool.health_check()
             assert health is not None
             assert health.get("status") in ["healthy", "degraded"]
             assert "buffers_registered" in health
             assert "cache_utilization_percent" in health
-            
+
             tool.close()
 
     def test_cache_stats_accumulate(self):
@@ -460,23 +451,23 @@ class TestHealthCheckAndMetrics:
             code_dir = work_dir / "code"
             code_dir.mkdir()
             (code_dir / "module.py").write_text("def func(): pass\n")
-            
+
             tool = CodeEmbeddingTool(work_dir / "tool", use_gpu=False)
             buffer_id = tool.embed_codebase(str(code_dir))
-            
+
             # First search (cache miss)
             tool.semantic_search(buffer_id, "function", top_k=5)
             stats1 = tool._query_cache.stats()
             miss_count1 = stats1["misses"]
-            
+
             # Same search again (cache hit)
             tool.semantic_search(buffer_id, "function", top_k=5)
             stats2 = tool._query_cache.stats()
             hit_count2 = stats2["hits"]
-            
+
             # Should have cache hit on second search
             assert hit_count2 >= 1
-            
+
             tool.close()
 
 

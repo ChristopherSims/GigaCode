@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from gigacode.cross_language_rules import edit_file
 
 
@@ -36,7 +34,7 @@ def test_javascript_bare_catch_fix(tmp_path: Path) -> None:
 def test_cpp_catch_all_fix(tmp_path: Path) -> None:
     src = tmp_path / "test.cpp"
     src.write_text(
-        "void foo() {\n    try {\n        bar();\n    } catch (...) {\n        std::cerr << \"err\";\n    }\n}\n",
+        'void foo() {\n    try {\n        bar();\n    } catch (...) {\n        std::cerr << "err";\n    }\n}\n',
         encoding="utf-8",
     )
     result = edit_file(src, language_hint="cpp")

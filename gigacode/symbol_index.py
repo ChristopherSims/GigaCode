@@ -110,7 +110,7 @@ class SymbolIndex:
                 self._all_names.add(chunk.name)
 
             # Also index symbols_defined if present
-            for sym_name in (chunk.symbols_defined or []):
+            for sym_name in chunk.symbols_defined or []:
                 if sym_name == chunk.name:
                     continue  # Already indexed above
                 entry = SymbolEntry(
@@ -236,18 +236,20 @@ class SymbolIndex:
                         loc = (chunk.file, i)
                         if loc not in seen_locations:
                             seen_locations.add(loc)
-                            results.append(ReferenceResult(
-                                file=chunk.file,
-                                line=i,
-                                context=line.strip(),
-                                confidence="high",
-                            ))
+                            results.append(
+                                ReferenceResult(
+                                    file=chunk.file,
+                                    line=i,
+                                    context=line.strip(),
+                                    confidence="high",
+                                )
+                            )
                         break
 
             # Method 2: text search with word boundary
             for match in pattern.finditer(chunk.text):
                 # Estimate line number from match position
-                line_offset = chunk.text[:match.start()].count("\n")
+                line_offset = chunk.text[: match.start()].count("\n")
                 line_num = chunk.start_line + line_offset
                 loc = (chunk.file, line_num)
                 if loc not in seen_locations:
@@ -257,13 +259,15 @@ class SymbolIndex:
                     if line_offset < len(lines):
                         context = lines[line_offset].strip()
                     else:
-                        context = chunk.text[match.start():match.end()]
-                    results.append(ReferenceResult(
-                        file=chunk.file,
-                        line=line_num,
-                        context=context,
-                        confidence="medium",
-                    ))
+                        context = chunk.text[match.start() : match.end()]
+                    results.append(
+                        ReferenceResult(
+                            file=chunk.file,
+                            line=line_num,
+                            context=context,
+                            confidence="medium",
+                        )
+                    )
 
         # Sort by confidence (high first) then by file/line
         results.sort(key=lambda r: (0 if r.confidence == "high" else 1, r.file, r.line))
@@ -318,9 +322,7 @@ def get_symbol_definition(chunks: list[Any], symbol: str) -> list[dict[str, Any]
     return [e.to_dict() for e in entries]
 
 
-def get_symbol_references(
-    chunks: list[Any], symbol: str, top_k: int = 50
-) -> list[dict[str, Any]]:
+def get_symbol_references(chunks: list[Any], symbol: str, top_k: int = 50) -> list[dict[str, Any]]:
     """Convenience function: get references and return as list of dicts."""
     index = SymbolIndex(chunks)
     refs = index.get_references(symbol, top_k)

@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["ProgressReporter", "ProgressEvent"]
 
+
 @dataclass
 class ProgressEvent:
     phase: str
@@ -20,6 +21,7 @@ class ProgressEvent:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
 
 class ProgressReporter:
     """Simple progress reporter that yields events."""
@@ -33,9 +35,15 @@ class ProgressReporter:
         self._callbacks.append(callback)
 
     def report(self, current: int, total: int, message: str = "") -> ProgressEvent:
-        phase = self.phases[self._current_phase] if self._current_phase < len(self.phases) else "unknown"
+        phase = (
+            self.phases[self._current_phase]
+            if self._current_phase < len(self.phases)
+            else "unknown"
+        )
         percent = (current / max(total, 1)) * 100 if total > 0 else 0
-        event = ProgressEvent(phase=phase, current=current, total=total, message=message, percent=round(percent, 1))
+        event = ProgressEvent(
+            phase=phase, current=current, total=total, message=message, percent=round(percent, 1)
+        )
         for cb in self._callbacks:
             try:
                 cb(event)
@@ -47,4 +55,6 @@ class ProgressReporter:
         self._current_phase += 1
 
     def finish(self) -> ProgressEvent:
-        return ProgressEvent(phase="complete", current=100, total=100, message="Done", percent=100.0)
+        return ProgressEvent(
+            phase="complete", current=100, total=100, message="Done", percent=100.0
+        )

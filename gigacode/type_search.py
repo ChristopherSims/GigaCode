@@ -78,11 +78,15 @@ def _extract_python_types(text: str) -> list[TypeSignature]:
         name = match.group("name")
         params_str = match.group("params") or ""
         return_type = match.group("return_type")
-        is_async = bool(re.match(r"\s*async\s", text[match.start():match.end()]))
+        is_async = bool(re.match(r"\s*async\s", text[match.start() : match.end()]))
 
         # Parse parameters
         parameters: list[dict[str, str]] = []
-        if params_str.strip() and params_str.strip() != "self" and not params_str.strip().startswith("self,"):
+        if (
+            params_str.strip()
+            and params_str.strip() != "self"
+            and not params_str.strip().startswith("self,")
+        ):
             # Split by comma, respecting nested brackets
             param_parts = _split_params(params_str)
             for part in param_parts:
@@ -95,22 +99,26 @@ def _extract_python_types(text: str) -> list[TypeSignature]:
                     part,
                 )
                 if param_match:
-                    parameters.append({
-                        "name": param_match.group("param_name"),
-                        "type": (param_match.group("param_type") or "").strip(),
-                    })
+                    parameters.append(
+                        {
+                            "name": param_match.group("param_name"),
+                            "type": (param_match.group("param_type") or "").strip(),
+                        }
+                    )
 
         # Estimate line number (approximate from text position)
-        line = text[:match.start()].count("\n") + 1
+        line = text[: match.start()].count("\n") + 1
 
-        signatures.append(TypeSignature(
-            name=name,
-            file="",
-            line=line,
-            parameters=parameters,
-            return_type=return_type.strip() if return_type else None,
-            is_async=is_async,
-        ))
+        signatures.append(
+            TypeSignature(
+                name=name,
+                file="",
+                line=line,
+                parameters=parameters,
+                return_type=return_type.strip() if return_type else None,
+                is_async=is_async,
+            )
+        )
 
     return signatures
 
@@ -163,7 +171,7 @@ def _match_type_pattern(
     for pt in param_types:
         if pattern_lower in pt or pt in pattern_lower:
             score += 0.2
-            reasons.append(f"Parameter type matches pattern")
+            reasons.append("Parameter type matches pattern")
             break
 
     # Check parameter count heuristics for Callable patterns
@@ -178,7 +186,13 @@ def _match_type_pattern(
             reasons.append("Parameter count matches")
 
         # Compare parameter types
-        for i, (ep, sp) in enumerate(zip(expected_params, [p.get("type", "").lower() for p in signature.parameters])):
+        for _i, (ep, sp) in enumerate(
+            zip(
+                expected_params,
+                [p.get("type", "").lower() for p in signature.parameters],
+                strict=False,
+            )
+        ):
             if ep == sp or ep in sp or sp in ep:
                 score += 0.1
 
@@ -267,7 +281,7 @@ class TypeSearcher:
         """
         matches: list[tuple[TypeMatch, float]] = []
 
-        for name, signatures in self._type_index.items():
+        for _name, signatures in self._type_index.items():
             for sig in signatures:
                 score, reason = _match_type_pattern(sig, type_pattern)
                 if score > 0:
@@ -312,12 +326,14 @@ class TypeSearcher:
                 key = f"{class_name}:direct"
                 if key not in seen:
                     seen.add(key)
-                    results.append({
-                        "class_name": class_name,
-                        "inheritance_type": "direct",
-                        "bases": bases,
-                        "confidence": "high",
-                    })
+                    results.append(
+                        {
+                            "class_name": class_name,
+                            "inheritance_type": "direct",
+                            "bases": bases,
+                            "confidence": "high",
+                        }
+                    )
 
             # Check if any base class inherits from the interface (transitive)
             for base in bases:
@@ -326,13 +342,15 @@ class TypeSearcher:
                     key = f"{class_name}:transitive"
                     if key not in seen:
                         seen.add(key)
-                        results.append({
-                            "class_name": class_name,
-                            "inheritance_type": "transitive",
-                            "bases": bases,
-                            "via": base,
-                            "confidence": "medium",
-                        })
+                        results.append(
+                            {
+                                "class_name": class_name,
+                                "inheritance_type": "transitive",
+                                "bases": bases,
+                                "via": base,
+                                "confidence": "medium",
+                            }
+                        )
 
         # Also search for duck-typing: classes with methods matching interface
         # (This would require knowing interface method signatures — future enhancement)
@@ -347,7 +365,9 @@ def search_by_type(chunks: list[Any], type_pattern: str, top_k: int = 10) -> lis
     return [m.to_dict() for m in matches]
 
 
-def find_implementations(chunks: list[Any], interface_name: str, top_k: int = 10) -> list[dict[str, Any]]:
+def find_implementations(
+    chunks: list[Any], interface_name: str, top_k: int = 10
+) -> list[dict[str, Any]]:
     """Convenience function: find interface implementations."""
     searcher = TypeSearcher(chunks)
     return searcher.find_implementations(interface_name, top_k)

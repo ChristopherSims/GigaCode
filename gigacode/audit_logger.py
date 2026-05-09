@@ -26,19 +26,18 @@ Example:
     ...     details={"lines_written": 50},
     ... )
     >>> # Action is recorded to audit.jsonl file
-    
+
 The audit log is stored as JSONL (JSON Lines) format - each line is one
 complete JSON record, making it easy to parse and analyze.
 """
 
 import json
 import time
-from datetime import datetime, timezone
-from pathlib import Path
-from dataclasses import dataclass, asdict
-from typing import Optional, List, Dict, Any
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from enum import Enum
-
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 __all__ = [
     "AuditStatus",
@@ -61,7 +60,7 @@ class AuditStatus(Enum):
     >     FAILURE: Operation failed (e.g., network error, file not found)
     >     DENIED: Operation was blocked (e.g., no permission)
     """
-    
+
     SUCCESS = "success"
     FAILURE = "failure"
     DENIED = "denied"  # Permission denied
@@ -86,7 +85,7 @@ class AuditLogEntry:
     >     duration_ms: How long the operation took (milliseconds)
     >     error_message: If it failed, why?
     """
-    
+
     timestamp: float
     operation: str
     buffer_id: Optional[str]
@@ -96,17 +95,15 @@ class AuditLogEntry:
     details: Dict[str, Any]
     duration_ms: int = 0
     error_message: Optional[str] = None
-    
+
     def to_dict(self) -> Dict:
         """Convert to dict for JSON serialization."""
         return asdict(self)
-    
+
     @staticmethod
     def from_dict(data: Dict) -> "AuditLogEntry":
         """Create from dict."""
         return AuditLogEntry(**data)
-
-
 
 
 class AuditLogger:
@@ -134,7 +131,7 @@ class AuditLogger:
     >     Default: ~/.gigacode/audit.jsonl
     >     Each line is one complete audit entry as JSON
     """
-    
+
     def __init__(self, log_file: Optional[Path] = None):
         """
         > Initialize the Audit Logger.
@@ -154,11 +151,11 @@ class AuditLogger:
         """
         if log_file is None:
             log_file = Path.home() / ".gigacode" / "audit.jsonl"
-        
+
         self.log_file = Path(log_file)
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
         self.log_file.touch(exist_ok=True)
-    
+
     def log_operation(
         self,
         operation: str,
@@ -171,7 +168,7 @@ class AuditLogger:
         error_message: Optional[str] = None,
     ) -> AuditLogEntry:
         """Log an operation.
-        
+
         Args:
             operation: Operation name
             user_id: User performing operation
@@ -181,13 +178,13 @@ class AuditLogger:
             details: Operation-specific details
             duration_ms: How long operation took
             error_message: Error message if failed
-            
+
         Returns:
             AuditLogEntry that was logged
         """
         if details is None:
             details = {}
-        
+
         entry = AuditLogEntry(
             timestamp=time.time(),
             operation=operation,
@@ -199,13 +196,13 @@ class AuditLogger:
             duration_ms=duration_ms,
             error_message=error_message,
         )
-        
+
         # Append to log file (JSONL format)
         with self.log_file.open("a") as f:
             f.write(json.dumps(entry.to_dict()) + "\n")
-        
+
         return entry
-    
+
     def log_success(
         self,
         operation: str,
@@ -225,7 +222,7 @@ class AuditLogger:
             details=details,
             duration_ms=duration_ms,
         )
-    
+
     def log_failure(
         self,
         operation: str,
@@ -247,7 +244,7 @@ class AuditLogger:
             duration_ms=duration_ms,
             error_message=error_message,
         )
-    
+
     def log_denied(
         self,
         operation: str,
@@ -265,7 +262,7 @@ class AuditLogger:
             buffer_id=buffer_id,
             error_message=reason,
         )
-    
+
     def query_logs(
         self,
         user_id: Optional[str] = None,
@@ -275,31 +272,31 @@ class AuditLogger:
         limit: Optional[int] = None,
     ) -> List[AuditLogEntry]:
         """Query audit logs.
-        
+
         Args:
             user_id: Filter by user
             operation: Filter by operation type
             buffer_id: Filter by buffer
             status: Filter by status
             limit: Max number of results
-            
+
         Returns:
             Matching audit entries
         """
         if not self.log_file.exists():
             return []
-        
+
         results = []
-        
+
         with self.log_file.open("r") as f:
             for line in f:
                 if not line.strip():
                     continue
-                
+
                 try:
                     entry_dict = json.loads(line)
                     entry = AuditLogEntry.from_dict(entry_dict)
-                    
+
                     # Apply filters
                     if user_id and entry.user_id != user_id:
                         continue
@@ -309,27 +306,27 @@ class AuditLogger:
                         continue
                     if status and entry.status != status:
                         continue
-                    
+
                     results.append(entry)
                 except (json.JSONDecodeError, TypeError):
                     continue
-        
+
         # Return most recent first
         results.reverse()
-        
+
         if limit:
             results = results[:limit]
-        
+
         return results
-    
+
     def get_user_activity(self, user_id: str, limit: int = 100) -> List[AuditLogEntry]:
         """Get recent activity for user."""
         return self.query_logs(user_id=user_id, limit=limit)
-    
+
     def get_buffer_history(self, buffer_id: str, limit: int = 100) -> List[AuditLogEntry]:
         """Get operation history for buffer."""
         return self.query_logs(buffer_id=buffer_id, limit=limit)
-    
+
     def query(
         self,
         since: str | None = None,
@@ -399,27 +396,27 @@ class AuditLogger:
         """Get audit log statistics."""
         if not self.log_file.exists():
             return {"total_entries": 0, "log_file": str(self.log_file)}
-        
+
         entries = self.query_logs()
-        
+
         if not entries:
             return {"total_entries": 0, "log_file": str(self.log_file)}
-        
+
         # Count by status
         status_counts = {}
         for entry in entries:
             status_counts[entry.status] = status_counts.get(entry.status, 0) + 1
-        
+
         # Count by operation
         operation_counts = {}
         for entry in entries:
             operation_counts[entry.operation] = operation_counts.get(entry.operation, 0) + 1
-        
+
         # Count by user
         user_counts = {}
         for entry in entries:
             user_counts[entry.user_id] = user_counts.get(entry.user_id, 0) + 1
-        
+
         return {
             "total_entries": len(entries),
             "status_counts": status_counts,

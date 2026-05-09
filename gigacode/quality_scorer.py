@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["QualityScorer", "QualityResult"]
 
+
 @dataclass
 class QualityResult:
     file: str
@@ -22,6 +23,7 @@ class QualityResult:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
 
 class QualityScorer:
     def score_file(self, chunks: list[Any], file_path: str) -> QualityResult | None:
@@ -54,7 +56,9 @@ class QualityScorer:
                     docstring_count += 1
                 else:
                     if ch.name:
-                        suggestions.append(f"Function '{ch.name}' (line {ch.start_line}) missing docstring.")
+                        suggestions.append(
+                            f"Function '{ch.name}' (line {ch.start_line}) missing docstring."
+                        )
 
                 # Check type hints
                 if "->" in ch.text or ": " in "\n".join(lines[:2]):
@@ -84,7 +88,9 @@ class QualityScorer:
         cyclomatic = total_branches if function_count > 0 else 0
         avg_cyclomatic = cyclomatic / max(function_count, 1)
 
-        complexity_rating = "low" if avg_cyclomatic < 4 else "medium" if avg_cyclomatic < 8 else "high"
+        complexity_rating = (
+            "low" if avg_cyclomatic < 4 else "medium" if avg_cyclomatic < 8 else "high"
+        )
         doc_coverage = docstring_count / max(function_count, 1)
         type_coverage = type_hint_count / max(function_count, 1)
 
@@ -131,6 +137,7 @@ class QualityScorer:
             overall=overall,
             suggestions=suggestions[:10],  # Cap suggestions
         )
+
 
 def score_file_quality(chunks: list[Any], file_path: str) -> dict[str, Any] | None:
     scorer = QualityScorer()

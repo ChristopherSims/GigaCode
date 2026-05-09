@@ -51,7 +51,7 @@ COMMENT_SYNTAX: dict[str, dict[str, str]] = {
     "scala": {"block_start": "/**", "block_end": " */", "line": "//"},
     "bash": {"block_start": "", "block_end": "", "line": "#"},
     "lua": {"block_start": "--[[", "block_end": "--]]", "line": "--"},
-    "elixir": {"block_start": "\"\"\"", "block_end": "\"\"\"", "line": "#"},
+    "elixir": {"block_start": '"""', "block_end": '"""', "line": "#"},
     "default": {"block_start": "/*", "block_end": " */", "line": "//"},
 }
 
@@ -102,7 +102,9 @@ TYPE_HINT_PATTERNS: dict[str, dict[str, Any]] = {
     "python": {
         "func_re": re.compile(r"^(\s*)def\s+(\w+)\s*\(([^)]*)\)\s*:\s*$"),
         "param_split": ",",
-        "add_return": lambda line: line.rstrip()[:-1] + " -> Any:" if line.rstrip().endswith(":") else line,
+        "add_return": lambda line: (
+            line.rstrip()[:-1] + " -> Any:" if line.rstrip().endswith(":") else line
+        ),
     },
     "javascript": {
         "func_re": re.compile(r"^(\s*)(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*\{\s*$"),
@@ -113,7 +115,9 @@ TYPE_HINT_PATTERNS: dict[str, dict[str, Any]] = {
         "param_split": ",",
     },
     "java": {
-        "func_re": re.compile(r"^(\s*)(?:public|private|protected|static|\s)+\s+(\w+(?:<[^>]+>)?)\s+(\w+)\s*\(([^)]*)\)\s*\{\s*$"),
+        "func_re": re.compile(
+            r"^(\s*)(?:public|private|protected|static|\s)+\s+(\w+(?:<[^>]+>)?)\s+(\w+)\s*\(([^)]*)\)\s*\{\s*$"
+        ),
         "param_split": ",",
     },
     "cpp": {
@@ -125,7 +129,9 @@ TYPE_HINT_PATTERNS: dict[str, dict[str, Any]] = {
         "param_split": ",",
     },
     "go": {
-        "func_re": re.compile(r"^(\s*)func\s+(?:\([^)]*\)\s+)?(\w+)\s*\(([^)]*)\)\s*(?:\w+)?\s*\{\s*$"),
+        "func_re": re.compile(
+            r"^(\s*)func\s+(?:\([^)]*\)\s+)?(\w+)\s*\(([^)]*)\)\s*(?:\w+)?\s*\{\s*$"
+        ),
         "param_split": ",",
     },
     "ruby": {
@@ -133,19 +139,27 @@ TYPE_HINT_PATTERNS: dict[str, dict[str, Any]] = {
         "param_split": ",",
     },
     "php": {
-        "func_re": re.compile(r"^(\s*)(?:public|private|protected|static|\s)+\s+function\s+(\w+)\s*\(([^)]*)\)\s*\{\s*$"),
+        "func_re": re.compile(
+            r"^(\s*)(?:public|private|protected|static|\s)+\s+function\s+(\w+)\s*\(([^)]*)\)\s*\{\s*$"
+        ),
         "param_split": ",",
     },
     "csharp": {
-        "func_re": re.compile(r"^(\s*)(?:public|private|protected|static|internal|\s)+\s+(\w+(?:<[^>]+>)?)\s+(\w+)\s*\(([^)]*)\)\s*\{\s*$"),
+        "func_re": re.compile(
+            r"^(\s*)(?:public|private|protected|static|internal|\s)+\s+(\w+(?:<[^>]+>)?)\s+(\w+)\s*\(([^)]*)\)\s*\{\s*$"
+        ),
         "param_split": ",",
     },
     "swift": {
-        "func_re": re.compile(r"^(\s*)(?:public|private|internal|fileprivate|open|\s)+\s+func\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*\w+)?\s*\{\s*$"),
+        "func_re": re.compile(
+            r"^(\s*)(?:public|private|internal|fileprivate|open|\s)+\s+func\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*\w+)?\s*\{\s*$"
+        ),
         "param_split": ",",
     },
     "kotlin": {
-        "func_re": re.compile(r"^(\s*)(?:public|private|protected|internal|\s)+\s+fun\s+(\w+)\s*\(([^)]*)\)\s*:\s*\w+\s*\{\s*$"),
+        "func_re": re.compile(
+            r"^(\s*)(?:public|private|protected|internal|\s)+\s+fun\s+(\w+)\s*\(([^)]*)\)\s*:\s*\w+\s*\{\s*$"
+        ),
         "param_split": ",",
     },
 }
@@ -357,7 +371,11 @@ def _infer_documentation(node, language: str) -> str:
                 elif p.type == "typed_parameter" or p.type == "parameter":
                     for sub in p.children:
                         if sub.type == "identifier":
-                            ptext = sub.text.decode("utf8") if isinstance(sub.text, bytes) else str(sub.text)
+                            ptext = (
+                                sub.text.decode("utf8")
+                                if isinstance(sub.text, bytes)
+                                else str(sub.text)
+                            )
                             params.append(ptext)
 
     if params:
@@ -413,27 +431,47 @@ def _fix_bare_exceptions(
             if language == "python":
                 out.append(f"{indent}except Exception:\n")
                 changes.append(
-                    {"rule": "fix_bare_except", "line": i + 1, "description": "Replaced bare except with except Exception."}
+                    {
+                        "rule": "fix_bare_except",
+                        "line": i + 1,
+                        "description": "Replaced bare except with except Exception.",
+                    }
                 )
             elif language in ("javascript", "typescript", "java", "csharp", "kotlin", "php"):
                 out.append(f"{indent}catch (error) {{\n")
                 changes.append(
-                    {"rule": "fix_bare_catch", "line": i + 1, "description": "Replaced bare catch with catch (error)."}
+                    {
+                        "rule": "fix_bare_catch",
+                        "line": i + 1,
+                        "description": "Replaced bare catch with catch (error).",
+                    }
                 )
             elif language == "cpp":
                 out.append(f"{indent}catch (const std::exception& e) {{\n")
                 changes.append(
-                    {"rule": "fix_bare_catch", "line": i + 1, "description": "Replaced catch (...) with catch (const std::exception& e)."}
+                    {
+                        "rule": "fix_bare_catch",
+                        "line": i + 1,
+                        "description": "Replaced catch (...) with catch (const std::exception& e).",
+                    }
                 )
             elif language == "ruby":
                 out.append(f"{indent}rescue StandardError => e\n")
                 changes.append(
-                    {"rule": "fix_bare_rescue", "line": i + 1, "description": "Replaced bare rescue with rescue StandardError."}
+                    {
+                        "rule": "fix_bare_rescue",
+                        "line": i + 1,
+                        "description": "Replaced bare rescue with rescue StandardError.",
+                    }
                 )
             elif language == "swift":
                 out.append(f"{indent}catch let error {{\n")
                 changes.append(
-                    {"rule": "fix_bare_catch", "line": i + 1, "description": "Replaced bare catch with catch let error."}
+                    {
+                        "rule": "fix_bare_catch",
+                        "line": i + 1,
+                        "description": "Replaced bare catch with catch let error.",
+                    }
                 )
             else:
                 out.append(line)
@@ -477,7 +515,11 @@ def _fix_resource_opens(
                 out.append(" " * indent + f"with open({path_expr}, {mode}) as {var}:\n")
                 out.append(" " * (indent + 4) + f"{lhs} = {var}.{rhs.split('.')[1].strip()}\n")
                 changes.append(
-                    {"rule": "fix_resource_open", "line": i + 1, "description": "Replaced open/close with context manager."}
+                    {
+                        "rule": "fix_resource_open",
+                        "line": i + 1,
+                        "description": "Replaced open/close with context manager.",
+                    }
                 )
             i = j + 1
             continue
@@ -496,7 +538,9 @@ def _add_visibility_modifiers(
         return lines, changes
 
     # Simple heuristic: if a class member declaration lacks public/private/protected
-    member_re = re.compile(r"^(\s+)(?!\s*(?:public|private|protected|internal|static|final|abstract|override)\s)(\w+(?:<[^>]+>)?)\s+(\w+)\s*[;=]")
+    member_re = re.compile(
+        r"^(\s+)(?!\s*(?:public|private|protected|internal|static|final|abstract|override)\s)(\w+(?:<[^>]+>)?)\s+(\w+)\s*[;=]"
+    )
     out: list[str] = []
     for i, line in enumerate(lines):
         match = member_re.match(line)
@@ -504,7 +548,11 @@ def _add_visibility_modifiers(
             indent = match.group(1)
             out.append(f"{indent}private {match.group(2)} {match.group(3)}{line[match.end(3):]}")
             changes.append(
-                {"rule": "add_visibility", "line": i + 1, "description": "Added explicit private visibility."}
+                {
+                    "rule": "add_visibility",
+                    "line": i + 1,
+                    "description": "Added explicit private visibility.",
+                }
             )
         else:
             out.append(line)

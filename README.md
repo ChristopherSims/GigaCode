@@ -6,7 +6,7 @@ Code benchmarks show that AI agent coding is 4x faster, however AI token rate wi
 After releasing this tool I have noticed that some AI Agents now include semantic code searches. I will still develop this tool for open-source.
 # GigaCode
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue?style=for-the-badge)](VERSION)
+[![Version](https://img.shields.io/badge/version-0.5.1-blue?style=for-the-badge)](VERSION)
 [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9+-yellow?style=for-the-badge)](pyproject.toml)
 [![Tests](https://img.shields.io/badge/tests-346%20%7C%2099.5%25-brightgreen?style=for-the-badge)](#tests)
@@ -16,7 +16,7 @@ After releasing this tool I have noticed that some AI Agents now include semanti
 
 GigaCode is optimized for AI agent loops—fast chunking, sub-millisecond search on GPU, and surgical index updates on edit. Designed as a local-only tool that runs on your machine with no network exposure.
 
-**Version 0.5.0** — Agent intelligence, token-saving, and unified task loops
+**Version 0.5.1** — Agent intelligence, token-saving, and unified task loops
 
 ## Key Features
 
@@ -183,7 +183,7 @@ write_code     : 0.59 ms (deferred rebuild)
 
 ## Architecture
 
-### Modular Design (v0.5.0)
+### Modular Design (v0.5.1)
 
 ```
 Codebase
@@ -294,7 +294,8 @@ schemas = CodeEmbeddingTool.get_tool_schemas()
 | `pack_context` | Token-budgeted packing of search results |
 | `pack_context_smart` | Smart packing with dedup, boilerplate stripping, test exclusion |
 | `pack_context_hierarchical` | 3-level hierarchical context (file → chunk → lines) |
-| `related_code` | Find callers, tests, and interfaces for a symbol |
+| `get_context` | Get cross-file context (callers + tests + interfaces + imports + semantic neighbors) for a symbol |
+| `related_code` | Alias for `get_context` — find callers, tests, and interfaces for a symbol |
 | `refactor_rename` | Rename symbol across codebase |
 | `add_import` | Add import statement to file |
 | `remove_import` | Remove import statement from file |
@@ -404,7 +405,7 @@ pytest tests/ -v
 - Batch embedding optimization
 - Audit logging and access control
 
-**Current Status:** 346+ tests passing, 99.5% pass rate (v0.5.0)
+**Current Status:** 346+ tests passing, 99.5% pass rate (v0.5.1)
 
 ## Project Structure
 

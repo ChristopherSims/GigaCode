@@ -11,17 +11,18 @@ Key features:
 - State snapshots and restoration
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set
-from enum import Enum
-from datetime import datetime
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Optional
 
-from gigacode.metrics import timer, log_metric
+from gigacode.metrics import log_metric
 
 
 class OperationType(Enum):
     """Types of undoable operations."""
+
     WRITE_CODE = "write_code"
     DELETE_CODE = "delete_code"
     RENAME_FILE = "rename_file"
@@ -32,6 +33,7 @@ class OperationType(Enum):
 @dataclass
 class UndoableOperation:
     """Single undoable operation."""
+
     id: str
     operation_type: OperationType
     timestamp: datetime
@@ -40,7 +42,7 @@ class UndoableOperation:
     new_content: Optional[str]
     description: str
     reversible: bool = True
-    
+
     def reverse(self) -> "UndoableOperation":
         """Create reverse operation."""
         return UndoableOperation(
@@ -58,6 +60,7 @@ class UndoableOperation:
 @dataclass
 class BranchSnapshot:
     """Snapshot of buffer state at branch point."""
+
     branch_name: str
     parent_branch: str
     created_at: datetime
@@ -68,56 +71,56 @@ class BranchSnapshot:
 
 class UndoRedoStack:
     """Manages undo/redo operations."""
-    
+
     def __init__(self, max_stack_size: int = 100):
         """
         Initialize stack.
-        
+
         Args:
             max_stack_size: Max operations to keep in history
         """
         self.undo_stack: List[UndoableOperation] = []
         self.redo_stack: List[UndoableOperation] = []
         self.max_stack_size = max_stack_size
-    
+
     def push(self, operation: UndoableOperation) -> None:
         """Push operation onto undo stack."""
         self.undo_stack.append(operation)
         self.redo_stack.clear()  # Clear redo when new action taken
-        
+
         # Trim old operations if exceeding size
         if len(self.undo_stack) > self.max_stack_size:
             self.undo_stack.pop(0)
-    
+
     def undo(self) -> Optional[UndoableOperation]:
         """Pop from undo stack and push reverse to redo stack."""
         if not self.undo_stack:
             return None
-        
+
         operation = self.undo_stack.pop()
         reverse_op = operation.reverse()
         self.redo_stack.append(reverse_op)
-        
+
         return operation
-    
+
     def redo(self) -> Optional[UndoableOperation]:
         """Pop from redo stack and push to undo stack."""
         if not self.redo_stack:
             return None
-        
+
         operation = self.redo_stack.pop()
         self.undo_stack.append(operation)
-        
+
         return operation
-    
+
     def peek_undo(self) -> Optional[UndoableOperation]:
         """Peek at next undo operation without removing."""
         return self.undo_stack[-1] if self.undo_stack else None
-    
+
     def peek_redo(self) -> Optional[UndoableOperation]:
         """Peek at next redo operation without removing."""
         return self.redo_stack[-1] if self.redo_stack else None
-    
+
     def get_history(self) -> List[UndoableOperation]:
         """Get full undo history."""
         return list(self.undo_stack)
@@ -125,18 +128,18 @@ class UndoRedoStack:
 
 class BranchManager:
     """Manages buffer branches for experimental work."""
-    
+
     def __init__(self, default_branch: str = "main"):
         """
         Initialize branch manager.
-        
+
         Args:
             default_branch: Default branch name
         """
         self.branches: Dict[str, BranchSnapshot] = {}
         self.current_branch = default_branch
         self.undo_stacks: Dict[str, UndoRedoStack] = {default_branch: UndoRedoStack()}
-    
+
     def create_branch(
         self,
         branch_name: str,
@@ -144,74 +147,79 @@ class BranchManager:
     ) -> BranchSnapshot:
         """
         Create new branch from current state.
-        
+
         Args:
             branch_name: Name for new branch
             description: Optional description
-            
+
         Returns:
             BranchSnapshot for new branch
         """
         if branch_name in self.branches:
             raise ValueError(f"Branch '{branch_name}' already exists")
-        
+
         snapshot = BranchSnapshot(
             branch_name=branch_name,
             parent_branch=self.current_branch,
             created_at=datetime.now(),
             description=description,
         )
-        
+
         self.branches[branch_name] = snapshot
         self.undo_stacks[branch_name] = UndoRedoStack()
-        
-        log_metric("branch_manager.create_branch", {
-            "branch": branch_name,
-            "parent": self.current_branch,
-        })
-        
+
+        log_metric(
+            "branch_manager.create_branch",
+            {
+                "branch": branch_name,
+                "parent": self.current_branch,
+            },
+        )
+
         return snapshot
-    
+
     def checkout_branch(self, branch_name: str) -> None:
         """
         Switch to a different branch.
-        
+
         Args:
             branch_name: Branch to switch to
         """
         if branch_name not in self.branches and branch_name != "main":
             raise ValueError(f"Branch '{branch_name}' does not exist")
-        
+
         self.current_branch = branch_name
         log_metric("branch_manager.checkout", {"branch": branch_name})
-    
+
     def delete_branch(self, branch_name: str) -> None:
         """Delete a branch."""
         if branch_name == "main":
             raise ValueError("Cannot delete main branch")
-        
+
         if branch_name not in self.branches:
             raise ValueError(f"Branch '{branch_name}' does not exist")
-        
+
         del self.branches[branch_name]
         del self.undo_stacks[branch_name]
-    
+
     def list_branches(self) -> List[Dict]:
         """List all branches."""
         branches_list = []
-        
+
         for name, snapshot in self.branches.items():
-            branches_list.append({
-                "name": name,
-                "parent": snapshot.parent_branch,
-                "created": snapshot.created_at.isoformat(),
-                "description": snapshot.description,
-                "operations": len(snapshot.operations),
-                "current": name == self.current_branch,
-            })
-        
+            branches_list.append(
+                {
+                    "name": name,
+                    "parent": snapshot.parent_branch,
+                    "created": snapshot.created_at.isoformat(),
+                    "description": snapshot.description,
+                    "operations": len(snapshot.operations),
+                    "current": name == self.current_branch,
+                }
+            )
+
         return branches_list
-    
+
     def get_undo_stack(self, branch: Optional[str] = None) -> UndoRedoStack:
         """Get undo/redo stack for branch."""
         target_branch = branch or self.current_branch
@@ -220,18 +228,18 @@ class BranchManager:
 
 class UndoableBufferOperations:
     """Wraps buffer operations with undo/redo support."""
-    
+
     def __init__(self, buffer_manager, undo_stack: UndoRedoStack):
         """
         Initialize.
-        
+
         Args:
             buffer_manager: BufferManager instance
             undo_stack: UndoRedoStack for tracking
         """
         self.buffer_manager = buffer_manager
         self.undo_stack = undo_stack
-    
+
     def write_code(
         self,
         buffer_id: str,
@@ -251,14 +259,14 @@ class UndoableBufferOperations:
         """
         # Read original content - adapt to actual API
         original = ""
-        if hasattr(self.buffer_manager, 'read_code'):
+        if hasattr(self.buffer_manager, "read_code"):
             result = self.buffer_manager.read_code(buffer_id, file=file)
             if isinstance(result, dict) and result.get("status") == "ok":
                 lines = result.get("lines", [])
                 original = "\n".join(lines) if isinstance(lines, list) else str(lines)
             else:
                 original = str(result)
-        elif hasattr(self.buffer_manager, 'read_file'):
+        elif hasattr(self.buffer_manager, "read_file"):
             original = self.buffer_manager.read_file(buffer_id, file)
         else:
             # Fallback: try to get from snapshot
@@ -266,10 +274,14 @@ class UndoableBufferOperations:
 
         # Perform write - adapt to actual write_code signature (start_line, new_lines)
         new_lines = new_content.splitlines() if isinstance(new_content, str) else list(new_content)
-        if hasattr(self.buffer_manager, 'write_code'):
+        if hasattr(self.buffer_manager, "write_code"):
             # Actual API: write_code(buffer_id, file, start_line, new_lines, end_line=None)
             result = self.buffer_manager.write_code(
-                buffer_id, file, 1, new_lines, end_line=None,
+                buffer_id,
+                file,
+                1,
+                new_lines,
+                end_line=None,
             )
         else:
             result = {"status": "error", "message": "write_code not available"}
@@ -295,18 +307,18 @@ class UndoableBufferOperations:
         """Delete file with undo support."""
         # Read content before deletion - adapt to actual API
         original = ""
-        if hasattr(self.buffer_manager, 'read_code'):
+        if hasattr(self.buffer_manager, "read_code"):
             result = self.buffer_manager.read_code(buffer_id, file=file)
             if isinstance(result, dict) and result.get("status") == "ok":
                 lines = result.get("lines", [])
                 original = "\n".join(lines) if isinstance(lines, list) else str(lines)
             else:
                 original = str(result)
-        elif hasattr(self.buffer_manager, 'read_file'):
+        elif hasattr(self.buffer_manager, "read_file"):
             original = self.buffer_manager.read_file(buffer_id, file)
 
         # Perform delete
-        if hasattr(self.buffer_manager, 'delete_file'):
+        if hasattr(self.buffer_manager, "delete_file"):
             self.buffer_manager.delete_file(buffer_id, file)
 
         # Create undoable operation
@@ -327,37 +339,37 @@ class UndoableBufferOperations:
 
 class BranchedBufferManager:
     """Buffer manager with branching support."""
-    
+
     def __init__(self, buffer_manager):
         """Initialize manager."""
         self.buffer_manager = buffer_manager
         self.branch_managers: Dict[str, BranchManager] = {}
-    
+
     def _get_branch_manager(self, buffer_id: str) -> BranchManager:
         """Get or create branch manager for buffer."""
         if buffer_id not in self.branch_managers:
             self.branch_managers[buffer_id] = BranchManager()
         return self.branch_managers[buffer_id]
-    
+
     def undo(self, buffer_id: str, steps: int = 1) -> None:
         """
         Undo last N operations.
-        
+
         Args:
             buffer_id: Target buffer
             steps: Number of steps to undo
         """
         branch_mgr = self._get_branch_manager(buffer_id)
         stack = branch_mgr.get_undo_stack()
-        
+
         for _ in range(steps):
             operation = stack.undo()
             if not operation:
                 break
-            
+
             # Apply reverse operation
             if operation.operation_type == OperationType.WRITE_CODE:
-                if hasattr(self.buffer_manager, 'write_code'):
+                if hasattr(self.buffer_manager, "write_code"):
                     original_lines = (
                         operation.original_content.splitlines()
                         if isinstance(operation.original_content, str)
@@ -370,22 +382,25 @@ class BranchedBufferManager:
                         original_lines,
                         end_line=None,
                     )
-        
-        log_metric("branched_buffer.undo", {
-            "buffer": buffer_id,
-            "steps": steps,
-        })
-    
+
+        log_metric(
+            "branched_buffer.undo",
+            {
+                "buffer": buffer_id,
+                "steps": steps,
+            },
+        )
+
     def redo(self, buffer_id: str, steps: int = 1) -> None:
         """Redo last N undone operations."""
         branch_mgr = self._get_branch_manager(buffer_id)
         stack = branch_mgr.get_undo_stack()
-        
+
         for _ in range(steps):
             operation = stack.redo()
             if not operation:
                 break
-    
+
     def branch(
         self,
         buffer_id: str,
@@ -394,44 +409,44 @@ class BranchedBufferManager:
     ) -> Dict:
         """
         Create new branch.
-        
+
         Args:
             buffer_id: Target buffer
             branch_name: Name for new branch
             description: Optional description
-            
+
         Returns:
             Branch info
         """
         branch_mgr = self._get_branch_manager(buffer_id)
         snapshot = branch_mgr.create_branch(branch_name, description)
-        
+
         return {
             "branch": branch_name,
             "parent": snapshot.parent_branch,
             "created": snapshot.created_at.isoformat(),
         }
-    
+
     def checkout(self, buffer_id: str, branch_name: str) -> None:
         """Switch to branch."""
         branch_mgr = self._get_branch_manager(buffer_id)
         branch_mgr.checkout_branch(branch_name)
-    
+
     def list_branches(self, buffer_id: str) -> List[Dict]:
         """List all branches for buffer."""
         branch_mgr = self._get_branch_manager(buffer_id)
         return branch_mgr.list_branches()
-    
+
     def delete_branch(self, buffer_id: str, branch_name: str) -> None:
         """Delete a branch."""
         branch_mgr = self._get_branch_manager(buffer_id)
         branch_mgr.delete_branch(branch_name)
-    
+
     def get_history(self, buffer_id: str) -> List[Dict]:
         """Get edit history for current branch."""
         branch_mgr = self._get_branch_manager(buffer_id)
         stack = branch_mgr.get_undo_stack()
-        
+
         return [
             {
                 "id": op.id,
@@ -446,19 +461,19 @@ class BranchedBufferManager:
 
 class UndoRedoService:
     """Public interface for undo/redo with branching."""
-    
+
     def __init__(self, branched_buffer_manager: BranchedBufferManager):
         """Initialize service."""
         self.branched_buffer_manager = branched_buffer_manager
-    
+
     def undo(self, buffer_id: str, steps: int = 1) -> None:
         """Undo operations."""
         self.branched_buffer_manager.undo(buffer_id, steps)
-    
+
     def redo(self, buffer_id: str, steps: int = 1) -> None:
         """Redo operations."""
         self.branched_buffer_manager.redo(buffer_id, steps)
-    
+
     def branch(
         self,
         buffer_id: str,
@@ -467,19 +482,19 @@ class UndoRedoService:
     ) -> Dict:
         """Create branch."""
         return self.branched_buffer_manager.branch(buffer_id, name, description)
-    
+
     def checkout(self, buffer_id: str, branch: str) -> None:
         """Checkout branch."""
         self.branched_buffer_manager.checkout(buffer_id, branch)
-    
+
     def list_branches(self, buffer_id: str) -> List[Dict]:
         """List branches."""
         return self.branched_buffer_manager.list_branches(buffer_id)
-    
+
     def delete_branch(self, buffer_id: str, branch: str) -> None:
         """Delete branch."""
         self.branched_buffer_manager.delete_branch(buffer_id, branch)
-    
+
     def history(self, buffer_id: str) -> List[Dict]:
         """Get edit history."""
         return self.branched_buffer_manager.get_history(buffer_id)

@@ -95,9 +95,7 @@ class BufferAliasRegistry:
         """List all aliases."""
         return {
             "status": "ok",
-            "aliases": [
-                {"alias": k, "buffer_id": v} for k, v in self._aliases.items()
-            ],
+            "aliases": [{"alias": k, "buffer_id": v} for k, v in self._aliases.items()],
         }
 
 

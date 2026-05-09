@@ -30,7 +30,6 @@ class Embedder:
     """Lightweight wrapper around sentence-transformers with code defaults."""
 
     def __init__(self, model_name: str | None = None, device: str | None = None) -> None:
-        from sentence_transformers import SentenceTransformer
 
         self.device = device
         self.model_name = model_name
@@ -52,10 +51,13 @@ class Embedder:
             if not loaded:
                 self._load(_FALLBACK_MODEL)
 
-        logger.info("Embedder ready: %s (%s dim) on %s", self.model_name, self._embedding_dim, self.device)
+        logger.info(
+            "Embedder ready: %s (%s dim) on %s", self.model_name, self._embedding_dim, self.device
+        )
 
     def _load(self, name: str) -> None:
         from sentence_transformers import SentenceTransformer
+
         self._model = SentenceTransformer(name, device=self.device)
         self.model_name = name
         self._embedding_dim = int(self._model.get_embedding_dimension())

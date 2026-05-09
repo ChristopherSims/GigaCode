@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pytest
 
 from gigacode.gigacode_tool import CodeEmbeddingTool
 
@@ -116,7 +116,9 @@ def test_reload_codebase_with_changed_hash(tmp_path: Path) -> None:
 
     reload_result = tool.reload_codebase(buf_id)
     assert reload_result["status"] == "ok"
-    assert reload_result.get("message", "").lower() != "hashes match; reloaded without re-embedding."
+    assert (
+        reload_result.get("message", "").lower() != "hashes match; reloaded without re-embedding."
+    )
 
     tool.close()
 
@@ -428,7 +430,7 @@ def test_commit_dry_run(tmp_path: Path) -> None:
 def test_commit_with_transaction_logging(tmp_path: Path) -> None:
     """Phase 4: Commit operations are wrapped in transactions for crash recovery."""
     import json
-    
+
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "module.py").write_text(
@@ -457,7 +459,7 @@ def test_commit_with_transaction_logging(tmp_path: Path) -> None:
     assert wal_path.exists(), "Write-ahead log should exist after commit"
 
     # Verify WAL contains transaction entries
-    wal_lines = wal_path.read_text(encoding="utf-8").strip().split('\n')
+    wal_lines = wal_path.read_text(encoding="utf-8").strip().split("\n")
     assert len(wal_lines) > 0, "WAL should contain entries"
 
     # At least one entry should reference the transaction_id
@@ -471,7 +473,7 @@ def test_commit_with_transaction_logging(tmp_path: Path) -> None:
 def test_commit_transaction_contains_file_info(tmp_path: Path) -> None:
     """Phase 4: Transaction logs include file information for recovery."""
     import json
-    
+
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "app.py").write_text(
@@ -496,21 +498,24 @@ def test_commit_transaction_contains_file_info(tmp_path: Path) -> None:
 
     # Find the transaction log entry
     wal_path = work_dir / "wal.jsonl"
-    wal_entries = [json.loads(line) for line in wal_path.read_text(encoding="utf-8").strip().split('\n') if line.strip()]
-    
+    wal_entries = [
+        json.loads(line)
+        for line in wal_path.read_text(encoding="utf-8").strip().split("\n")
+        if line.strip()
+    ]
+
     # Find the entry with the transaction_id
     transaction_entry = None
     for entry in wal_entries:
         if entry.get("transaction_id") == transaction_id:
             transaction_entry = entry
             break
-    
+
     assert transaction_entry is not None, f"Should find transaction {transaction_id} in WAL"
     assert transaction_entry.get("operation") == "commit"
     assert transaction_entry.get("buffer_id") == buf_id
 
     tool.close()
-
 
 
 def test_commit_with_state_manager_recovery(tmp_path: Path) -> None:
@@ -533,7 +538,7 @@ def test_commit_with_state_manager_recovery(tmp_path: Path) -> None:
     commit1 = tool.commit(buf_id, dry_run=False)
     assert commit1["status"] == "ok"
     assert commit1["transaction_id"] is not None
-    
+
     # Verify file was written
     disk_content = (code_dir / "util.py").read_text()
     assert "updated" in disk_content
@@ -542,7 +547,7 @@ def test_commit_with_state_manager_recovery(tmp_path: Path) -> None:
     # until the status-update entry is written. When we restart tool2, it will see the pending
     # transaction and mark it as rolled_back (since the commit was already completed on disk).
     # This is the expected behavior - the WAL ensures atomicity even if the status update is lost.
-    
+
     # Create a new tool instance (simulating restart)
     tool2 = CodeEmbeddingTool(work_dir=work_dir, device="cpu", use_gpu=False)
 
@@ -551,7 +556,7 @@ def test_commit_with_state_manager_recovery(tmp_path: Path) -> None:
     disk_content = (code_dir / "util.py").read_text()
     assert "def updated():" in disk_content
     assert "return 42" in disk_content
-    
+
     # The StateManager should have recovered and the tool2 should be functional
     buffers2 = tool2.list_buffers()
     assert "buffers" in buffers2
@@ -564,6 +569,7 @@ def test_commit_with_state_manager_recovery(tmp_path: Path) -> None:
 # ============================================================================
 # Phase 5: Integration Testing and Validation
 # ============================================================================
+
 
 def test_multi_file_concurrent_edits(tmp_path: Path) -> None:
     """Phase 5: Edit multiple files in one buffer and verify writes succeed."""
@@ -583,7 +589,7 @@ def test_multi_file_concurrent_edits(tmp_path: Path) -> None:
     write1 = tool.write_code(buf_id, "file1.py", 1, ["x = 100\n"], end_line=1)
     write2 = tool.write_code(buf_id, "file2.py", 1, ["y = 200\n"], end_line=1)
     write3 = tool.write_code(buf_id, "file3.py", 1, ["z = 300\n"], end_line=1)
-    
+
     # Verify all writes succeeded (no conflicts)
     assert write1["status"] == "ok"
     assert write2["status"] == "ok"
@@ -593,11 +599,11 @@ def test_multi_file_concurrent_edits(tmp_path: Path) -> None:
     read1 = tool.read_code(buf_id, "file1.py")
     assert read1["status"] == "ok"
     assert len(read1["lines"]) > 0
-    
+
     read2 = tool.read_code(buf_id, "file2.py")
     assert read2["status"] == "ok"
     assert len(read2["lines"]) > 0
-    
+
     read3 = tool.read_code(buf_id, "file3.py")
     assert read3["status"] == "ok"
     assert len(read3["lines"]) > 0
@@ -631,9 +637,9 @@ def test_complex_conflict_3way_merge(tmp_path: Path) -> None:
     # Should detect conflict: snapshot != disk (line3, line4) AND snapshot != buffer (line2)
     # This results in a conflict since we can't auto-merge
     assert commit_result["status"] == "conflict" or commit_result["status"] == "ok"
-    # If resolved via 3-way merge with buffer-wins, status will be "ok" 
+    # If resolved via 3-way merge with buffer-wins, status will be "ok"
     # If merge detected conflict, status will be "conflict"
-    
+
     # Either way, file on disk should be one of: unchanged, or merged result
     disk_current = (code_dir / "merge_test.py").read_text()
     # File should either be unchanged or have the merged content
@@ -683,7 +689,7 @@ def test_large_file_edit_and_commit(tmp_path: Path) -> None:
     """Phase 5: Test with larger files to verify performance and correctness."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
-    
+
     # Create a large file with 100 lines
     large_code = "\n".join(f"def function_{i}(x):\n    return x + {i}" for i in range(100))
     (code_dir / "large.py").write_text(large_code + "\n", encoding="utf-8")
@@ -794,4 +800,3 @@ def test_edge_case_empty_file_edit(tmp_path: Path) -> None:
     assert "100" in single_content
 
     tool.close()
-

@@ -5,11 +5,10 @@ semantically similar queries into intent clusters. Each cluster stores
 cached results and tracks hit statistics.
 """
 
-import hashlib
 import logging
 import time
-from typing import Dict, List, Optional, Tuple, Any
 from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -135,15 +134,15 @@ class IntentCache:
             best_cluster["hits"] += 1
             best_cluster["queries"].append(query)
             best_cluster["last_accessed"] = time.time()
-            best_cluster["similarity_sum"] = best_cluster.get("similarity_sum", 0.0) + best_similarity
+            best_cluster["similarity_sum"] = (
+                best_cluster.get("similarity_sum", 0.0) + best_similarity
+            )
             best_cluster["similarity_count"] = best_cluster.get("similarity_count", 0) + 1
 
             self._hits += 1
             self._total_similarity += best_similarity
             self._similarity_count += 1
-            logger.debug(
-                f"IntentCache HIT (similarity={best_similarity:.3f}): {query[:50]}"
-            )
+            logger.debug(f"IntentCache HIT (similarity={best_similarity:.3f}): {query[:50]}")
             # Move cluster to end (LRU)
             cid = best_cluster["cluster_id"]
             self._clusters.move_to_end(cid)
@@ -199,9 +198,7 @@ class IntentCache:
 
             cid = best_cluster["cluster_id"]
             self._clusters.move_to_end(cid)
-            logger.debug(
-                f"IntentCache updated cluster {cid} (similarity={best_similarity:.3f})"
-            )
+            logger.debug(f"IntentCache updated cluster {cid} (similarity={best_similarity:.3f})")
             return
 
         # Create new cluster
@@ -262,11 +259,13 @@ class IntentCache:
 
         results: List[Dict[str, Any]] = []
         for rank, (similarity, cluster) in enumerate(scored[:top_k], start=1):
-            results.append({
-                "cluster": cluster,
-                "similarity": similarity,
-                "rank": rank,
-            })
+            results.append(
+                {
+                    "cluster": cluster,
+                    "similarity": similarity,
+                    "rank": rank,
+                }
+            )
 
         return results
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -25,14 +25,16 @@ __all__ = [
 
 class MetricType(str, Enum):
     """Types of metrics we track."""
-    COUNTER = "counter"          # Monotonically increasing count
-    GAUGE = "gauge"              # Point-in-time value
-    HISTOGRAM = "histogram"       # Distribution of values (latencies, sizes)
+
+    COUNTER = "counter"  # Monotonically increasing count
+    GAUGE = "gauge"  # Point-in-time value
+    HISTOGRAM = "histogram"  # Distribution of values (latencies, sizes)
 
 
 @dataclass
 class HistogramStats:
     """Statistics for a histogram metric."""
+
     count: int = 0
     sum_: float = 0.0
     min_: float = float("inf")

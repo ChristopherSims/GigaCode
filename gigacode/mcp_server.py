@@ -36,6 +36,7 @@ try:
         TextContent,
         Tool,
     )
+
     _HAS_MCP = True
 except ImportError as _mcp_err:
     _HAS_MCP = False
@@ -70,12 +71,19 @@ async def _run_stdio(tool: Any) -> None:
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         method = getattr(tool, name, None)
         if method is None:
-            return [TextContent(type="text", text=json.dumps({"status": "error", "message": f"Unknown tool: {name}"}))]
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps({"status": "error", "message": f"Unknown tool: {name}"}),
+                )
+            ]
         try:
             result = method(**arguments)
         except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
             logger.exception("MCP tool %s failed", name)
-            return [TextContent(type="text", text=json.dumps({"status": "error", "message": str(exc)}))]
+            return [
+                TextContent(type="text", text=json.dumps({"status": "error", "message": str(exc)}))
+            ]
         return [TextContent(type="text", text=_result_to_text(result))]
 
     async with stdio_server() as (read_stream, write_stream):
@@ -98,7 +106,7 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
     try:
         from mcp.server.sse import SseServerTransport
     except ImportError as exc:
-        raise SystemExit(f"MCP SSE transport not available: {exc}")
+        raise SystemExit(f"MCP SSE transport not available: {exc}") from exc
 
     from starlette.applications import Starlette
     from starlette.routing import Mount, Route
@@ -107,7 +115,10 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
     sse = SseServerTransport("/messages/")
 
     async def handle_sse(request):
-        async with sse.connect_session(request.scope, request.receive, request._send) as (read_stream, write_stream):
+        async with sse.connect_session(request.scope, request.receive, request._send) as (
+            read_stream,
+            write_stream,
+        ):
             await server.run(
                 read_stream,
                 write_stream,
@@ -139,12 +150,19 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
         method = getattr(tool, name, None)
         if method is None:
-            return [TextContent(type="text", text=json.dumps({"status": "error", "message": f"Unknown tool: {name}"}))]
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps({"status": "error", "message": f"Unknown tool: {name}"}),
+                )
+            ]
         try:
             result = method(**arguments)
         except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
             logger.exception("MCP tool %s failed", name)
-            return [TextContent(type="text", text=json.dumps({"status": "error", "message": str(exc)}))]
+            return [
+                TextContent(type="text", text=json.dumps({"status": "error", "message": str(exc)}))
+            ]
         return [TextContent(type="text", text=_result_to_text(result))]
 
     app = Starlette(
@@ -156,6 +174,7 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
     )
 
     import uvicorn
+
     logger.info("GigaCode MCP SSE server on http://%s:%d/sse", host, port)
     uvicorn.run(app, host=host, port=port)
 
@@ -163,8 +182,7 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
 def main(argv: list[str] | None = None) -> int:
     if not _HAS_MCP:
         print(
-            "ERROR: MCP SDK not installed. Install with:\n"
-            "  pip install mcp>=1.1.0\n",
+            "ERROR: MCP SDK not installed. Install with:\n" "  pip install mcp>=1.1.0\n",
             file=sys.stderr,
         )
         return 1
@@ -173,7 +191,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--work-dir", "-w", default="./buffers", help="Buffer working directory")
     parser.add_argument("--device", "-d", default=None, help="torch device (cpu / cuda / auto)")
     parser.add_argument("--no-gpu", action="store_true", help="Disable GPU FAISS mirror")
-    parser.add_argument("--transport", choices=["stdio", "sse"], default="stdio", help="Transport type")
+    parser.add_argument(
+        "--transport", choices=["stdio", "sse"], default="stdio", help="Transport type"
+    )
     parser.add_argument("--host", default="127.0.0.1", help="Bind address for SSE transport")
     parser.add_argument("--port", type=int, default=8766, help="Port for SSE transport")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")

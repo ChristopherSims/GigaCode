@@ -5,29 +5,30 @@ Provides semantic search, hybrid search, literal search, clustering, and dedupli
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 import time
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
 
 try:
     from sklearn.cluster import KMeans
+
     HAS_SKLEARN = True
 except ImportError:
     HAS_SKLEARN = False
 
 from gigacode.embedder import Embedder
 from gigacode.index_manager import IndexManager
+from gigacode.intent_cache import IntentCache
 from gigacode.json_logger import StructuredJsonLogger
 from gigacode.semantic_cache import SemanticQueryCache
 
 try:
     from gigacode.hybrid_search import reciprocal_rank_fusion
+
     HAS_RRF = True
 except ImportError:
     HAS_RRF = False
@@ -105,8 +106,10 @@ class DuplicateResult:
             "buffer_id": self.buffer_id,
             "threshold": self.threshold,
             "duplicates": [
-                (asdict(d[0]) if hasattr(d[0], "__dataclass_fields__") else d[0],
-                 asdict(d[1]) if hasattr(d[1], "__dataclass_fields__") else d[1])
+                (
+                    asdict(d[0]) if hasattr(d[0], "__dataclass_fields__") else d[0],
+                    asdict(d[1]) if hasattr(d[1], "__dataclass_fields__") else d[1],
+                )
                 for d in self.duplicates
             ],
             "elapsed_ms": self.elapsed_ms,
@@ -192,7 +195,7 @@ class SearchService:
                 cached["elapsed_ms"] = elapsed
                 self._record_metrics(operation, buffer_id, elapsed, "ok")
                 return cached
-            
+
             # Check semantic query cache for paraphrased queries
             semantic_cached = self._semantic_query_cache.get(
                 normalized_query, compute_embedding=True
@@ -200,7 +203,10 @@ class SearchService:
             if semantic_cached is not None:
                 cached_results = semantic_cached[0]
                 # Filter results by top_k and buffer_id
-                if isinstance(cached_results, dict) and cached_results.get("buffer_id") == buffer_id:
+                if (
+                    isinstance(cached_results, dict)
+                    and cached_results.get("buffer_id") == buffer_id
+                ):
                     cached_results["cache_hit"] = True
                     elapsed = (time.perf_counter() - start_time) * 1000
                     cached_results["elapsed_ms"] = elapsed
@@ -255,13 +261,11 @@ class SearchService:
                 }
 
             # Search in index
-            scores, indices = index.search(
-                np.array([query_embedding], dtype=np.float32), k=top_k
-            )
+            scores, indices = index.search(np.array([query_embedding], dtype=np.float32), k=top_k)
 
             # Build results with multi-level disclosure
             matches = []
-            for score, idx in zip(scores[0], indices[0]):
+            for score, idx in zip(scores[0], indices[0], strict=False):
                 if idx >= 0 and idx < len(chunks):
                     chunk = chunks[idx]
                     # Compute signature (first line + docstring)
@@ -293,7 +297,7 @@ class SearchService:
             self._index_manager._record_search_query(
                 buffer_id, normalized_query, response.to_dict(), top_k, "semantic"
             )
-            
+
             # Also cache in semantic cache for paraphrase detection
             try:
                 self._semantic_query_cache.put(normalized_query, response.to_dict())
@@ -399,7 +403,9 @@ class SearchService:
 
             # Manual combination (RRF approach)
             semantic_dict = {}
-            for idx, score in zip(semantic_indices[0][:top_k], semantic_scores[0][:top_k]):
+            for idx, score in zip(
+                semantic_indices[0][:top_k], semantic_scores[0][:top_k], strict=False
+            ):
                 if idx >= 0 and idx < len(chunks):
                     chunk = chunks[idx]
                     key = (chunk.file, chunk.start_line)
@@ -588,6 +594,7 @@ class SearchService:
             except re.error:
                 use_regex = False
                 from fnmatch import fnmatch
+
                 regex = None
 
             # Find matching files
@@ -607,7 +614,7 @@ class SearchService:
                 "status": "ok",
                 "buffer_id": buffer_id,
                 "pattern": pattern,
-                "files": sorted(list(matched_files)),
+                "files": sorted(matched_files),
                 "count": len(matched_files),
                 "elapsed_ms": elapsed,
             }
@@ -758,9 +765,7 @@ class SearchService:
 
             # Get embeddings from index
             try:
-                embeddings = index.index.reconstruct_batch(
-                    np.arange(len(chunks))
-                )
+                embeddings = index.index.reconstruct_batch(np.arange(len(chunks)))
             except (RuntimeError, ValueError):
                 # Fallback: use index vectors directly
                 embeddings = index.index.reconstruct_n()
@@ -875,8 +880,7 @@ class SearchService:
 
                         # Cosine similarity
                         sim = np.dot(embedding_i, embedding_j) / (
-                            np.linalg.norm(embedding_i)
-                            * np.linalg.norm(embedding_j)
+                            np.linalg.norm(embedding_i) * np.linalg.norm(embedding_j)
                         )
                         if sim >= threshold:
                             duplicates.append(
@@ -973,17 +977,13 @@ class SearchService:
             if query_embedding is None:
                 return {"status": "error", "error": "Failed to embed query"}
 
-            scores, indices = index.search(
-                np.array([query_embedding], dtype=np.float32), k=top_k
-            )
+            scores, indices = index.search(np.array([query_embedding], dtype=np.float32), k=top_k)
 
             matches = []
-            for score, idx in zip(scores[0], indices[0]):
+            for score, idx in zip(scores[0], indices[0], strict=False):
                 if idx >= 0 and idx < len(chunks):
                     chunk = chunks[idx]
-                    match = self._build_disclosed_match(
-                        chunk, float(score), idx, disclosure
-                    )
+                    match = self._build_disclosed_match(chunk, float(score), idx, disclosure)
                     matches.append(match)
 
             elapsed = (time.perf_counter() - start_time) * 1000
@@ -1093,7 +1093,7 @@ class SearchService:
             if start >= 0:
                 end = text.find(quote, start + 3)
                 if end > start:
-                    return text[start + 3:end].strip()
+                    return text[start + 3 : end].strip()
         return None
 
     # =========================================================================
@@ -1111,6 +1111,7 @@ class SearchService:
             return bool(regex.search(file_path))
         except re.error:
             from fnmatch import fnmatch
+
             return fnmatch(file_path, pattern)
 
     def _record_metrics(

@@ -5,18 +5,18 @@ Tests semantic search, hybrid search, literal search, clustering, and deduplicat
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
 from gigacode.chunker import CodeChunk
 from gigacode.search_service import (
-    SearchService,
-    SearchMatch,
-    SearchResponse,
     ClusterResult,
     DuplicateResult,
+    SearchMatch,
+    SearchResponse,
+    SearchService,
 )
 
 
@@ -101,13 +101,13 @@ def search_service(mock_embedder, mock_index_manager):
 class TestSemanticSearch:
     """Test semantic search functionality."""
 
-    def test_semantic_search_returns_response(self, search_service, mock_index_manager, sample_chunks):
+    def test_semantic_search_returns_response(
+        self, search_service, mock_index_manager, sample_chunks
+    ):
         """Test semantic_search returns SearchResponse."""
         # Mock index and chunks
         mock_index = MagicMock()
-        mock_index.search = MagicMock(
-            return_value=(np.array([[0.9, 0.8]]), np.array([[0, 1]]))
-        )
+        mock_index.search = MagicMock(return_value=(np.array([[0.9, 0.8]]), np.array([[0, 1]])))
         mock_index_manager._get_index = MagicMock(return_value=mock_index)
         mock_index_manager._load_chunks = MagicMock(return_value=sample_chunks)
 
@@ -132,7 +132,9 @@ class TestSemanticSearch:
         assert isinstance(result, dict)
         assert result["status"] == "error"
 
-    def test_semantic_search_top_k_limiting(self, search_service, mock_index_manager, sample_chunks):
+    def test_semantic_search_top_k_limiting(
+        self, search_service, mock_index_manager, sample_chunks
+    ):
         """Test that top_k parameter is respected."""
         mock_index = MagicMock()
         mock_index.search = MagicMock(
@@ -150,12 +152,12 @@ class TestSemanticSearch:
 class TestHybridSearch:
     """Test hybrid search functionality."""
 
-    def test_hybrid_search_returns_response(self, search_service, mock_index_manager, sample_chunks):
+    def test_hybrid_search_returns_response(
+        self, search_service, mock_index_manager, sample_chunks
+    ):
         """Test hybrid_search returns SearchResponse."""
         mock_index = MagicMock()
-        mock_index.search = MagicMock(
-            return_value=(np.array([[0.9, 0.8]]), np.array([[0, 1]]))
-        )
+        mock_index.search = MagicMock(return_value=(np.array([[0.9, 0.8]]), np.array([[0, 1]])))
         mock_lexical = MagicMock()
         mock_lexical.search = MagicMock(return_value=[])
 
@@ -167,12 +169,12 @@ class TestHybridSearch:
 
         assert isinstance(result, (SearchResponse, dict))
 
-    def test_hybrid_search_weight_validation(self, search_service, mock_index_manager, sample_chunks):
+    def test_hybrid_search_weight_validation(
+        self, search_service, mock_index_manager, sample_chunks
+    ):
         """Test hybrid_search weights are clamped to valid range."""
         mock_index = MagicMock()
-        mock_index.search = MagicMock(
-            return_value=(np.array([[0.9]]), np.array([[0]]))
-        )
+        mock_index.search = MagicMock(return_value=(np.array([[0.9]]), np.array([[0]])))
         mock_lexical = MagicMock()
         mock_index_manager._get_index = MagicMock(return_value=mock_index)
         mock_index_manager._get_lexical_index = MagicMock(return_value=mock_lexical)
@@ -209,12 +211,8 @@ class TestLiteralSearch:
         """Test search_for case sensitivity option."""
         mock_index_manager._load_chunks = MagicMock(return_value=sample_chunks)
 
-        result_insensitive = search_service.search_for(
-            "test_buf", "DEF", case_sensitive=False
-        )
-        result_sensitive = search_service.search_for(
-            "test_buf", "DEF", case_sensitive=True
-        )
+        result_insensitive = search_service.search_for("test_buf", "DEF", case_sensitive=False)
+        result_sensitive = search_service.search_for("test_buf", "DEF", case_sensitive=True)
 
         assert isinstance(result_insensitive, SearchResponse)
         assert isinstance(result_sensitive, SearchResponse)
@@ -223,7 +221,9 @@ class TestLiteralSearch:
 class TestFileSearch:
     """Test file path search functionality."""
 
-    def test_look_for_file_finds_matching_files(self, search_service, mock_index_manager, sample_chunks):
+    def test_look_for_file_finds_matching_files(
+        self, search_service, mock_index_manager, sample_chunks
+    ):
         """Test look_for_file finds matching file paths."""
         mock_index_manager._load_chunks = MagicMock(return_value=sample_chunks)
 
@@ -248,7 +248,9 @@ class TestFileSearch:
 class TestSymbolSearch:
     """Test symbol/function/class name search."""
 
-    def test_search_symbols_finds_functions(self, search_service, mock_index_manager, sample_chunks):
+    def test_search_symbols_finds_functions(
+        self, search_service, mock_index_manager, sample_chunks
+    ):
         """Test search_symbols finds matching function names."""
         mock_index_manager._load_chunks = MagicMock(return_value=sample_chunks)
 
@@ -321,13 +323,13 @@ class TestClustering:
 class TestDuplicateDetection:
     """Test duplicate detection functionality."""
 
-    def test_find_duplicates_returns_result(self, search_service, mock_index_manager, sample_chunks):
+    def test_find_duplicates_returns_result(
+        self, search_service, mock_index_manager, sample_chunks
+    ):
         """Test find_duplicates returns DuplicateResult."""
         mock_index = MagicMock()
         mock_index.index = MagicMock()
-        mock_index.index.reconstruct = MagicMock(
-            return_value=np.random.randn(384)
-        )
+        mock_index.index.reconstruct = MagicMock(return_value=np.random.randn(384))
 
         mock_index_manager._get_index = MagicMock(return_value=mock_index)
         mock_index_manager._load_chunks = MagicMock(return_value=sample_chunks)
@@ -414,9 +416,7 @@ class TestCaching:
     def test_search_records_results(self, search_service, mock_index_manager, sample_chunks):
         """Test search_service records results for caching."""
         mock_index = MagicMock()
-        mock_index.search = MagicMock(
-            return_value=(np.array([[0.9]]), np.array([[0]]))
-        )
+        mock_index.search = MagicMock(return_value=(np.array([[0.9]]), np.array([[0]])))
         mock_index_manager._get_index = MagicMock(return_value=mock_index)
         mock_index_manager._load_chunks = MagicMock(return_value=sample_chunks)
         mock_index_manager._get_cached_search = MagicMock(return_value=None)
@@ -485,12 +485,12 @@ class TestDataclassConversion:
 class TestResponseTypes:
     """Test response type validation."""
 
-    def test_semantic_search_returns_valid_matches(self, search_service, mock_index_manager, sample_chunks):
+    def test_semantic_search_returns_valid_matches(
+        self, search_service, mock_index_manager, sample_chunks
+    ):
         """Test semantic_search returns SearchMatch objects with valid fields."""
         mock_index = MagicMock()
-        mock_index.search = MagicMock(
-            return_value=(np.array([[0.9]]), np.array([[0]]))
-        )
+        mock_index.search = MagicMock(return_value=(np.array([[0.9]]), np.array([[0]])))
         mock_index_manager._get_index = MagicMock(return_value=mock_index)
         mock_index_manager._load_chunks = MagicMock(return_value=sample_chunks)
         mock_index_manager._get_cached_search = MagicMock(return_value=None)

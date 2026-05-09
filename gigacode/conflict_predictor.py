@@ -11,20 +11,21 @@ Key features:
 - Actionable recommendations
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Set
-from enum import Enum
-from datetime import datetime
 import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Set
 
-from gigacode.metrics import timer, log_metric
 from gigacode.dependency_graph import DependencyGraph
+from gigacode.metrics import log_metric, timer
 
 logger = logging.getLogger(__name__)
 
 
 class RiskLevel(Enum):
     """Conflict risk levels."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -33,6 +34,7 @@ class RiskLevel(Enum):
 @dataclass
 class CommitInfo:
     """Information about a commit."""
+
     sha: str
     author: str
     timestamp: datetime
@@ -43,6 +45,7 @@ class CommitInfo:
 @dataclass
 class FileRisk:
     """Risk assessment for a single file."""
+
     file: str
     risk: RiskLevel
     reason: str
@@ -54,6 +57,7 @@ class FileRisk:
 @dataclass
 class DependencyRisk:
     """Risk assessment for a dependency."""
+
     dependency: str
     file: str  # File containing dependency
     risk: RiskLevel
@@ -64,6 +68,7 @@ class DependencyRisk:
 @dataclass
 class ConflictPrediction:
     """Complete conflict prediction analysis."""
+
     embed_point: str  # Commit SHA and timestamp
     current_head: str  # Current HEAD SHA and timestamp
     time_since_embed_minutes: int
@@ -79,7 +84,7 @@ class ConflictPredictor:
     """
     Predicts merge conflicts by analyzing external changes.
     """
-    
+
     def __init__(
         self,
         buffer_manager,
@@ -88,7 +93,7 @@ class ConflictPredictor:
     ):
         """
         Initialize predictor.
-        
+
         Args:
             buffer_manager: BufferManager instance
             git_utils: Git utilities module
@@ -97,27 +102,27 @@ class ConflictPredictor:
         self.buffer_manager = buffer_manager
         self.git_utils = git_utils
         self.dependency_graph = dependency_graph
-    
+
     def predict_conflicts(self, buffer_id: str) -> ConflictPrediction:
         """
         Predict conflicts for a buffer.
-        
+
         Args:
             buffer_id: Target buffer
-            
+
         Returns:
             ConflictPrediction analysis
         """
         with timer("predict_conflicts"):
             # Try multiple possible API names for compatibility
             buffer = None
-            if hasattr(self.buffer_manager, '_get_buffer_info'):
+            if hasattr(self.buffer_manager, "_get_buffer_info"):
                 buffer = self.buffer_manager._get_buffer_info(buffer_id)
-            elif hasattr(self.buffer_manager, 'get_buffer_info'):
+            elif hasattr(self.buffer_manager, "get_buffer_info"):
                 buffer = self.buffer_manager.get_buffer_info(buffer_id)
-            elif hasattr(self.buffer_manager, 'get'):
+            elif hasattr(self.buffer_manager, "get"):
                 buffer = self.buffer_manager.get(buffer_id)
-            
+
             if buffer is None:
                 # Return empty prediction
                 return ConflictPrediction(
@@ -131,47 +136,47 @@ class ConflictPredictor:
                     recommendations=["Buffer not found"],
                     auto_actions={},
                 )
-            
+
             # Get embedding metadata
-            embed_sha = buffer.get('embed_sha', 'unknown')
-            embed_timestamp = buffer.get('embed_timestamp', datetime.now())
-            
+            embed_sha = buffer.get("embed_sha", "unknown")
+            embed_timestamp = buffer.get("embed_timestamp", datetime.now())
+
             # Get current HEAD
             head_sha, head_timestamp = self._get_current_head()
-            
+
             # Get commits since embed
             commits_since = self._get_commits_since(embed_sha, head_sha)
-            
+
             # Get edited files
             dirty_files = self._get_dirty_files(buffer)
-            
+
             # Assess file risks
             file_risks = self._assess_file_risks(
                 dirty_files,
                 commits_since,
                 buffer,
             )
-            
+
             # Assess dependency risks
             dep_risks = self._assess_dependency_risks(
                 buffer_id,
                 dirty_files,
                 commits_since,
             )
-            
+
             # Determine overall risk level
             overall_risk = self._compute_risk_level(file_risks, dep_risks)
-            
+
             # Generate recommendations
             recommendations = self._generate_recommendations(
                 overall_risk,
                 file_risks,
                 dep_risks,
             )
-            
+
             # Determine auto-actions
             auto_actions = self._compute_auto_actions(overall_risk)
-            
+
             prediction = ConflictPrediction(
                 embed_point=f"{embed_sha[:7]} ({embed_timestamp.strftime('%b %d, %Y, %I:%M %p')})",
                 current_head=f"{head_sha[:7]} ({head_timestamp.strftime('%b %d, %Y, %I:%M %p')})",
@@ -185,19 +190,22 @@ class ConflictPredictor:
                 recommendations=recommendations,
                 auto_actions=auto_actions,
             )
-            
-            log_metric("predict_conflicts", {
-                "risk_level": overall_risk.value,
-                "commits_since_embed": len(commits_since),
-                "files_at_risk": len([r for r in file_risks if r.risk != RiskLevel.LOW]),
-            })
-            
+
+            log_metric(
+                "predict_conflicts",
+                {
+                    "risk_level": overall_risk.value,
+                    "commits_since_embed": len(commits_since),
+                    "files_at_risk": len([r for r in file_risks if r.risk != RiskLevel.LOW]),
+                },
+            )
+
             return prediction
-    
+
     def _get_current_head(self) -> tuple[str, datetime]:
         """Get current HEAD commit info using git_utils."""
         try:
-            if hasattr(self.git_utils, 'GitUtils'):
+            if hasattr(self.git_utils, "GitUtils"):
                 git = self.git_utils.GitUtils()
                 result = git.git_show("HEAD", format="%H|%ci")
                 if result.get("status") == "ok":
@@ -213,15 +221,20 @@ class ConflictPredictor:
 
             # Fallback: try subprocess
             import subprocess
+
             result = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
                 sha = result.stdout.strip()
                 ts_result = subprocess.run(
                     ["git", "log", "-1", "--format=%ci", "HEAD"],
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 if ts_result.returncode == 0:
                     ts_str = ts_result.stdout.strip()
@@ -255,7 +268,7 @@ class ConflictPredictor:
 
         try:
             # Try git_utils first
-            if hasattr(self.git_utils, 'GitUtils'):
+            if hasattr(self.git_utils, "GitUtils"):
                 git = self.git_utils.GitUtils()
                 log_result = git.git_show(
                     f"{embed_sha}..{head_sha}",
@@ -271,17 +284,25 @@ class ConflictPredictor:
                                 ts = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S")
                             except ValueError:
                                 ts = datetime.now()
-                            commits.append(CommitInfo(
-                                sha=sha, author=author, timestamp=ts,
-                                message=message, files_changed=[],
-                            ))
+                            commits.append(
+                                CommitInfo(
+                                    sha=sha,
+                                    author=author,
+                                    timestamp=ts,
+                                    message=message,
+                                    files_changed=[],
+                                )
+                            )
                     return commits
 
             # Fallback: subprocess
             import subprocess
+
             result = subprocess.run(
                 ["git", "log", f"{embed_sha}..{head_sha}", "--format=%H|%an|%ci|%s"],
-                capture_output=True, text=True, timeout=30,
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             if result.returncode == 0:
                 for line in result.stdout.strip().splitlines():
@@ -292,16 +313,23 @@ class ConflictPredictor:
                             ts = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S")
                         except ValueError:
                             ts = datetime.now()
-                        commits.append(CommitInfo(
-                            sha=sha, author=author, timestamp=ts,
-                            message=message, files_changed=[],
-                        ))
+                        commits.append(
+                            CommitInfo(
+                                sha=sha,
+                                author=author,
+                                timestamp=ts,
+                                message=message,
+                                files_changed=[],
+                            )
+                        )
 
             # Try to get files changed per commit
             for commit in commits:
                 files_result = subprocess.run(
                     ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit.sha],
-                    capture_output=True, text=True, timeout=10,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 if files_result.returncode == 0:
                     commit.files_changed = [
@@ -312,21 +340,21 @@ class ConflictPredictor:
             logger.warning(f"Failed to get commits since embed: {e}")
 
         return commits
-    
+
     def _get_dirty_files(self, buffer: dict) -> Set[str]:
         """Get files being edited."""
         dirty = set()
-        
-        if 'dirty_queue' in buffer:
-            for entry in buffer['dirty_queue']:
-                dirty.add(entry.get('file'))
-        
-        if 'edits' in buffer:
-            for edit in buffer['edits']:
-                dirty.add(edit.get('file'))
-        
+
+        if "dirty_queue" in buffer:
+            for entry in buffer["dirty_queue"]:
+                dirty.add(entry.get("file"))
+
+        if "edits" in buffer:
+            for edit in buffer["edits"]:
+                dirty.add(edit.get("file"))
+
         return dirty
-    
+
     def _assess_file_risks(
         self,
         dirty_files: Set[str],
@@ -335,13 +363,11 @@ class ConflictPredictor:
     ) -> List[FileRisk]:
         """Assess risk for each edited file."""
         file_risks = []
-        
+
         for file in dirty_files:
             # Find commits touching this file
-            file_commits = [
-                c for c in commits_since if file in c.files_changed
-            ]
-            
+            file_commits = [c for c in commits_since if file in c.files_changed]
+
             if not file_commits:
                 risk = RiskLevel.LOW
                 reason = "No external commits since embed"
@@ -354,7 +380,7 @@ class ConflictPredictor:
             else:
                 risk = RiskLevel.HIGH
                 reason = f"{len(file_commits)} commits since embed; high conflict risk"
-            
+
             file_risk = FileRisk(
                 file=file,
                 risk=risk,
@@ -364,9 +390,9 @@ class ConflictPredictor:
                 suggested_action=self._suggest_action(risk),
             )
             file_risks.append(file_risk)
-        
+
         return file_risks
-    
+
     def _assess_dependency_risks(
         self,
         buffer_id: str,
@@ -375,27 +401,25 @@ class ConflictPredictor:
     ) -> List[DependencyRisk]:
         """Assess risks from modified dependencies."""
         dep_risks = []
-        
+
         for file in dirty_files:
             # Get dependencies of this file
             deps = self.dependency_graph.get_dependencies(buffer_id, file)
-            
+
             for dep_file in deps:
                 # Check if dependency was modified
-                dep_commits = [
-                    c for c in commits_since if dep_file in c.files_changed
-                ]
-                
+                dep_commits = [c for c in commits_since if dep_file in c.files_changed]
+
                 if not dep_commits:
                     continue  # No risk
-                
+
                 if len(dep_commits) == 1:
                     risk = RiskLevel.LOW
                     reason = "API unchanged, only internal refactoring"
                 else:
                     risk = RiskLevel.MEDIUM
                     reason = f"{len(dep_commits)} commits to dependency"
-                
+
                 dep_risk = DependencyRisk(
                     dependency=dep_file,
                     file=file,
@@ -404,9 +428,9 @@ class ConflictPredictor:
                     edits_depending_on_it=[file],
                 )
                 dep_risks.append(dep_risk)
-        
+
         return dep_risks
-    
+
     @staticmethod
     def _compute_risk_level(
         file_risks: List[FileRisk],
@@ -416,19 +440,19 @@ class ConflictPredictor:
         # High risk if any file is HIGH
         if any(r.risk == RiskLevel.HIGH for r in file_risks):
             return RiskLevel.HIGH
-        
+
         # Medium if any is MEDIUM
         if any(r.risk == RiskLevel.MEDIUM for r in file_risks):
             if any(d.risk == RiskLevel.MEDIUM for d in dep_risks):
                 return RiskLevel.HIGH
             return RiskLevel.MEDIUM
-        
+
         # Check dependency risks
         if any(d.risk == RiskLevel.HIGH for d in dep_risks):
             return RiskLevel.MEDIUM
-        
+
         return RiskLevel.LOW
-    
+
     @staticmethod
     def _suggest_action(risk: RiskLevel) -> str:
         """Suggest action based on risk level."""
@@ -438,7 +462,7 @@ class ConflictPredictor:
             return "Run tests before committing; if tests pass, safe to proceed"
         else:
             return "Run git_pull() and reload_codebase() before committing"
-    
+
     @staticmethod
     def _generate_recommendations(
         risk_level: RiskLevel,
@@ -447,7 +471,7 @@ class ConflictPredictor:
     ) -> List[str]:
         """Generate actionable recommendations."""
         recommendations = []
-        
+
         if risk_level == RiskLevel.LOW:
             recommendations.append("✓ Buffer state is clean; safe to commit")
         elif risk_level == RiskLevel.MEDIUM:
@@ -461,9 +485,9 @@ class ConflictPredictor:
             recommendations.append("  → reload_codebase() to refresh buffer")
             recommendations.append("  → Re-validate edits still make sense")
             recommendations.append("  → If conflicts, use tool.resolve_conflict()")
-        
+
         return recommendations
-    
+
     @staticmethod
     def _compute_auto_actions(risk_level: RiskLevel) -> Dict[str, any]:
         """Determine automatic actions to suggest."""
@@ -476,23 +500,23 @@ class ConflictPredictor:
 
 class ConflictPredictionService:
     """Public interface for conflict prediction."""
-    
+
     def __init__(self, conflict_predictor: ConflictPredictor):
         """Initialize service."""
         self.conflict_predictor = conflict_predictor
-    
+
     def predict_conflicts(self, buffer_id: str) -> Dict:
         """
         Predict merge conflicts.
-        
+
         Args:
             buffer_id: Target buffer
-            
+
         Returns:
             Conflict prediction as dict
         """
         prediction = self.conflict_predictor.predict_conflicts(buffer_id)
-        
+
         return {
             "embed_point": prediction.embed_point,
             "current_head": prediction.current_head,

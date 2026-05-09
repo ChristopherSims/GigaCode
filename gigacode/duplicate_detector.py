@@ -145,15 +145,17 @@ def find_duplicates(
             sim = inter / union
             if sim >= threshold:
                 a, b = chunks[i], chunks[j]
-                duplicates.append({
-                    "file_a": a.file,
-                    "start_line_a": a.start_line,
-                    "end_line_a": a.end_line,
-                    "file_b": b.file,
-                    "start_line_b": b.start_line,
-                    "end_line_b": b.end_line,
-                    "similarity": round(sim, 4),
-                })
+                duplicates.append(
+                    {
+                        "file_a": a.file,
+                        "start_line_a": a.start_line,
+                        "end_line_a": a.end_line,
+                        "file_b": b.file,
+                        "start_line_b": b.start_line,
+                        "end_line_b": b.end_line,
+                        "similarity": round(sim, 4),
+                    }
+                )
 
     # Sort by descending similarity
     duplicates.sort(key=lambda x: x["similarity"], reverse=True)

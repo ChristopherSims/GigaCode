@@ -12,21 +12,21 @@ Key features:
 - Audit trail and rollback support
 """
 
-from dataclasses import dataclass, field, asdict
-from typing import Optional, List, Dict, Any, Callable
-from enum import Enum
-import uuid
 import logging
-from datetime import datetime
+import uuid
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from gigacode.metrics import timer, log_metric
-from gigacode.intent_router import IntentRouter, IntentClassifier
+from gigacode.intent_router import IntentRouter
+from gigacode.metrics import log_metric, timer
 
 logger = logging.getLogger(__name__)
 
 
 class SolveStatus(Enum):
     """Task execution status."""
+
     PENDING = "pending"
     SEARCHING = "searching"
     READING = "reading"
@@ -41,6 +41,7 @@ class SolveStatus(Enum):
 @dataclass
 class StepRecord:
     """Record of a single solve step."""
+
     step: int
     action: str  # search, read, write, test, commit, etc.
     status: str  # success, partial, failed
@@ -53,6 +54,7 @@ class StepRecord:
 @dataclass
 class SolveResult:
     """Result of solve() operation."""
+
     status: SolveStatus
     task_id: str
     iterations: int = 0
@@ -62,7 +64,7 @@ class SolveResult:
     audit_trail: List[StepRecord] = field(default_factory=list)
     summary: str = ""
     next_step: str = ""
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict."""
         return {
@@ -80,7 +82,7 @@ class SolveResult:
 
 class SolveExecutor:
     """Executes solve loop with state tracking and error recovery."""
-    
+
     def __init__(
         self,
         buffer_manager,
@@ -90,7 +92,7 @@ class SolveExecutor:
     ):
         """
         Initialize executor.
-        
+
         Args:
             buffer_manager: BufferManager instance
             search_service: SearchService instance
@@ -101,11 +103,11 @@ class SolveExecutor:
         self.search_service = search_service
         self.diff_engine = diff_engine
         self.intent_router = intent_router
-        
+
         # Execution state tracking
         self.task_state = {}  # task_id -> state
         self.edits_stack = {}  # task_id -> list of edits for rollback
-    
+
     def solve(
         self,
         buffer_id: str,
@@ -118,7 +120,7 @@ class SolveExecutor:
     ) -> SolveResult:
         """
         Automatically solve a coding task with minimal user intervention.
-        
+
         Args:
             buffer_id: Target code buffer
             task: Task description (what to build/fix)
@@ -127,7 +129,7 @@ class SolveExecutor:
             auto_commit: Automatically commit if tests pass?
             test_before_commit: Run tests before final commit?
             search_depth: Breadth of search (quick=1 search, thorough=3+)
-            
+
         Returns:
             SolveResult with audit trail and completion status
         """
@@ -137,7 +139,7 @@ class SolveExecutor:
             task_id=task_id,
             tokens_budget=max_iterations * max_tokens_per_turn,
         )
-        
+
         # Initialize state
         self.task_state[task_id] = {
             "task": task,
@@ -146,39 +148,40 @@ class SolveExecutor:
             "total_tokens": 0,
         }
         self.edits_stack[task_id] = []
-        
+
         with timer("solve"):
             try:
                 # Step 1: Plan actions based on intent
-                result.audit_trail.append(StepRecord(
-                    step=1,
-                    action="plan_actions",
-                    status="success",
-                ))
-                
+                result.audit_trail.append(
+                    StepRecord(
+                        step=1,
+                        action="plan_actions",
+                        status="success",
+                    )
+                )
+
                 action_plan = self.intent_router.plan_actions(
                     buffer_id, task, budget=int(max_tokens_per_turn * 0.2)
                 )
                 result.audit_trail[-1].output = action_plan.to_dict()
                 result.audit_trail[-1].tokens_used = 250
                 result.tokens_used += 250
-                
+
                 # Step 2-N: Execute action sequence
                 step_num = 2
                 for iteration in range(max_iterations):
                     result.iterations = iteration + 1
-                    
+
                     # Check token budget
                     if result.tokens_used >= result.tokens_budget * 0.9:
                         result.summary = (
-                            f"Completed in {iteration + 1} iterations "
-                            f"(approaching token limit)"
+                            f"Completed in {iteration + 1} iterations " f"(approaching token limit)"
                         )
-                        result.next_step = (
-                            "Approve changes with tool.commit(task_id='{}')".format(task_id)
+                        result.next_step = "Approve changes with tool.commit(task_id='{}')".format(
+                            task_id
                         )
                         break
-                    
+
                     # Execute planned actions
                     success = self._execute_iteration(
                         task_id,
@@ -187,9 +190,9 @@ class SolveExecutor:
                         step_num,
                         max_tokens_per_turn,
                     )
-                    
+
                     step_num += 5  # ~5 steps per iteration
-                    
+
                     # Check if we've completed the task
                     if success:
                         result.status = SolveStatus.COMPLETED
@@ -198,11 +201,10 @@ class SolveExecutor:
                             f"using {result.tokens_used} tokens"
                         )
                         result.next_step = (
-                            "Review changes, then approve with "
-                            f"tool.commit(task_id='{task_id}')"
+                            "Review changes, then approve with " f"tool.commit(task_id='{task_id}')"
                         )
                         break
-                
+
                 # Final testing if enabled
                 if test_before_commit and result.status == SolveStatus.COMPLETED:
                     test_record = StepRecord(
@@ -211,7 +213,7 @@ class SolveExecutor:
                         status="pending",
                     )
                     result.audit_trail.append(test_record)
-                    
+
                     test_result = self._run_tests(buffer_id, task_id)
                     if test_result.get("passed"):
                         test_record.status = "success"
@@ -225,24 +227,26 @@ class SolveExecutor:
                         result.summary = "Task completed but tests failed"
                         self._rollback(task_id)
                         result.next_step = "Review failing tests and retry"
-                
+
                 # Auto-commit if enabled
                 if auto_commit and result.status == SolveStatus.COMPLETED:
                     self._commit(task_id, buffer_id)
-                
+
                 if result.status not in (SolveStatus.COMPLETED, SolveStatus.FAILED):
                     result.status = SolveStatus.REQUIRES_USER_INPUT
                     result.next_step = "Review audit trail and provide feedback"
-            
+
             except Exception as e:
                 result.status = SolveStatus.FAILED
                 result.summary = f"Task failed: {str(e)}"
-                result.next_step = f"Error: {str(e)}. Rollback with tool.rollback(task_id='{task_id}')"
+                result.next_step = (
+                    f"Error: {str(e)}. Rollback with tool.rollback(task_id='{task_id}')"
+                )
                 self._rollback(task_id)
                 log_metric("solve.error", {"task_id": task_id, "error": str(e)})
-        
+
         return result
-    
+
     def _execute_iteration(
         self,
         task_id: str,
@@ -254,17 +258,17 @@ class SolveExecutor:
         """Execute a single iteration of the solve loop."""
         state = self.task_state[task_id]
         iteration = result.iterations
-        
+
         # Execute each recommended action
         for action in action_plan.recommended_actions[:3]:  # Limit to top 3 actions
-            action_type = getattr(action, 'action', None)
+            action_type = getattr(action, "action", None)
             if action_type is None:
                 continue
-            
+
             # Skip if out of budget
             if result.tokens_used + action.estimated_tokens > result.tokens_budget:
                 break
-            
+
             step = StepRecord(
                 step=step_num,
                 action=str(action_type),
@@ -272,7 +276,7 @@ class SolveExecutor:
                 tokens_used=action.estimated_tokens,
             )
             result.audit_trail.append(step)
-            
+
             try:
                 if str(action_type) == "semantic_search":
                     output = self._search(task_id, action)
@@ -290,26 +294,24 @@ class SolveExecutor:
                 else:
                     step.status = "skipped"
                     continue
-                
+
                 result.tokens_used += step.tokens_used
                 step_num += 1
             except Exception as e:
                 step.status = "failed"
                 step.error = str(e)
-        
+
         # Check if we've made progress
-        successful_steps = sum(
-            1 for s in result.audit_trail if s.status == "success"
-        )
+        successful_steps = sum(1 for s in result.audit_trail if s.status == "success")
         return successful_steps > 2  # Consider success if 2+ steps completed
-    
+
     def _search(self, task_id: str, action) -> Dict[str, Any]:
         """Execute semantic search action via the tool's semantic_search."""
         state = self.task_state[task_id]
         buffer_id = state["buffer_id"]
 
         # Delegate to the parent tool's semantic_search method
-        if hasattr(self.buffer_manager, 'semantic_search'):
+        if hasattr(self.buffer_manager, "semantic_search"):
             result = self.buffer_manager.semantic_search(
                 buffer_id,
                 action.query,
@@ -323,7 +325,7 @@ class SolveExecutor:
                 top_k=5,
             )
             # Adapt SearchResponse to dict if needed
-            if hasattr(result, 'to_dict'):
+            if hasattr(result, "to_dict"):
                 result = result.to_dict()
 
         matches = result.get("matches", []) if isinstance(result, dict) else []
@@ -332,9 +334,11 @@ class SolveExecutor:
             "query": action.query,
             "results": [
                 {
-                    "file": r.get("file") if isinstance(r, dict) else getattr(r, 'file', ''),
-                    "score": r.get("score") if isinstance(r, dict) else getattr(r, 'score', 0.0),
-                    "snippet": (r.get("text") if isinstance(r, dict) else getattr(r, 'text', ''))[:200],
+                    "file": r.get("file") if isinstance(r, dict) else getattr(r, "file", ""),
+                    "score": r.get("score") if isinstance(r, dict) else getattr(r, "score", 0.0),
+                    "snippet": (r.get("text") if isinstance(r, dict) else getattr(r, "text", ""))[
+                        :200
+                    ],
                 }
                 for r in matches[:3]
             ],
@@ -349,7 +353,7 @@ class SolveExecutor:
             return {"error": "No file specified"}
 
         # Delegate to the parent tool's read_code method
-        if hasattr(self.buffer_manager, 'read_code'):
+        if hasattr(self.buffer_manager, "read_code"):
             result = self.buffer_manager.read_code(
                 buffer_id,
                 file=action.file,
@@ -379,7 +383,7 @@ class SolveExecutor:
         state = self.task_state[task_id]
         buffer_id = state["buffer_id"]
 
-        changes = getattr(action, 'changes', None)
+        changes = getattr(action, "changes", None)
         if changes is None:
             return {"error": "No changes specified"}
 
@@ -392,13 +396,13 @@ class SolveExecutor:
             new_lines = [str(changes)]
 
         # Delegate to the parent tool's write_code method
-        if hasattr(self.buffer_manager, 'write_code'):
+        if hasattr(self.buffer_manager, "write_code"):
             result = self.buffer_manager.write_code(
                 buffer_id,
                 file=action.file,
-                start_line=getattr(action, 'start_line', 1),
+                start_line=getattr(action, "start_line", 1),
                 new_lines=new_lines,
-                end_line=getattr(action, 'end_line', None),
+                end_line=getattr(action, "end_line", None),
             )
         else:
             result = {
@@ -419,19 +423,21 @@ class SolveExecutor:
         state = self.task_state[task_id]
 
         # Try to find and run pytest on the codebase
-        import subprocess
         import os
+        import subprocess
 
         try:
             # Find the buffer root directory
             buffer_info = {}
-            if hasattr(self.buffer_manager, '_get_buffer_info'):
+            if hasattr(self.buffer_manager, "_get_buffer_info"):
                 buffer_info = self.buffer_manager._get_buffer_info(buffer_id) or {}
-            elif hasattr(self.buffer_manager, 'get'):
+            elif hasattr(self.buffer_manager, "get"):
                 buffer_info = self.buffer_manager.get(buffer_id) or {}
 
             root = buffer_info.get("root", ".")
-            test_dir = os.path.join(root, "tests") if os.path.isdir(os.path.join(root, "tests")) else root
+            test_dir = (
+                os.path.join(root, "tests") if os.path.isdir(os.path.join(root, "tests")) else root
+            )
 
             # Run pytest if available
             result = subprocess.run(
@@ -461,7 +467,9 @@ class SolveExecutor:
             return {
                 "passed": passed,
                 "num_tests": num_tests or 0,
-                "errors": [line for line in output.splitlines() if "FAILED" in line or "ERROR" in line],
+                "errors": [
+                    line for line in output.splitlines() if "FAILED" in line or "ERROR" in line
+                ],
                 "output": output[:2000],  # Truncate for token savings
                 "tokens_used": len(output) // 4,
             }
@@ -496,7 +504,7 @@ class SolveExecutor:
                     continue
 
                 # Restore old lines via write_code
-                if hasattr(self.buffer_manager, 'write_code'):
+                if hasattr(self.buffer_manager, "write_code"):
                     self.buffer_manager.write_code(
                         buffer_id,
                         file=file,
@@ -515,7 +523,7 @@ class SolveExecutor:
         """Commit changes for a task via the tool's commit."""
         state = self.task_state[task_id]
 
-        if hasattr(self.buffer_manager, 'commit'):
+        if hasattr(self.buffer_manager, "commit"):
             result = self.buffer_manager.commit(
                 buffer_id,
                 dry_run=False,
@@ -530,18 +538,20 @@ class SolveExecutor:
 
         return {
             "status": result.get("status", "ok") if isinstance(result, dict) else "ok",
-            "message": result.get("message", "Committed") if isinstance(result, dict) else "Committed",
+            "message": (
+                result.get("message", "Committed") if isinstance(result, dict) else "Committed"
+            ),
             "task": state.get("task", ""),
         }
 
 
 class Solver:
     """Public interface for solve() functionality."""
-    
+
     def __init__(self, executor: SolveExecutor):
         """Initialize solver."""
         self.executor = executor
-    
+
     def solve(
         self,
         buffer_id: str,
@@ -554,7 +564,7 @@ class Solver:
     ) -> SolveResult:
         """
         Solve a coding task automatically.
-        
+
         See SolveExecutor.solve() for full documentation.
         """
         return self.executor.solve(
@@ -566,11 +576,11 @@ class Solver:
             test_before_commit,
             search_depth,
         )
-    
+
     def rollback(self, task_id: str) -> None:
         """Rollback a task."""
         self.executor._rollback(task_id)
-    
+
     def commit(self, task_id: str) -> None:
         """Commit a task."""
         if task_id in self.executor.task_state:

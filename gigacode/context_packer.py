@@ -21,7 +21,7 @@ _CHARS_PER_TOKEN = 4.0
 __all__ = [
     "pack_context",
     "pack_context_smart",
-    "strip_boilerplate",
+    "strip_boilerplate_text",
     "deduplicate_chunks",
 ]
 
@@ -35,6 +35,7 @@ def _exact_token_count(text: str) -> int:
     """Try tiktoken; fall back to approximation."""
     try:
         import tiktoken
+
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except (ImportError, ModuleNotFoundError):
@@ -75,6 +76,7 @@ _TEST_FILE_RE: list[re.Pattern] = [
 def _is_test_file(file_path: str) -> bool:
     """Check if a file path looks like a test file."""
     from pathlib import Path
+
     name = Path(file_path).name
     return any(p.match(name) for p in _TEST_FILE_RE)
 
@@ -113,6 +115,7 @@ def _detect_language(file_path: str) -> str:
         ".h": "c",
     }
     from pathlib import Path
+
     ext = Path(file_path).suffix.lower()
     return ext_map.get(ext, "python")
 
@@ -156,7 +159,9 @@ def strip_boilerplate_text(
         if strip_docstrings:
             if not in_docstring:
                 if stripped.startswith('"""') or stripped.startswith("'''"):
-                    if not (stripped.endswith('"""') and len(stripped) > 3) and not (stripped.endswith("'''") and len(stripped) > 3):
+                    if not (stripped.endswith('"""') and len(stripped) > 3) and not (
+                        stripped.endswith("'''") and len(stripped) > 3
+                    ):
                         in_docstring = True
                         docstring_quote = '"""' if '"""' in stripped else "'''"
                     continue
@@ -223,7 +228,7 @@ def deduplicate_chunks(
     seen_hashes: set[str] = set()
     duplicates = 0
 
-    for ch, score in zip(chunks, scores):
+    for ch, score in zip(chunks, scores, strict=False):
         # Normalize text: remove whitespace, lowercase
         normalized = re.sub(r"\s+", "", ch.text.lower())
         text_hash = hashlib.sha256(normalized.encode()).hexdigest()
@@ -318,7 +323,7 @@ def pack_context_smart(
     filtered_chunks: list[Any] = []
     filtered_scores: list[float] = []
 
-    for ch, score in zip(chunks, scores):
+    for ch, score in zip(chunks, scores, strict=False):
         # Exclude by type
         if ch.type in exclude_types:
             filter_stats["orphans"] += 1
@@ -381,17 +386,23 @@ def pack_context_smart(
         if total_tokens + cost > max_tokens:
             break
 
-        packed.append({
-            "file": ch.file,
-            "start_line": ch.start_line,
-            "end_line": ch.end_line,
-            "name": ch.name,
-            "type": ch.type,
-            "score": round(score, 4),
-            "tokens": cost,
-            "granularity": granularity if rank < 3 else "signature" if granularity == "smart" else granularity,
-            "text_preview": text[:120] + "..." if len(text) > 120 else text,
-        })
+        packed.append(
+            {
+                "file": ch.file,
+                "start_line": ch.start_line,
+                "end_line": ch.end_line,
+                "name": ch.name,
+                "type": ch.type,
+                "score": round(score, 4),
+                "tokens": cost,
+                "granularity": (
+                    granularity
+                    if rank < 3
+                    else "signature" if granularity == "smart" else granularity
+                ),
+                "text_preview": text[:120] + "..." if len(text) > 120 else text,
+            }
+        )
         total_tokens += cost
 
     # Re-sort by file order for coherent reading

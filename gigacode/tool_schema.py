@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 __all__ = [
     "EMBED_CODEBASE_SCHEMA",
     "SEMANTIC_SEARCH_SCHEMA",
@@ -40,6 +39,7 @@ __all__ = [
     "to_openai_functions",
     "to_mcp_tools",
 ]
+
 
 # ---------------------------------------------------------------------------
 # Shared schema fragments
@@ -710,12 +710,27 @@ HYBRID_SEARCH_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
             "query": {"type": "string", "description": "Natural language or keyword query."},
-            "top_k": {"type": "integer", "description": "Number of results to return.", "default": 5},
+            "top_k": {
+                "type": "integer",
+                "description": "Number of results to return.",
+                "default": 5,
+            },
             "offset": {"type": "integer", "description": "Pagination offset.", "default": 0},
-            "semantic_weight": {"type": "number", "description": "Weight for semantic rank contribution.", "default": 1.0},
-            "lexical_weight": {"type": "number", "description": "Weight for lexical rank contribution.", "default": 1.0},
+            "semantic_weight": {
+                "type": "number",
+                "description": "Weight for semantic rank contribution.",
+                "default": 1.0,
+            },
+            "lexical_weight": {
+                "type": "number",
+                "description": "Weight for lexical rank contribution.",
+                "default": 1.0,
+            },
         },
         "required": ["buffer_id", "query"],
     },
@@ -753,8 +768,15 @@ FIND_DUPLICATES_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "threshold": {"type": "number", "description": "Jaccard similarity threshold (0.0–1.0).", "default": 0.85},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "threshold": {
+                "type": "number",
+                "description": "Jaccard similarity threshold (0.0–1.0).",
+                "default": 0.85,
+            },
         },
         "required": ["buffer_id"],
     },
@@ -793,10 +815,21 @@ PACK_CONTEXT_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
             "query": {"type": "string", "description": "Query describing the context needed."},
-            "max_tokens": {"type": "integer", "description": "Target token budget.", "default": 8192},
-            "top_k": {"type": "integer", "description": "Number of candidate chunks from hybrid search.", "default": 20},
+            "max_tokens": {
+                "type": "integer",
+                "description": "Target token budget.",
+                "default": 8192,
+            },
+            "top_k": {
+                "type": "integer",
+                "description": "Number of candidate chunks from hybrid search.",
+                "default": 20,
+            },
         },
         "required": ["buffer_id", "query"],
     },

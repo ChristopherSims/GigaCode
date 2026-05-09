@@ -95,18 +95,20 @@ class ContextSummarizer:
                 if ch.type in ("function", "class", "method", "trait", "interface"):
                     # Extract docstring (first triple-quoted string after definition)
                     docstring = self._extract_docstring(ch.text)
-                    definitions.append({
-                        "name": ch.name,
-                        "type": ch.type,
-                        "start_line": ch.start_line,
-                        "end_line": ch.end_line,
-                        "docstring": docstring[:200] if docstring else None,
-                    })
+                    definitions.append(
+                        {
+                            "name": ch.name,
+                            "type": ch.type,
+                            "start_line": ch.start_line,
+                            "end_line": ch.end_line,
+                            "docstring": docstring[:200] if docstring else None,
+                        }
+                    )
 
             # Gather imports
             all_imports: set[str] = set()
             for ch in chunks:
-                for imp in (ch.imports or []):
+                for imp in ch.imports or []:
                     all_imports.add(imp)
 
             # Estimate total lines
@@ -142,7 +144,7 @@ class ContextSummarizer:
             if idx >= 0:
                 end = text.find(quote, idx + 3)
                 if end > idx:
-                    return text[idx + 3:end].strip()
+                    return text[idx + 3 : end].strip()
         return None
 
     @staticmethod
@@ -227,16 +229,18 @@ class ContextSummarizer:
                 if total_tokens + tokens > max_tokens:
                     break
 
-                hierarchy.append(ContextLevel(
-                    level="file_summary",
-                    file=file_path,
-                    name=None,
-                    start_line=1,
-                    end_line=summary.total_lines,
-                    text=summary_text,
-                    relevance_score=round(file_score, 3),
-                    tokens=tokens,
-                ))
+                hierarchy.append(
+                    ContextLevel(
+                        level="file_summary",
+                        file=file_path,
+                        name=None,
+                        start_line=1,
+                        end_line=summary.total_lines,
+                        text=summary_text,
+                        relevance_score=round(file_score, 3),
+                        tokens=tokens,
+                    )
+                )
                 total_tokens += tokens
 
             # Level 2: Chunks
@@ -274,16 +278,18 @@ class ContextSummarizer:
                             truncated=True,
                         )
 
-                    hierarchy.append(ContextLevel(
-                        level="chunk",
-                        file=file_path,
-                        name=ch.name,
-                        start_line=ch.start_line,
-                        end_line=ch.end_line,
-                        text=chunk_text,
-                        relevance_score=round(ch_score, 3),
-                        tokens=tokens,
-                    ))
+                    hierarchy.append(
+                        ContextLevel(
+                            level="chunk",
+                            file=file_path,
+                            name=ch.name,
+                            start_line=ch.start_line,
+                            end_line=ch.end_line,
+                            text=chunk_text,
+                            relevance_score=round(ch_score, 3),
+                            tokens=tokens,
+                        )
+                    )
                     total_tokens += tokens
 
             # Level 3: Specific lines (for highest-scoring chunks)
@@ -294,9 +300,13 @@ class ContextSummarizer:
                     # Find query-relevant lines
                     query_terms = query.lower().split()
                     relevant_lines: list[tuple[int, str, float]] = []
-                    for i, line in enumerate(top_chunk.text.splitlines(), start=top_chunk.start_line):
+                    for i, line in enumerate(
+                        top_chunk.text.splitlines(), start=top_chunk.start_line
+                    ):
                         line_lower = line.lower()
-                        score = sum(1 for term in query_terms if term in line_lower) / max(len(query_terms), 1)
+                        score = sum(1 for term in query_terms if term in line_lower) / max(
+                            len(query_terms), 1
+                        )
                         if score > 0:
                             relevant_lines.append((i, line, score))
 
@@ -307,16 +317,18 @@ class ContextSummarizer:
                         if total_tokens + tokens > max_tokens:
                             break
 
-                        hierarchy.append(ContextLevel(
-                            level="lines",
-                            file=file_path,
-                            name=top_chunk.name,
-                            start_line=line_num,
-                            end_line=line_num,
-                            text=line_text_full,
-                            relevance_score=round(line_score, 3),
-                            tokens=tokens,
-                        ))
+                        hierarchy.append(
+                            ContextLevel(
+                                level="lines",
+                                file=file_path,
+                                name=top_chunk.name,
+                                start_line=line_num,
+                                end_line=line_num,
+                                text=line_text_full,
+                                relevance_score=round(line_score, 3),
+                                tokens=tokens,
+                            )
+                        )
                         total_tokens += tokens
 
         return HierarchicalContext(
@@ -346,10 +358,7 @@ class ContextSummarizer:
             return None
         try:
             data = json.loads(summaries_path.read_text(encoding="utf-8"))
-            return {
-                k: FileSummary(**v)
-                for k, v in data.items()
-            }
+            return {k: FileSummary(**v) for k, v in data.items()}
         except (OSError, json.JSONDecodeError, TypeError) as e:
             logger.warning(f"Failed to load summaries: {e}")
             return None

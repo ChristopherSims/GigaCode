@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+
 from gigacode.file_watcher import BufferWatcher
 
 
@@ -27,6 +28,7 @@ def test_polling_watcher():
         # Modify file
         (root / "test.py").write_text("x = 2")
         import time
+
         time.sleep(3)
         watcher.stop_all()
         assert "buf1" in tool.calls

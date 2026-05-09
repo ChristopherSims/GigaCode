@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from gigacode.gigacode_tool import CodeEmbeddingTool
-from gigacode.response_types import ResponseStatus, SearchResponse, SearchMatch
+from gigacode.response_types import ResponseStatus, SearchMatch, SearchResponse
 
 
 @pytest.fixture
@@ -24,13 +24,13 @@ def temp_work_dir():
 @pytest.fixture
 def cet_with_service(temp_work_dir):
     """Create CodeEmbeddingTool with SearchService available."""
-    with patch('gigacode.gigacode_tool.Embedder'):
-        with patch('gigacode.gigacode_tool.StateManager'):
-            with patch.dict('sys.modules', {'gigacode.search_service': MagicMock()}):
+    with patch("gigacode.gigacode_tool.Embedder"):
+        with patch("gigacode.gigacode_tool.StateManager"):
+            with patch.dict("sys.modules", {"gigacode.search_service": MagicMock()}):
                 cet = CodeEmbeddingTool(
                     work_dir=temp_work_dir,
                     model_name=None,
-                    device='cpu',
+                    device="cpu",
                     max_buffers=10,
                     enable_prometheus=False,
                 )
@@ -57,21 +57,19 @@ class TestSearchForDelegation:
                 )
             ],
         )
-        
-        cet_with_service._search_service.search_for = MagicMock(
-            return_value=mock_response
-        )
+
+        cet_with_service._search_service.search_for = MagicMock(return_value=mock_response)
         cet_with_service._get_buffer_info = MagicMock(return_value={"buffer_id": "test"})
-        
+
         result = cet_with_service.search_for(
             buffer_id="test-buffer",
             query="test",
             case_sensitive=False,
         )
-        
+
         # Verify delegation happened
         cet_with_service._search_service.search_for.assert_called_once()
-        
+
         # Verify response format
         assert result["status"] == "ok"
         assert "matches" in result
@@ -88,20 +86,18 @@ class TestLookForFileDelegation:
             "files": ["src/main.py", "src/utils.py"],
             "count": 2,
         }
-        
-        cet_with_service._search_service.look_for_file = MagicMock(
-            return_value=mock_response
-        )
+
+        cet_with_service._search_service.look_for_file = MagicMock(return_value=mock_response)
         cet_with_service._get_buffer_info = MagicMock(return_value={"buffer_id": "test"})
-        
+
         result = cet_with_service.look_for_file(
             buffer_id="test-buffer",
             file_name="main",
         )
-        
+
         # Verify delegation happened
         cet_with_service._search_service.look_for_file.assert_called_once()
-        
+
         # Verify response is adapted
         assert result["status"] == "ok"
         # Multiple matches should return candidates
@@ -128,21 +124,19 @@ class TestSearchSymbolsDelegation:
                 )
             ],
         )
-        
-        cet_with_service._search_service.search_symbols = MagicMock(
-            return_value=mock_response
-        )
+
+        cet_with_service._search_service.search_symbols = MagicMock(return_value=mock_response)
         cet_with_service._get_buffer_info = MagicMock(return_value={"buffer_id": "test"})
-        
+
         result = cet_with_service.search_symbols(
             buffer_id="test-buffer",
             query="MyClass",
             top_k=10,
         )
-        
+
         # Verify delegation happened
         cet_with_service._search_service.search_symbols.assert_called_once()
-        
+
         # Verify response
         assert result["status"] == "ok"
         assert "matches" in result
@@ -162,20 +156,18 @@ class TestClusterCodeDelegation:
                 ]
             },
         }
-        
-        cet_with_service._search_service.cluster_code = MagicMock(
-            return_value=mock_response
-        )
+
+        cet_with_service._search_service.cluster_code = MagicMock(return_value=mock_response)
         cet_with_service._get_buffer_info = MagicMock(return_value={"buffer_id": "test"})
-        
+
         result = cet_with_service.cluster_code(
             buffer_id="test-buffer",
             threshold=0.75,
         )
-        
+
         # Verify delegation happened
         cet_with_service._search_service.cluster_code.assert_called_once()
-        
+
         # Verify response
         assert result["status"] == "ok"
         assert "clusters" in result
@@ -195,20 +187,18 @@ class TestFindDuplicatesDelegation:
                 )
             ],
         }
-        
-        cet_with_service._search_service.find_duplicates = MagicMock(
-            return_value=mock_response
-        )
+
+        cet_with_service._search_service.find_duplicates = MagicMock(return_value=mock_response)
         cet_with_service._get_buffer_info = MagicMock(return_value={"buffer_id": "test"})
-        
+
         result = cet_with_service.find_duplicates(
             buffer_id="test-buffer",
             threshold=0.85,
         )
-        
+
         # Verify delegation happened
         cet_with_service._search_service.find_duplicates.assert_called_once()
-        
+
         # Verify response
         assert result["status"] == "ok"
         assert "duplicates" in result
@@ -224,9 +214,9 @@ class TestPhase5bResponseAdapters:
             "files": ["src/main.py"],
             "count": 1,
         }
-        
+
         result = CodeEmbeddingTool._adapt_file_response(service_response)
-        
+
         assert result["status"] == "ok"
         assert "file_location" in result
         assert result["file_location"] == "src/main.py"
@@ -238,9 +228,9 @@ class TestPhase5bResponseAdapters:
             "files": ["src/main.py", "src/main_backup.py"],
             "count": 2,
         }
-        
+
         result = CodeEmbeddingTool._adapt_file_response(service_response)
-        
+
         assert result["status"] == "ok"
         assert result["match_type"] == "multiple"
         assert "candidates" in result
@@ -256,9 +246,9 @@ class TestPhase5bResponseAdapters:
                 ]
             },
         }
-        
+
         result = CodeEmbeddingTool._adapt_cluster_response(service_response)
-        
+
         assert result["status"] == "ok"
         assert "clusters" in result
         assert isinstance(result["clusters"], list)
@@ -277,9 +267,9 @@ class TestPhase5bResponseAdapters:
                 )
             ],
         }
-        
+
         result = CodeEmbeddingTool._adapt_duplicate_response(service_response)
-        
+
         assert result["status"] == "ok"
         assert "duplicates" in result
 
@@ -293,12 +283,12 @@ class TestPhase5bDelegationFallback:
             side_effect=RuntimeError("Service error")
         )
         cet_with_service._get_buffer_info = MagicMock(return_value=None)
-        
+
         result = cet_with_service.search_for(
             buffer_id="unknown",
             query="test",
         )
-        
+
         # Should return error due to unknown buffer
         assert result is not None
         assert "status" in result
@@ -325,7 +315,7 @@ class TestPhase5bIntegration:
         cet_with_service._search_service.find_duplicates = MagicMock(
             return_value={"status": "ok", "duplicates": []}
         )
-        
+
         # All should be callable without error
         cet_with_service.search_for("test", "query")
         cet_with_service.look_for_file("test", "file")

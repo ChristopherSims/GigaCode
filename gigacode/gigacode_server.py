@@ -38,8 +38,10 @@ __all__ = [
 # FastAPI path (preferred)
 # ---------------------------------------------------------------------------
 
+
 def _run_fastapi(tool: Any, host: str, port: int) -> None:
     import uvicorn
+
     from gigacode.gigacode_api import create_app
 
     app = create_app(tool)
@@ -50,6 +52,7 @@ def _run_fastapi(tool: Any, host: str, port: int) -> None:
 # ---------------------------------------------------------------------------
 # Fallback stdlib server
 # ---------------------------------------------------------------------------
+
 
 def _make_handler(tool: Any) -> type:
     from http.server import BaseHTTPRequestHandler
@@ -111,7 +114,7 @@ def _make_handler(tool: Any) -> type:
             except TypeError as exc:
                 self._send_json(400, {"error": f"Invalid arguments for {tool_name}: {exc}"})
                 return
-            except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
+            except (ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
                 logger.exception("Tool %s failed", tool_name)
                 self._send_json(500, {"error": f"Tool execution failed: {exc}"})
                 return
@@ -140,7 +143,10 @@ def _run_stdlib(tool: Any, host: str, port: int) -> None:
 # Unified runner
 # ---------------------------------------------------------------------------
 
-def run_server(tool: Any, host: str = "127.0.0.1", port: int = 8765, use_fastapi: bool = True) -> None:
+
+def run_server(
+    tool: Any, host: str = "127.0.0.1", port: int = 8765, use_fastapi: bool = True
+) -> None:
     """Start the HTTP server.
 
     Args:

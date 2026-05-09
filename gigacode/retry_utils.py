@@ -61,14 +61,15 @@ def retry_on_io_error(
                             exc,
                         )
                         raise
-                    
+
                     # Add jitter to avoid thundering herd
                     if jitter:
                         import random
+
                         wait_time = current_delay * (0.5 + random.random())
                     else:
                         wait_time = current_delay
-                    
+
                     logger.warning(
                         "Transient I/O error in %s (attempt %d/%d): %s. Retrying in %.2fs...",
                         func.__name__,

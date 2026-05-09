@@ -32,16 +32,19 @@ logger = logging.getLogger(__name__)
 # Pydantic models
 # ---------------------------------------------------------------------------
 
+
 class EmbedRequest(BaseModel):
     path: str
     pattern: str = "*.py"
     language_hint: str | None = None
+
 
 class SearchRequest(BaseModel):
     buffer_id: str
     query: str
     top_k: int = 5
     offset: int = 0
+
 
 class HybridSearchRequest(BaseModel):
     buffer_id: str
@@ -51,16 +54,19 @@ class HybridSearchRequest(BaseModel):
     semantic_weight: float = 1.0
     lexical_weight: float = 1.0
 
+
 class LiteralSearchRequest(BaseModel):
     buffer_id: str
     query: str
     case_sensitive: bool = False
     max_results: int = 50
 
+
 class SymbolSearchRequest(BaseModel):
     buffer_id: str
     query: str
     top_k: int = 10
+
 
 class ReadRequest(BaseModel):
     buffer_id: str
@@ -68,9 +74,11 @@ class ReadRequest(BaseModel):
     start_line: int = 1
     end_line: int | None = None
 
+
 class LookForFileRequest(BaseModel):
     buffer_id: str
     file_name: str
+
 
 class WriteRequest(BaseModel):
     buffer_id: str
@@ -79,24 +87,30 @@ class WriteRequest(BaseModel):
     new_lines: list[str]
     end_line: int | None = None
 
+
 class CommitRequest(BaseModel):
     buffer_id: str
     dry_run: bool = False
+
 
 class DiscardRequest(BaseModel):
     buffer_id: str
     file: str | None = None
 
+
 class DeleteBufferRequest(BaseModel):
     buffer_id: str
+
 
 class CallRequest(BaseModel):
     tool: str
     args: dict[str, Any] = Field(default_factory=dict)
 
+
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
+
 
 def create_app(tool: Any) -> FastAPI:
     @asynccontextmanager
@@ -175,7 +189,9 @@ def create_app(tool: Any) -> FastAPI:
 
     @app.post("/search/literal")
     async def literal_search(req: LiteralSearchRequest) -> dict[str, Any]:
-        result = tool.search_for(req.buffer_id, req.query, case_sensitive=req.case_sensitive, max_results=req.max_results)
+        result = tool.search_for(
+            req.buffer_id, req.query, case_sensitive=req.case_sensitive, max_results=req.max_results
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
@@ -206,7 +222,9 @@ def create_app(tool: Any) -> FastAPI:
     # ------------------------------------------------------------------
     @app.post("/read")
     async def read_code(req: ReadRequest) -> dict[str, Any]:
-        result = tool.read_code(req.buffer_id, file=req.file, start_line=req.start_line, end_line=req.end_line)
+        result = tool.read_code(
+            req.buffer_id, file=req.file, start_line=req.start_line, end_line=req.end_line
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
@@ -220,7 +238,9 @@ def create_app(tool: Any) -> FastAPI:
 
     @app.post("/write")
     async def write_code(req: WriteRequest) -> dict[str, Any]:
-        result = tool.write_code(req.buffer_id, req.file, req.start_line, req.new_lines, end_line=req.end_line)
+        result = tool.write_code(
+            req.buffer_id, req.file, req.start_line, req.new_lines, end_line=req.end_line
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
@@ -253,11 +273,15 @@ def create_app(tool: Any) -> FastAPI:
     async def call(req: CallRequest) -> dict[str, Any]:
         method = getattr(tool, req.tool, None)
         if method is None:
-            raise HTTPException(status_code=404, detail={"status": "error", "message": f"Unknown tool: {req.tool}"})
+            raise HTTPException(
+                status_code=404, detail={"status": "error", "message": f"Unknown tool: {req.tool}"}
+            )
         try:
             result = method(**req.args)
         except TypeError as exc:
-            raise HTTPException(status_code=400, detail={"status": "error", "message": str(exc)})
+            raise HTTPException(
+                status_code=400, detail={"status": "error", "message": str(exc)}
+            ) from exc
         if isinstance(result, dict) and result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result

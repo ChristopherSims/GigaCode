@@ -7,7 +7,6 @@ from typing import Any, Dict, Optional
 
 from gigacode.response_types import ErrorResponse
 
-
 __all__ = [
     "make_error_response",
     "validate_search_params",
@@ -21,13 +20,13 @@ def make_error_response(
     context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Create a structured error response with context.
-    
+
     Args:
         message: Human-readable error message.
         buffer_id: Buffer ID if applicable.
         operation: Operation name (e.g., 'semantic_search', 'write_code').
         context: Additional context dict.
-    
+
     Returns:
         Dict with ErrorResponse.to_dict() format (includes context field).
     """
@@ -46,12 +45,12 @@ def validate_search_params(
     max_results: Optional[int] = None,
 ) -> Optional[Dict[str, Any]]:
     """Validate search parameters and return error dict if invalid.
-    
+
     Args:
         query: Search query string
         top_k: Maximum results to return (optional, 1-10000)
         max_results: Maximum results to scan (optional, 1-100000)
-    
+
     Returns:
         None if valid, error dict if invalid
     """
@@ -62,5 +61,8 @@ def validate_search_params(
             return {"status": "error", "message": "top_k must be an integer between 1 and 10000."}
     if max_results is not None:
         if not isinstance(max_results, int) or max_results < 1 or max_results > 100_000:
-            return {"status": "error", "message": "max_results must be an integer between 1 and 100000."}
+            return {
+                "status": "error",
+                "message": "max_results must be an integer between 1 and 100000.",
+            }
     return None

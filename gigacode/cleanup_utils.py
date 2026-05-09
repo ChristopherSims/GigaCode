@@ -39,7 +39,7 @@ def cleanup_on_error(
 
     try:
         yield
-    except (OSError, RuntimeError, ValueError) as exc:
+    except (OSError, RuntimeError, ValueError):
         # Run cleanups in reverse order (LIFO)
         for name, cleanup_func in reversed(cleanup_list):
             try:

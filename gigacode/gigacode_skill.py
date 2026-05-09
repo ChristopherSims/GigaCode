@@ -32,8 +32,8 @@ _repo_root = Path(__file__).resolve().parent.parent
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-from gigacode.cross_language_rules import edit_file
-from gigacode.language_detect import detect_language
+from gigacode.cross_language_rules import edit_file  # noqa: E402
+from gigacode.language_detect import detect_language  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ def _get_tool() -> Any:
     global _CodeEmbeddingTool
     if _CodeEmbeddingTool is None:
         from gigacode.gigacode_tool import CodeEmbeddingTool
+
         _CodeEmbeddingTool = CodeEmbeddingTool
     return _CodeEmbeddingTool
 
@@ -87,9 +88,7 @@ class GigacodeEditAgent:
                     logger.info("[GigaCode] embedded %d lines.", result["token_count"])
 
                     # Optional: use semantic search to find similar patterns
-                    search = tool.semantic_search(
-                        buffer_id, "function definition", top_k=3
-                    )
+                    search = tool.semantic_search(buffer_id, "function definition", top_k=3)
                     if search["status"] == "ok":
                         logger.debug(
                             "[GigaCode] semantic context: %s",
@@ -161,7 +160,6 @@ class GigacodeEditAgent:
             current_source = "\n".join(current_lines)
 
             # Step 3: apply language-agnostic editing rules
-            from gigacode.cross_language_rules import EditResult
 
             edit_result = edit_file(src_path, language_hint=language)
             if not edit_result.changed:

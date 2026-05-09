@@ -19,7 +19,6 @@ Example:
 
 from enum import Enum
 
-
 __all__ = [
     "OperationType",
     "OperationConfig",
@@ -40,10 +39,11 @@ class OperationType(Enum):
     >     READ: Read code without searching (fast, read-only)
     >     REBUILD: Rebuild the search index (can work on both READY and DIRTY)
     """
-    QUERY = "query"      # Search operations
-    WRITE = "write"      # Code write operations
+
+    QUERY = "query"  # Search operations
+    WRITE = "write"  # Code write operations
     REBUILD = "rebuild"  # Index rebuild operations
-    READ = "read"        # Code read operations
+    READ = "read"  # Code read operations
 
 
 class OperationConfig:
@@ -64,29 +64,29 @@ class OperationConfig:
     >     - Example: Block WRITE operations on DIRTY buffers
     >     - Can be enabled/disabled as needed
     """
-    
+
     # Query behavior in DIRTY state
     BLOCK_DIRTY_QUERIES = False  # Default: warning only
-    
+
     # Query timeouts
     QUERY_TIMEOUT_SECONDS = 30
-    
+
     # Rebuild coordination
     MAX_PENDING_OPERATIONS = 100
     OPERATION_RETRY_ATTEMPTS = 3
     PENDING_OPERATION_TIMEOUT_SECONDS = 300  # 5 minutes
-    
+
     # Health thresholds
     DIRTY_FILE_WARNING_THRESHOLD = 5
     DIRTY_FILE_DEGRADED_THRESHOLD = 20
     INDEX_AGE_WARNING_SECONDS = 7 * 24 * 3600  # 1 week
     INDEX_AGE_DEGRADED_SECONDS = 30 * 24 * 3600  # 1 month
-    
+
     # Enable/disable state guards
     ENABLE_QUERY_STATE_GUARDS = True
     ENABLE_WRITE_STATE_GUARDS = True
     ENABLE_HEALTH_TRACKING = True
-    
+
     @staticmethod
     def get_state_requirements() -> dict:
         """
@@ -111,7 +111,7 @@ class OperationConfig:
         >     - REBUILD: Works on READY and DIRTY buffers
         """
         from gigacode.buffer_state import BufferState
-        
+
         return {
             OperationType.QUERY: [BufferState.READY, BufferState.DIRTY],
             OperationType.READ: [BufferState.READY, BufferState.DIRTY],

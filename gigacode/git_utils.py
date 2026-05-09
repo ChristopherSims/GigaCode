@@ -98,6 +98,7 @@ class GitUtils:
         # Try GitPython
         try:
             import git
+
             self._repo = git.Repo(str(self._repo_root))
             self._has_gitpython = True
         except (ImportError, git.InvalidGitRepositoryError, git.NoSuchPathError) as e:
@@ -226,7 +227,9 @@ class GitUtils:
         ahead = behind = 0
         tracking = self._run_git(["rev-parse", "--abbrev-ref", "@{upstream}"]).strip()
         if "fatal" not in tracking and "No upstream" not in tracking:
-            count = self._run_git(["rev-list", "--left-right", "--count", f"HEAD...{tracking}"]).strip()
+            count = self._run_git(
+                ["rev-list", "--left-right", "--count", f"HEAD...{tracking}"]
+            ).strip()
             parts = count.split("\t")
             if len(parts) == 2:
                 ahead = int(parts[0])
@@ -326,7 +329,7 @@ class GitUtils:
             cmd = ["blame", "-l", "--date=iso", "--porcelain"]
             if line is not None:
                 # Git blame uses 1-based line numbers
-                cmd.extend([f"-L", f"{line},{line + num_lines - 1}"])
+                cmd.extend(["-L", f"{line},{line + num_lines - 1}"])
             cmd.extend(["--", file_path])
 
             blame_output = self._run_git(cmd)
@@ -345,14 +348,16 @@ class GitUtils:
                 if len(parts) >= 3 and len(parts[0]) == 40:
                     # Save previous entry
                     if current_entry:
-                        entries.append(GitBlameLine(
-                            line=current_entry.get("line", 0),
-                            commit=current_entry.get("commit", "")[:8],
-                            author=current_entry.get("author", ""),
-                            date=current_entry.get("author-time", ""),
-                            message=current_entry.get("summary", ""),
-                            content=current_line_content,
-                        ))
+                        entries.append(
+                            GitBlameLine(
+                                line=current_entry.get("line", 0),
+                                commit=current_entry.get("commit", "")[:8],
+                                author=current_entry.get("author", ""),
+                                date=current_entry.get("author-time", ""),
+                                message=current_entry.get("summary", ""),
+                                content=current_line_content,
+                            )
+                        )
 
                     current_entry = {
                         "commit": parts[0],
@@ -370,14 +375,16 @@ class GitUtils:
 
             # Save last entry
             if current_entry:
-                entries.append(GitBlameLine(
-                    line=current_entry.get("line", 0),
-                    commit=current_entry.get("commit", "")[:8],
-                    author=current_entry.get("author", ""),
-                    date=current_entry.get("author-time", ""),
-                    message=current_entry.get("summary", ""),
-                    content=current_line_content,
-                ))
+                entries.append(
+                    GitBlameLine(
+                        line=current_entry.get("line", 0),
+                        commit=current_entry.get("commit", "")[:8],
+                        author=current_entry.get("author", ""),
+                        date=current_entry.get("author-time", ""),
+                        message=current_entry.get("summary", ""),
+                        content=current_line_content,
+                    )
+                )
 
             return {
                 "status": "ok",

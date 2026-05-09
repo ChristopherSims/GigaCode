@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -26,6 +25,7 @@ _PRIORITY_MAP = {
     "NOTE": "low",
 }
 
+
 @dataclass
 class TodoItem:
     file: str
@@ -39,6 +39,7 @@ class TodoItem:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+
 class TodoTracker:
     def extract_todos(self, chunks: list[Any]) -> list[TodoItem]:
         results: list[TodoItem] = []
@@ -51,17 +52,20 @@ class TodoTracker:
                         assignee = match.group(2)
                         text = match.group(3).strip()
                         if text:
-                            results.append(TodoItem(
-                                file=ch.file,
-                                line=i,
-                                text=text,
-                                tag=tag,
-                                priority=_PRIORITY_MAP.get(tag, "low"),
-                                assignee=assignee,
-                                age_days=None,  # Would need git blame
-                            ))
+                            results.append(
+                                TodoItem(
+                                    file=ch.file,
+                                    line=i,
+                                    text=text,
+                                    tag=tag,
+                                    priority=_PRIORITY_MAP.get(tag, "low"),
+                                    assignee=assignee,
+                                    age_days=None,  # Would need git blame
+                                )
+                            )
                         break
         return results
+
 
 def extract_todos(chunks: list[Any]) -> list[dict[str, Any]]:
     tracker = TodoTracker()
