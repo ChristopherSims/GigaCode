@@ -84,11 +84,11 @@ def test_streaming_support():
                 threshold_mb=500,
             )
 
-            print(f"[OK] BufferManager created with streaming support")
+            print("[OK] BufferManager created with streaming support")
 
             # Verify method exists
             assert hasattr(buffer_mgr, "embed_file_with_streaming")
-            print(f"[OK] embed_file_with_streaming method available")
+            print("[OK] embed_file_with_streaming method available")
 
             # Create a test file
             test_file = work_dir / "test.py"
