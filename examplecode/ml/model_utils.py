@@ -14,7 +14,7 @@ def safe_get_param(config, key, default=None):
 def batch_iterator(data, batch_size):
     """Yield successive batches of data."""
     for i in range(0, len(data), batch_size):
-        yield data[i:i + batch_size]
+        yield data[i : i + batch_size]
 
 
 def clip_gradient(grad, min_val, max_val):

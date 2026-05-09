@@ -7,10 +7,12 @@ Can be exported to monitoring systems (Prometheus, StatsD, etc.) in future versi
 from __future__ import annotations
 
 import logging
+import time
 from collections import defaultdict
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,8 @@ __all__ = [
     "HistogramStats",
     "MetricsCollector",
     "get_metrics",
+    "log_metric",
+    "timer",
 ]
 
 
@@ -150,3 +154,32 @@ _metrics = MetricsCollector()
 def get_metrics() -> MetricsCollector:
     """Get the global metrics collector instance."""
     return _metrics
+
+
+def log_metric(name: str, data: dict[str, Any]) -> None:
+    """Log a named metric as a JSON-structured log entry.
+
+    This is a lightweight wrapper that records structured data for
+    downstream aggregation or dashboards.  In the current in-memory
+    implementation it is emitted as a debug log entry; in future
+    versions it may push to Prometheus, StatsD, etc.
+    """
+    _metrics.increment_counter(name, value=1)
+    logger.debug("metric %s: %s", name, data)
+
+
+@contextmanager
+def timer(name: str) -> Iterator[None]:
+    """Context manager to time a block and record it as a histogram.
+
+    Usage:
+        with timer("operation_name"):
+            do_something()
+    """
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        elapsed = time.perf_counter() - start
+        _metrics.record_histogram(name, elapsed)
+        logger.debug("timer %s = %.4f s", name, elapsed)

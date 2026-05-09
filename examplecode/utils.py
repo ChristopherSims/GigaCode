@@ -15,7 +15,7 @@ def chunk_list(items, chunk_size):
     """Split a list into sublists of at most chunk_size elements."""
     chunks = []
     for i in range(0, len(items), chunk_size):
-        chunks.append(items[i:i + chunk_size])
+        chunks.append(items[i : i + chunk_size])
     return chunks
 
 

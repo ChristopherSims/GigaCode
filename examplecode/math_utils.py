@@ -40,6 +40,6 @@ def moving_average(values, window):
     """Calculate the moving average over a sliding window."""
     avgs = []
     for i in range(len(values) - window + 1):
-        chunk = values[i:i + window]
+        chunk = values[i : i + window]
         avgs.append(sum(chunk) / window)
     return avgs

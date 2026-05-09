@@ -17,7 +17,7 @@ def truncate(text, max_length, suffix="..."):
     """Truncate text to max_length, appending suffix if shortened."""
     if len(text) <= max_length:
         return text
-    return text[:max_length - len(suffix)] + suffix
+    return text[: max_length - len(suffix)] + suffix
 
 
 def count_words(text):

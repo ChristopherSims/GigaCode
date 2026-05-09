@@ -22,11 +22,13 @@ def parse_log_lines(lines):
     for line in lines:
         parts = line.strip().split(" ", 2)
         if len(parts) >= 3:
-            entries.append({
-                "timestamp": parts[0] + " " + parts[1],
-                "level": parts[2].split(":", 1)[0],
-                "message": parts[2].split(":", 1)[1].strip() if ":" in parts[2] else ""
-            })
+            entries.append(
+                {
+                    "timestamp": parts[0] + " " + parts[1],
+                    "level": parts[2].split(":", 1)[0],
+                    "message": parts[2].split(":", 1)[1].strip() if ":" in parts[2] else "",
+                }
+            )
     return entries
 
 
