@@ -94,16 +94,16 @@ def test_streaming_support():
             test_file = work_dir / "test.py"
             test_file.write_text(
                 """
-def function1():
-    return 42
+                def function1():
+                    return 42
 
-def function2():
-    return "hello"
+                def function2():
+                    return "hello"
 
-class MyClass:
-    def method(self):
-        pass
-"""
+                class MyClass:
+                    def method(self):
+                        pass
+                """
             )
 
             # Test streaming-aware chunking
