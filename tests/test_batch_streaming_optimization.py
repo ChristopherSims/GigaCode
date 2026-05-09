@@ -153,9 +153,6 @@ def test_large_file_detection():
         return False
 
 
-
-
-
 if __name__ == "__main__":
     print("\n" + "=" * 80)
     print("FUTURE 4.3 PHASE 2: INTEGRATION TESTS")
