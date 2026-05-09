@@ -6,6 +6,12 @@ Code benchmarks show that AI agent coding is 4x faster, however AI token rate wi
 After releasing this tool I have noticed that some AI Agents now include semantic code searches. I will still develop this tool for open-source.
 # GigaCode
 
+[![Version](https://img.shields.io/badge/version-0.5.0-blue?style=for-the-badge)](VERSION)
+[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9+-yellow?style=for-the-badge)](pyproject.toml)
+[![Tests](https://img.shields.io/badge/tests-346%20%7C%2099.5%25-brightgreen?style=for-the-badge)](#tests)
+[![Status](https://img.shields.io/badge/status-development-orange?style=for-the-badge)](#)
+
 **GPU-accelerated code embedding for AI agents.** Embed a codebase into searchable chunks, run semantic search and clustering, and edit code through a safe read-write-commit workflow.
 
 GigaCode is optimized for AI agent loops—fast chunking, sub-millisecond search on GPU, and surgical index updates on edit. Designed as a local-only tool that runs on your machine with no network exposure.
