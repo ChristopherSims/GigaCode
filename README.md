@@ -11,7 +11,7 @@ After releasing this tool I have noticed that some AI Agents now include semanti
 
 [![Version](https://img.shields.io/badge/version-0.5.1-blue?style=for-the-badge)](VERSION)
 [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.9+-yellow?style=for-the-badge)](pyproject.toml)
+[![Python](https://img.shields.io/badge/python-3.10+-yellow?style=for-the-badge)](pyproject.toml)
 [![Tests](https://img.shields.io/badge/tests-346%20%7C%2099.5%25-brightgreen?style=for-the-badge)](#tests)
 [![Status](https://img.shields.io/badge/status-development-orange?style=for-the-badge)](#)
 
