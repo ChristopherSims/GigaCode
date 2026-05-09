@@ -60,16 +60,16 @@ def test_incremental_indexer_integration():
         assert manager._incremental_manager is not None
         assert isinstance(manager._incremental_manager, IncrementalIndexManager)
         print(
-            f"✅ IndexManager has _incremental_manager: {type(manager._incremental_manager).__name__}"
+            f"[OK] IndexManager has _incremental_manager: {type(manager._incremental_manager).__name__}"
         )
 
         # Verify incremental manager has chunk tracker
         assert hasattr(manager._incremental_manager, "_chunk_tracker")
-        print("✅ IncrementalIndexManager has _chunk_tracker")
+        print("[OK] IncrementalIndexManager has _chunk_tracker")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -106,7 +106,7 @@ def test_semantic_cache_integration():
         assert search_service._semantic_query_cache is not None
         assert isinstance(search_service._semantic_query_cache, SemanticQueryCache)
         print(
-            f"✅ SearchService has _semantic_query_cache: {type(search_service._semantic_query_cache).__name__}"
+            f"[OK] SearchService has _semantic_query_cache: {type(search_service._semantic_query_cache).__name__}"
         )
 
         # Verify semantic cache has expected methods
@@ -114,17 +114,17 @@ def test_semantic_cache_integration():
         assert hasattr(cache, "get")
         assert hasattr(cache, "put")
         assert hasattr(cache, "get_stats")
-        print("✅ SemanticQueryCache has expected methods (get, put, get_stats)")
+        print("[OK] SemanticQueryCache has expected methods (get, put, get_stats)")
 
         # Verify cache is empty initially
         stats = cache.get_stats()
         assert stats["hits"] == 0
         assert stats["misses"] == 0
-        print(f"✅ Cache initialized empty: {stats}")
+        print(f"[OK] Cache initialized empty: {stats}")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -143,16 +143,16 @@ def test_gpu_index_faiss_integration():
 
         # Verify index_type parameter is supported
         assert hasattr(index, "index_type")
-        print("✅ GPUIndex supports index_type parameter")
+        print("[OK] GPUIndex supports index_type parameter")
 
         # Create with explicit index_type
         index2 = GpuIndex(dim=384, use_gpu=False, index_type="flat")
         assert index2.index_type == "flat"
-        print(f"✅ GPUIndex accepts index_type override: {index2.index_type}")
+        print(f"[OK] GPUIndex accepts index_type override: {index2.index_type}")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -187,17 +187,17 @@ def test_end_to_end_integration():
         # Verify all integrations are present
         assert index_manager._incremental_manager is not None
         assert search_service._semantic_query_cache is not None
-        print("✅ All Phase 3b components initialized")
+        print("[OK] All Phase 3b components initialized")
 
         # Verify components work together
         cache_stats = search_service._semantic_query_cache.get_stats()
         assert "hits" in cache_stats
         assert "misses" in cache_stats
-        print(f"✅ Components work together: cache_stats={cache_stats}")
+        print(f"[OK] Components work together: cache_stats={cache_stats}")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -226,12 +226,12 @@ def test_incremental_tracking_flow():
         # Access incremental manager
         inc_manager = index_manager._incremental_manager
         assert inc_manager is not None
-        print("✅ Incremental manager accessible from IndexManager")
+        print("[OK] Incremental manager accessible from IndexManager")
 
         # Verify chunk tracker
         tracker = inc_manager._chunk_tracker
         assert tracker is not None
-        print("✅ Chunk tracker accessible")
+        print("[OK] Chunk tracker accessible")
 
         # Create mock chunks
         from gigacode.chunker import CodeChunk
@@ -259,22 +259,22 @@ def test_incremental_tracking_flow():
 
         # Register chunks
         tracker.register_chunks("test.py", chunks)
-        print("✅ Registered 2 chunks in tracker")
+        print("[OK] Registered 2 chunks in tracker")
 
         # Verify chunk hashes created
         assert len(tracker.chunk_hashes) == 2
-        print(f"✅ Chunk hashes created: {len(tracker.chunk_hashes)} chunks")
+        print(f"[OK] Chunk hashes created: {len(tracker.chunk_hashes)} chunks")
 
         # Detect no changes
         changed, removed, kept = tracker.detect_changes("test.py", chunks)
         assert len(changed) == 0
         assert len(removed) == 0
         assert len(kept) == 2
-        print("✅ Change detection working: 0 changed, 0 removed, 2 kept")
+        print("[OK] Change detection working: 0 changed, 0 removed, 2 kept")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -311,22 +311,22 @@ def test_semantic_cache_flow():
         query = "find initialization code"
         result = {"matches": [{"name": "init"}], "buffer_id": "buf1"}
         cache.put(query, result)
-        print(f"✅ Put result in cache for: {query[:30]}")
+        print(f"[OK] Put result in cache for: {query[:30]}")
 
         # Get result from cache
         cached, was_exact = cache.get(query, compute_embedding=False)
         assert cached is not None
         assert cached == result
-        print("✅ Retrieved result from cache (exact match)")
+        print("[OK] Retrieved result from cache (exact match)")
 
         # Verify stats
         stats = cache.get_stats()
         assert stats["hits"] >= 1
-        print(f"✅ Cache stats updated: {stats}")
+        print(f"[OK] Cache stats updated: {stats}")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -358,7 +358,7 @@ if __name__ == "__main__":
             else:
                 failed += 1
         except Exception as e:
-            print(f"\n❌ {name} test failed: {e}")
+            print(f"\n[FAILED] {name} test failed: {e}")
             import traceback
 
             traceback.print_exc()

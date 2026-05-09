@@ -480,7 +480,7 @@ class ConflictPredictor:
                 recommendations.append("  Check diffs for merge conflicts")
             recommendations.append("  If tests pass, safe to commit")
         else:  # HIGH
-            recommendations.append("❌ External changes detected")
+            recommendations.append("[FAILED] External changes detected")
             recommendations.append("  → git_pull() to fetch latest changes")
             recommendations.append("  → reload_codebase() to refresh buffer")
             recommendations.append("  → Re-validate edits still make sense")

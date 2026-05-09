@@ -119,7 +119,7 @@ def benchmark_incremental_indexing():
     print(f"  Incremental update: {incremental_time:.1f}ms")
     print(f"  Speedup:            {full_reembed_time/incremental_time:.1f}x")
 
-    print("\n✅ Incremental indexing provides 5-50x speedup depending on change size")
+    print("\n[OK] Incremental indexing provides 5-50x speedup depending on change size")
 
 
 def benchmark_semantic_cache():
@@ -174,7 +174,7 @@ def benchmark_semantic_cache():
     print(f"  Hit Rate: {stats['hit_rate']}")
     print(f"  Cache Size: {stats['size']}/{stats['max_entries']}")
 
-    print("\n✅ Semantic cache provides 50-75% hit rate on typical workloads")
+    print("\n[OK] Semantic cache provides 50-75% hit rate on typical workloads")
 
 
 def benchmark_index_selection():
@@ -205,7 +205,7 @@ def benchmark_index_selection():
         elif index_type == "hnsw":
             print(f"  {vector_count:7d} vectors: {index_type:8s} (nlinks={params['nlinks']})")
 
-    print("\n✅ Index selection optimized for search latency and memory")
+    print("\n[OK] Index selection optimized for search latency and memory")
 
 
 def benchmark_batch_embedding():
@@ -234,7 +234,7 @@ def benchmark_batch_embedding():
     print(f"  Batch (all at once):      {batch_time:.1f}ms")
     print(f"  Speedup:                  {sequential_time/batch_time:.1f}x")
 
-    print("\n✅ Batch processing provides 2-5x speedup")
+    print("\n[OK] Batch processing provides 2-5x speedup")
 
 
 def benchmark_combined_impact():
@@ -273,7 +273,7 @@ def benchmark_combined_impact():
     print(f"  Total:            {optimized_total:.1f}s")
 
     overall_speedup = baseline_total / optimized_total
-    print(f"\n✅ Overall speedup: {overall_speedup:.1f}x")
+    print(f"\n[OK] Overall speedup: {overall_speedup:.1f}x")
     print(f"   Time saved: {(baseline_total - optimized_total):.1f}s")
 
 
@@ -293,7 +293,7 @@ if __name__ == "__main__":
         print("BENCHMARK COMPLETE")
         print("=" * 80)
     except Exception as e:
-        print(f"\n❌ Benchmark failed: {e}")
+        print(f"\n[FAILED] Benchmark failed: {e}")
         import traceback
 
         traceback.print_exc()

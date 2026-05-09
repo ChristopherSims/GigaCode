@@ -159,4 +159,4 @@ if __name__ == "__main__":
     test_cleanup_on_error_context()
     print("✓ test_cleanup_on_error_context")
 
-    print("\n✅ All retry and cleanup tests passed!")
+    print("✓ All retry and cleanup tests passed!")

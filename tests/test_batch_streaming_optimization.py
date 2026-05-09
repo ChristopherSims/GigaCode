@@ -36,7 +36,7 @@ def test_optimized_embedder():
             batch_threshold=10,
         )
 
-        print(f"✅ OptimizedEmbedder created: {opt_embedder}")
+        print(f"[OK] OptimizedEmbedder created: {opt_embedder}")
         print(f"   Device: {opt_embedder.device}")
         print(f"   Model: {opt_embedder.model_name}")
         print(f"   Embedding dim: {opt_embedder.embedding_dim}")
@@ -45,20 +45,20 @@ def test_optimized_embedder():
         small_texts = ["def hello(): pass", "class Foo: pass"]
         result = opt_embedder.encode(small_texts)
         assert result.shape == (2, opt_embedder.embedding_dim)
-        print(f"✅ Small batch encoding works: shape {result.shape}")
+        print(f"[OK] Small batch encoding works: shape {result.shape}")
 
         # Get batch processor
         processor = opt_embedder.get_batch_processor()
         assert processor is not None
-        print(f"✅ Batch processor available: {type(processor).__name__}")
+        print(f"[OK] Batch processor available: {type(processor).__name__}")
 
         return True
     except ImportError as e:
-        print(f"⚠️  Model unavailable (expected): {e}")
+        print(f"[WARNING] Model unavailable (expected): {e}")
         print("   OptimizedEmbedder structure is correct, model loading depends on environment")
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         return False
 
 
@@ -84,11 +84,11 @@ def test_streaming_support():
                 threshold_mb=500,
             )
 
-            print("✅ BufferManager created with streaming support")
+            print(f"[OK] BufferManager created with streaming support")
 
             # Verify method exists
             assert hasattr(buffer_mgr, "embed_file_with_streaming")
-            print("✅ embed_file_with_streaming method available")
+            print(f"[OK] embed_file_with_streaming method available")
 
             # Create a test file
             test_file = work_dir / "test.py"
@@ -113,13 +113,13 @@ class MyClass:
                 streaming_threshold_mb=50,
             )
 
-            print(f"✅ File chunked with streaming support: {len(chunks)} chunks")
+            print(f"[OK] File chunked with streaming support: {len(chunks)} chunks")
             if chunks:
                 print(f"   First chunk: {chunks[0].type} - {chunks[0].name}")
 
             return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -136,86 +136,24 @@ def test_large_file_detection():
         # Test small file
         small_size = 10 * 1024 * 1024  # 10MB
         assert not supports_streaming(small_size, threshold_mb=50)
-        print("✅ Small file (10MB) correctly detected as no-stream needed")
+        print("[OK] Small file (10MB) correctly detected as no-stream needed")
 
         # Test large file
         large_size = 100 * 1024 * 1024  # 100MB
         assert supports_streaming(large_size, threshold_mb=50)
-        print("✅ Large file (100MB) correctly detected as streaming needed")
+        print("[OK] Large file (100MB) correctly detected as streaming needed")
 
         # Test custom threshold
         assert not supports_streaming(large_size, threshold_mb=200)
-        print("✅ Custom threshold (200MB) working correctly")
+        print("[OK] Custom threshold (200MB) working correctly")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         return False
 
 
-def test_integration_summary():
-    """Print integration status summary."""
-    print("\n" + "=" * 80)
-    print("PHASE 2 INTEGRATION SUMMARY")
-    print("=" * 80)
 
-    print(
-        """
-✅ COMPLETED INTEGRATIONS:
-
-1. Batch Embedder Integration (gigacode_tool.py)
-   - CodeEmbeddingTool now uses OptimizedEmbedder
-   - Automatic batch optimization for large batches (>100 texts)
-   - Seamless fallback to standard embedding for small batches
-   - Impact: 2-5x faster embedding for large codebases
-
-2. Streaming Support in BufferManager
-   - New method: embed_file_with_streaming()
-   - Automatic detection of large files (>50MB default)
-   - Language-aware chunking with boundary preservation
-   - Graceful fallback for errors
-   - Impact: Can now handle files >100MB without OOM
-
-3. OptimizedEmbedder Wrapper (gigacode/embedder_optimizer.py)
-   - Transparent wrapper around Embedder
-   - Intelligent selection: batch vs standard encoding
-   - LRU cache for repeated embeddings
-   - Full backward compatibility
-
-ARCHITECTURE:
-   CodeEmbeddingTool
-   └── OptimizedEmbedder
-       ├── standard Embedder (small batches)
-       └── BatchEmbedder (large batches >100 texts)
-           ├── Dynamic batch sizing
-           ├── LRU embedding cache
-           └── OOM handling
-
-   BufferManager
-   └── embed_file_with_streaming()
-       ├── File size detection
-       ├── StreamingChunker (for >50MB)
-       └── Standard chunking (for <50MB)
-
-TESTING:
-✅ All new modules import correctly
-✅ OptimizedEmbedder works with Embedder
-✅ Streaming detection functions correctly
-✅ BufferManager has streaming method
-✅ All 14 streaming support tests pass
-✅ gigacode_tool integration verified
-✅ No breaking changes to existing API
-
-NEXT STEPS (Phase 2 continued):
-- Run extended tests on examplecode/ directory
-- Benchmark embedding performance improvements
-- Test on files >100MB
-- Document performance gains
-- Update README with optimization guide
-"""
-    )
-
-    return True
 
 
 if __name__ == "__main__":
@@ -227,7 +165,6 @@ if __name__ == "__main__":
         ("OptimizedEmbedder", test_optimized_embedder),
         ("Streaming Support", test_streaming_support),
         ("Large File Detection", test_large_file_detection),
-        ("Integration Summary", test_integration_summary),
     ]
 
     passed = 0
@@ -241,7 +178,7 @@ if __name__ == "__main__":
             else:
                 failed += 1
         except Exception as e:
-            print(f"\n❌ {name} test failed: {e}")
+            print(f"\n[FAILED] {name} test failed: {e}")
             import traceback
 
             traceback.print_exc()

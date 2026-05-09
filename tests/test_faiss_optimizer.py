@@ -37,26 +37,26 @@ def test_index_type_selection():
         # Small dataset -> Flat
         index_type = optimizer.select_index_type(vector_count=5000)
         assert index_type == "flat", f"Expected flat, got {index_type}"
-        print(f"✅ Small dataset (5k vectors): {index_type}")
+        print(f"[OK] Small dataset (5k vectors): {index_type}")
 
         # Medium dataset -> IVF
         index_type = optimizer.select_index_type(vector_count=50000)
         assert index_type == "ivf", f"Expected ivf, got {index_type}"
-        print(f"✅ Medium dataset (50k vectors): {index_type}")
+        print(f"[OK] Medium dataset (50k vectors): {index_type}")
 
         # Large dataset -> HNSW
         index_type = optimizer.select_index_type(vector_count=500000)
         assert index_type == "hnsw", f"Expected hnsw, got {index_type}"
-        print(f"✅ Large dataset (500k vectors): {index_type}")
+        print(f"[OK] Large dataset (500k vectors): {index_type}")
 
         # Force type override
         index_type = optimizer.select_index_type(vector_count=5000, force_type="ivf")
         assert index_type == "ivf", f"Expected ivf override, got {index_type}"
-        print(f"✅ Force type override: {index_type}")
+        print(f"[OK] Force type override: {index_type}")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -76,7 +76,7 @@ def test_index_parameters():
         params = optimizer.get_index_params("flat", vector_count=1000)
         assert params["type"] == "flat"
         assert "metric" in params
-        print(f"✅ Flat parameters: {params}")
+        print(f"[OK] Flat parameters: {params}")
 
         # IVF parameters
         params = optimizer.get_index_params("ivf", vector_count=50000)
@@ -84,19 +84,19 @@ def test_index_parameters():
         assert params["nlist"] > 0
         assert params["nprobe"] > 0
         assert params["nprobe"] < params["nlist"]
-        print(f"✅ IVF parameters: nlist={params['nlist']}, nprobe={params['nprobe']}")
+        print(f"[OK] IVF parameters: nlist={params['nlist']}, nprobe={params['nprobe']}")
 
         # HNSW parameters
         params = optimizer.get_index_params("hnsw", vector_count=100000)
         assert params["type"] == "hnsw"
         assert params["nlinks"] > 0
         print(
-            f"✅ HNSW parameters: nlinks={params['nlinks']}, efConstruction={params['efConstruction']}"
+            f"[OK] HNSW parameters: nlinks={params['nlinks']}, efConstruction={params['efConstruction']}"
         )
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -131,26 +131,26 @@ def test_faiss_integration():
             pytest.skip("FAISS not available, skipping index creation tests")
 
         assert index.ntotal == vector_count
-        print(f"✅ Created flat index with {index.ntotal} vectors")
+        print(f"[OK] Created flat index with {index.ntotal} vectors")
 
         # Search
         distances, indices = optimizer.search_index(index, query[0], k=5)
         assert len(distances) == 5
         assert len(indices) == 5
         assert distances[0] <= distances[-1]  # Distances should be sorted
-        print(f"✅ Search returned {len(indices)} results")
+        print(f"[OK] Search returned {len(indices)} results")
 
         # Get index info
         info = optimizer.get_index_info(index)
         assert info["ntotal"] == vector_count
-        print(f"✅ Index info: {info}")
+        print(f"[OK] Index info: {info}")
 
         return True
     except ImportError:
-        print("⚠️  FAISS not installed, skipping FAISS integration tests")
+        print("[WARNING] FAISS not installed, skipping FAISS integration tests")
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -190,7 +190,7 @@ def test_index_creation_performance():
             creation_time = (time.perf_counter() - t0) * 1000
 
             if index is None:
-                print(f"⚠️  Failed to create {expected_type} index")
+                print(f"[WARNING] Failed to create {expected_type} index")
                 continue
 
             # Measure search time
@@ -210,7 +210,7 @@ def test_index_creation_performance():
             )
 
             print(
-                f"✅ {selected_type:6s} ({vector_count:6d} vectors): "
+                f"[OK] {selected_type:6s} ({vector_count:6d} vectors): "
                 f"create={creation_time:6.1f}ms, search={search_time:5.2f}ms"
             )
 
@@ -218,14 +218,14 @@ def test_index_creation_performance():
         if len(results) >= 2:
             flat_times = [r["creation_ms"] for r in results if r["type"] == "flat"]
             assert flat_times[1] > flat_times[0], "Creation time should increase with vector count"
-            print("✅ Performance scaling verified")
+            print("[OK] Performance scaling verified")
 
         return True
     except ImportError:
-        print("⚠️  FAISS not installed, skipping performance tests")
+        print("[WARNING] FAISS not installed, skipping performance tests")
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -260,7 +260,7 @@ def test_distance_metrics():
         index = optimizer.create_optimized_index(vectors=vectors, embedding_dim=embedding_dim)
 
         if index is None:
-            print("⚠️  FAISS not available")
+            print("[WARNING] FAISS not available")
             return True
 
         distances, indices = optimizer.search_index(index, query, k=3)
@@ -268,19 +268,19 @@ def test_distance_metrics():
         # First result should be the identical vector (distance 0)
         assert indices[0] == 0, f"Expected first result to be vector 0, got {indices[0]}"
         assert distances[0] < 0.01, f"Expected distance ~0, got {distances[0]}"
-        print(f"✅ Identical vectors: distance={distances[0]:.6f}")
+        print(f"[OK] Identical vectors: distance={distances[0]:.6f}")
 
         # Distances should be sorted
         for i in range(len(distances) - 1):
             assert distances[i] <= distances[i + 1], "Distances should be sorted"
-        print("✅ Results sorted by distance")
+        print("[OK] Results sorted by distance")
 
         return True
     except ImportError:
-        print("⚠️  FAISS not installed, skipping distance metric tests")
+        print("[WARNING] FAISS not installed, skipping distance metric tests")
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -311,7 +311,7 @@ if __name__ == "__main__":
             else:
                 failed += 1
         except Exception as e:
-            print(f"\n❌ {name} test failed: {e}")
+            print(f"\n[FAILED] {name} test failed: {e}")
             import traceback
 
             traceback.print_exc()

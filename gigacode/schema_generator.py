@@ -275,9 +275,9 @@ def validate_schemas_against_code(
 def report_schema_validation(validation_issues: dict[str, list[str]]) -> str:
     """Generate a human-readable validation report."""
     if not validation_issues:
-        return "✅ All schemas valid — no drift detected!"
+        return "[OK] All schemas valid — no drift detected!"
 
-    lines = ["❌ Schema drift detected:\n"]
+    lines = ["[FAILED] Schema drift detected:\n"]
     for method_name, issues in validation_issues.items():
         lines.append(f"  {method_name}:")
         for issue in issues:

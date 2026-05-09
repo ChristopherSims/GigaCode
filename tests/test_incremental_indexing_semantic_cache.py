@@ -59,14 +59,14 @@ def test_chunk_diff_tracker():
         ]
 
         tracker.register_chunks("test.py", chunks_v1)
-        print("✅ Registered 2 chunks")
+        print("[OK] Registered 2 chunks")
 
         # Detect no changes
         changed, removed, kept = tracker.detect_changes("test.py", chunks_v1)
         assert len(changed) == 0, "No changes expected"
         assert len(removed) == 0, "No removals expected"
         assert len(kept) == 2, "2 kept expected"
-        print("✅ Correctly detected no changes")
+        print("[OK] Correctly detected no changes")
 
         # Modify one chunk
         chunks_v2 = [
@@ -78,7 +78,7 @@ def test_chunk_diff_tracker():
         assert len(changed) == 1, "1 change expected"
         assert len(removed) == 0, "No removals expected"
         assert len(kept) == 1, "1 kept expected"
-        print("✅ Correctly detected 1 changed chunk")
+        print("[OK] Correctly detected 1 changed chunk")
 
         # Update tracker and remove a chunk
         tracker.update_after_changes("test.py", chunks_v2)
@@ -88,7 +88,7 @@ def test_chunk_diff_tracker():
 
         changed, removed, kept = tracker.detect_changes("test.py", chunks_v3)
         assert len(removed) == 1, "1 removal expected"
-        print("✅ Correctly detected 1 removed chunk")
+        print("[OK] Correctly detected 1 removed chunk")
 
         # Update tracker and add a chunk
         tracker.update_after_changes("test.py", chunks_v3)
@@ -99,11 +99,11 @@ def test_chunk_diff_tracker():
 
         changed, removed, kept = tracker.detect_changes("test.py", chunks_v4)
         assert len(changed) == 1, "1 addition expected"
-        print("✅ Correctly detected 1 added chunk")
+        print("[OK] Correctly detected 1 added chunk")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -129,12 +129,12 @@ def test_incremental_index_manager():
 
         embeddings = embedder.encode([c.text for c in chunks])
         manager.register_initial_index("buf1", chunks, embeddings)
-        print("✅ Registered initial index with 2 chunks")
+        print("[OK] Registered initial index with 2 chunks")
 
         # Verify cache
         stats = manager.get_cache_stats()
         assert stats["cached_embeddings"] == 2
-        print("✅ Cache has 2 embeddings")
+        print("[OK] Cache has 2 embeddings")
 
         # Compute incremental update for changed chunks
         chunks_v2 = [
@@ -147,14 +147,14 @@ def test_incremental_index_manager():
         assert metadata["changed_count"] == 1
         assert metadata["kept_count"] == 1
         assert new_embs.shape[0] == 1  # Only changed chunks
-        print(f"✅ Computed incremental update: {metadata}")
+        print(f"[OK] Computed incremental update: {metadata}")
 
         # Verify only changed chunk was embedded
-        print(f"✅ Embedded {new_embs.shape[0]} changed chunks (vs 2 total)")
+        print(f"[OK] Embedded {new_embs.shape[0]} changed chunks (vs 2 total)")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -180,13 +180,13 @@ def test_semantic_cache():
         result1 = {"matches": [{"name": "add", "score": 0.95}]}
 
         cache.put(query1, result1)
-        print(f"✅ Cached result for: '{query1}'")
+        print(f"[OK] Cached result for: '{query1}'")
 
         # Retrieve exact match
         cached = cache.get(query1, compute_embedding=False)
         assert cached is not None
         assert cached[1]  # Exact match
-        print("✅ Retrieved exact match from cache")
+        print("[OK] Retrieved exact match from cache")
 
         # Attempt semantic match (will work with mock embedder)
         query2 = "locate the add function"  # Paraphrased
@@ -195,7 +195,7 @@ def test_semantic_cache():
 
         # Get stats
         stats = cache.get_stats()
-        print(f"✅ Cache stats: {stats['hits']} hits, {stats['misses']} misses")
+        print(f"[OK] Cache stats: {stats['hits']} hits, {stats['misses']} misses")
 
         # Test LRU eviction
         cache_small = SemanticQueryCache(max_entries=2, embedder=embedder)
@@ -204,11 +204,11 @@ def test_semantic_cache():
         cache_small.put("query3", {"result": 3})  # Should evict oldest
 
         assert len(cache_small._cache) == 2
-        print(f"✅ LRU eviction working (size: {len(cache_small._cache)}/2)")
+        print(f"[OK] LRU eviction working (size: {len(cache_small._cache)}/2)")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -233,27 +233,27 @@ def test_search_result_cache():
         }
 
         cache.put_search_result("buf1", query, "semantic", results, top_k=5)
-        print("✅ Cached search result for semantic search")
+        print("[OK] Cached search result for semantic search")
 
         # Retrieve cached result
         cached = cache.get_search_result("buf1", query, "semantic", top_k=5)
         assert cached is not None
         assert cached["cached"]
-        print("✅ Retrieved cached search result")
+        print("[OK] Retrieved cached search result")
 
         # Test cache miss
         cached = cache.get_search_result("buf1", "different query", "semantic", top_k=5)
         assert cached is None
-        print("✅ Cache miss for new query")
+        print("[OK] Cache miss for new query")
 
         # Get stats
         stats = cache.get_stats()
         assert "search_cache_size" in stats
-        print(f"✅ Cache stats available: {stats['search_cache_size']} entries")
+        print(f"[OK] Cache stats available: {stats['search_cache_size']} entries")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -300,16 +300,16 @@ def test_performance_comparison():
 
         # Full re-embedding would need 100 embeddings
         # Incremental only needs 10
-        print(f"✅ Initial indexing: {initial_time:.1f}ms")
-        print(f"✅ Incremental update: {incremental_time:.1f}ms")
+        print(f"[OK] Initial indexing: {initial_time:.1f}ms")
+        print(f"[OK] Incremental update: {incremental_time:.1f}ms")
         print(
-            f"✅ Efficiency: Only embedded {metadata['changed_count']}/{metadata['total_chunks']} chunks"
+            f"[OK] Efficiency: Only embedded {metadata['changed_count']}/{metadata['total_chunks']} chunks"
         )
-        print(f"✅ Expected speedup: ~{100/metadata['changed_count']:.1f}x (for this scenario)")
+        print(f"[OK] Expected speedup: ~{100/metadata['changed_count']:.1f}x (for this scenario)")
 
         return True
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -340,7 +340,7 @@ if __name__ == "__main__":
             else:
                 failed += 1
         except Exception as e:
-            print(f"\n❌ {name} test failed: {e}")
+            print(f"\n[FAILED] {name} test failed: {e}")
             import traceback
 
             traceback.print_exc()
