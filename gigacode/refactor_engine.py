@@ -392,30 +392,300 @@ def add_import_statement(
     return result.to_dict()
 
 
+class DiffHunk:
+    """A single hunk from a unified diff."""
+
+    def __init__(
+        self,
+        old_start: int,
+        old_count: int,
+        new_start: int,
+        new_count: int,
+        lines: list[str],
+    ) -> None:
+        self.old_start = old_start
+        self.old_count = old_count
+        self.new_start = new_start
+        self.new_count = new_count
+        self.lines = lines
+
+    def apply(self, old_lines: list[str]) -> tuple[list[str], list[str], list[str]]:
+        """Apply this hunk to old_lines.
+
+        Returns:
+            Tuple of (new_lines, context_before, context_after) for preview.
+
+        Raises:
+            ValueError: If hunk cannot be applied cleanly.
+        """
+        # Find the context lines in old_lines
+        # old_start is 1-based, convert to 0-based index
+        start_idx = self.old_start - 1
+
+        # Validate we have enough lines
+        if start_idx < 0 or start_idx > len(old_lines):
+            raise ValueError(
+                f"Hunk start line {self.old_start} out of range (file has {len(old_lines)} lines)"
+            )
+
+        # Build the new lines by processing hunk lines
+        new_lines: list[str] = old_lines[:start_idx]
+        removed: list[str] = []
+        added: list[str] = []
+
+        old_idx = start_idx
+        for line in self.lines:
+            if line.startswith(" "):
+                # Context line - must match
+                expected = line[1:]
+                if old_idx >= len(old_lines) or old_lines[old_idx] != expected:
+                    # Try fuzzy match: check nearby lines
+                    found = False
+                    for offset in range(-3, 4):
+                        check_idx = old_idx + offset
+                        if 0 <= check_idx < len(old_lines) and old_lines[check_idx] == expected:
+                            # Adjust: add intervening lines to new_lines
+                            if offset > 0:
+                                new_lines.extend(old_lines[len(new_lines):check_idx])
+                            elif offset < 0:
+                                # Backtrack
+                                backtrack = -offset
+                                new_lines = new_lines[:-backtrack]
+                            old_idx = check_idx
+                            found = True
+                            break
+                    if not found:
+                        raise ValueError(
+                            f"Context line mismatch at line {old_idx + 1}: "
+                            f"expected '{expected[:50]}...', got '{old_lines[old_idx][:50]}...' "
+                            if old_idx < len(old_lines)
+                            else "(end of file)"
+                        )
+                new_lines.append(expected)
+                old_idx += 1
+            elif line.startswith("-"):
+                # Removed line
+                expected = line[1:]
+                if old_idx >= len(old_lines) or old_lines[old_idx] != expected:
+                    raise ValueError(
+                        f"Removed line mismatch at line {old_idx + 1}: "
+                        f"expected '{expected[:50]}...'"
+                    )
+                removed.append(expected)
+                old_idx += 1
+            elif line.startswith("+"):
+                # Added line
+                added.append(line[1:])
+                new_lines.append(line[1:])
+            elif line.startswith("\\"):
+                # "\ No newline at end of file" - ignore
+                pass
+
+        # Append remaining lines after the hunk
+        new_lines.extend(old_lines[old_idx:])
+
+        return new_lines, removed, added
+
+
+def _parse_unified_diff(diff_text: str) -> dict[str, list[DiffHunk]]:
+    """Parse a unified diff into hunks grouped by file.
+
+    Returns:
+        Dict mapping file path to list of DiffHunk objects.
+    """
+    files: dict[str, list[DiffHunk]] = {}
+    current_file: str | None = None
+    current_hunk: DiffHunk | None = None
+    hunk_lines: list[str] = []
+
+    for line in diff_text.splitlines():
+        if line.startswith("--- "):
+            # Old file path
+            old_path = line[4:].split("\t")[0]
+            if old_path.startswith("a/"):
+                old_path = old_path[2:]
+            continue
+
+        if line.startswith("+++ "):
+            # New file path
+            new_path = line[4:].split("\t")[0]
+            if new_path.startswith("b/"):
+                new_path = new_path[2:]
+            current_file = new_path
+            files.setdefault(current_file, [])
+            continue
+
+        if line.startswith("@@"):
+            # Save previous hunk
+            if current_file and current_hunk and hunk_lines:
+                current_hunk.lines = hunk_lines
+                files[current_file].append(current_hunk)
+                hunk_lines = []
+
+            # Parse hunk header: @@ -old_start,old_count +new_start,new_count @@
+            match = re.match(
+                r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@",
+                line,
+            )
+            if match:
+                old_start = int(match.group(1))
+                old_count = int(match.group(2)) if match.group(2) else 1
+                new_start = int(match.group(3))
+                new_count = int(match.group(4)) if match.group(4) else 1
+                current_hunk = DiffHunk(
+                    old_start=old_start,
+                    old_count=old_count,
+                    new_start=new_start,
+                    new_count=new_count,
+                    lines=[],
+                )
+            continue
+
+        # Hunk line
+        if line.startswith(" ") or line.startswith("+") or line.startswith("-") or line.startswith("\\"):
+            hunk_lines.append(line)
+        elif line.strip() == "" and current_hunk:
+            # Empty lines in hunk context
+            hunk_lines.append(" " + line)
+
+    # Save final hunk
+    if current_file and current_hunk and hunk_lines:
+        current_hunk.lines = hunk_lines
+        files[current_file].append(current_hunk)
+
+    return files
+
+
+class PatchApplier:
+    """Apply unified diffs to buffer snapshots."""
+
+    def __init__(self, chunks: list[Any]) -> None:
+        self.chunks = chunks
+        self._file_chunks: dict[str, list[Any]] = {}
+        for ch in chunks:
+            self._file_chunks.setdefault(ch.file, []).append(ch)
+
+    def apply_patch(
+        self,
+        diff_text: str,
+        dry_run: bool = True,
+    ) -> RefactorResult:
+        """Apply a unified diff to the buffer.
+
+        Args:
+            diff_text: Unified diff string.
+            dry_run: If True, compute changes but do not modify chunks.
+
+        Returns:
+            RefactorResult with applied changes.
+        """
+        try:
+            file_hunks = _parse_unified_diff(diff_text)
+        except (ValueError, TypeError) as e:
+            return RefactorResult(
+                status="error",
+                changed_files=[],
+                changes=[],
+                message=f"Failed to parse diff: {e}",
+                dry_run=dry_run,
+            )
+
+        if not file_hunks:
+            return RefactorResult(
+                status="warning",
+                changed_files=[],
+                changes=[],
+                message="No hunks found in diff text.",
+                dry_run=dry_run,
+            )
+
+        all_changes: list[RefactorChange] = []
+        changed_files: set[str] = set()
+
+        for file_path, hunks in file_hunks.items():
+            # Get current file content from chunks
+            file_chunks = self._file_chunks.get(file_path, [])
+            if not file_chunks:
+                return RefactorResult(
+                    status="error",
+                    changed_files=[],
+                    changes=[],
+                    message=f"File '{file_path}' not found in buffer.",
+                    dry_run=dry_run,
+                )
+
+            # Sort chunks by line number and concatenate text
+            file_chunks.sort(key=lambda c: c.start_line)
+            old_lines: list[str] = []
+            for ch in file_chunks:
+                ch_lines = ch.text.splitlines()
+                old_lines.extend(ch_lines)
+
+            # Apply hunks in order
+            new_lines = old_lines[:]
+            for hunk in hunks:
+                try:
+                    new_lines, removed, added = hunk.apply(new_lines)
+                except ValueError as e:
+                    return RefactorResult(
+                        status="error",
+                        changed_files=[],
+                        changes=[],
+                        message=f"Failed to apply hunk for {file_path}: {e}",
+                        dry_run=dry_run,
+                    )
+
+            # Only proceed if there are actual changes
+            if new_lines != old_lines:
+                new_text = "\n".join(new_lines)
+                all_changes.append(RefactorChange(
+                    file=file_path,
+                    start_line=1,
+                    end_line=len(old_lines),
+                    old_text="\n".join(old_lines),
+                    new_text=new_text,
+                    change_type="diff",
+                ))
+                changed_files.add(file_path)
+
+                if not dry_run:
+                    # Update chunks: replace all chunks for this file with one big chunk
+                    # (simplification: re-chunking happens on commit)
+                    for ch in file_chunks:
+                        ch.text = ""
+                    if file_chunks:
+                        file_chunks[0].text = new_text
+                        file_chunks[0].start_line = 1
+                        file_chunks[0].end_line = len(new_lines)
+                        # Remove other chunks
+                        for ch in file_chunks[1:]:
+                            if ch in self.chunks:
+                                self.chunks.remove(ch)
+
+        if not changed_files:
+            return RefactorResult(
+                status="ok",
+                changed_files=[],
+                changes=[],
+                message="Patch applied cleanly but made no changes.",
+                dry_run=dry_run,
+            )
+
+        return RefactorResult(
+            status="ok",
+            changed_files=sorted(changed_files),
+            changes=all_changes,
+            message=f"Applied patch to {len(changed_files)} file(s) with {len(all_changes)} change(s).",
+            dry_run=dry_run,
+        )
+
+
 def apply_unified_diff(
     chunks: list[Any],
     diff_text: str,
     dry_run: bool = True,
 ) -> dict[str, Any]:
-    """Apply a unified diff to chunks.
-
-    This is a simplified implementation that parses the diff and applies
-    line-by-line changes. For production use, consider using `patch` library.
-
-    Args:
-        chunks: List of chunks to modify.
-        diff_text: Unified diff string (like `git diff` output).
-        dry_run: If True, compute changes but do not modify.
-
-    Returns:
-        RefactorResult as dict.
-    """
-    # TODO: Implement proper unified diff parsing
-    # For now, return a placeholder
-    return RefactorResult(
-        status="warning",
-        changed_files=[],
-        changes=[],
-        message="Unified diff application is not yet fully implemented. Use write_code for now.",
-        dry_run=dry_run,
-    ).to_dict()
+    """Apply a unified diff to chunks and return as dict."""
+    applier = PatchApplier(chunks)
+    result = applier.apply_patch(diff_text, dry_run)
+    return result.to_dict()

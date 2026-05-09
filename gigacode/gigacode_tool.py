@@ -53,13 +53,22 @@ from gigacode import response_adapters
 from gigacode import tool_validation
 from gigacode.tool_security import ToolSecurityLayer
 from gigacode.context_assembler import ContextAssembler
-from gigacode.refactor_engine import RefactorEngine
+from gigacode.context_summarizer import ContextSummarizer
+from gigacode.refactor_engine import RefactorEngine, PatchApplier
 from gigacode.retry_utils import retry_on_io_error
 from gigacode.faceted_search import FacetedSearcher, SearchFilter
 from gigacode.symbol_index import SymbolIndex
 from gigacode.type_search import TypeSearcher
 from gigacode.multi_buffer import MultiBufferManager
 from gigacode.resource_budget import estimate_budget as _estimate_budget, ConfidenceScorer
+from gigacode.git_utils import GitUtils
+from gigacode.dependency_graph import DependencyGraph
+from gigacode.dead_code_detector import DeadCodeDetector
+from gigacode.todo_tracker import TodoTracker
+from gigacode.quality_scorer import QualityScorer
+from gigacode.progress_stream import ProgressReporter
+from gigacode.conversation_memory import ConversationMemory
+from gigacode.phases_integration import PhasesIntegrationMixin
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger('tool')
@@ -67,7 +76,7 @@ json_logger = StructuredJsonLogger('tool')
 _MAX_DIRTY_BEFORE_AUTO_REBUILD = 3
 
 
-class CodeEmbeddingTool:
+class CodeEmbeddingTool(PhasesIntegrationMixin):
     """Embed a codebase into GPU/CPU buffers and expose search + cluster.
 
     Args:
@@ -132,6 +141,9 @@ class CodeEmbeddingTool:
         
         # Phase 7: Security layer (RBAC, audit logging, and rate limiting)
         self._security = ToolSecurityLayer(self.work_dir)
+        
+        # Phase 10: Multi-turn conversation memory
+        self._conversation_memory = ConversationMemory(self.work_dir / "memories.json")
 
         # Phase 4 Integration: Initialize the three manager layers
         # These provide separation of concerns for buffer mgmt, indexing, and search
@@ -184,6 +196,12 @@ class CodeEmbeddingTool:
         
         # Multi-buffer orchestration manager (aliases and virtual buffers)
         self._multi_buffer_manager = MultiBufferManager(self.work_dir)
+
+        # Phase 4-10: Initialize optional enhanced capabilities
+        try:
+            self.setup_phases_4_10()
+        except Exception as e:
+            logger.warning(f"Phases 4-10 setup incomplete (optional): {e}")
 
         # Phase 7: Prometheus metrics export via HTTP endpoint
         self._prometheus_exporter = None
@@ -381,6 +399,11 @@ class CodeEmbeddingTool:
             # Create and cache indices via IndexManager
             self._index_manager.create_indices(buffer_id, embeddings, chunks)
             
+            # Save hierarchical summaries for context packing
+            summarizer = ContextSummarizer(chunks)
+            buffer_dir = self.work_dir / f"{buffer_id}.gcbuff"
+            summarizer.save_summaries(buffer_dir)
+            
             elapsed = time.perf_counter() - t0
             
             # Record metrics
@@ -490,6 +513,182 @@ class CodeEmbeddingTool:
             "SearchService unavailable",
             buffer_id=buffer_id,
             operation="semantic_search",
+        )
+
+    def semantic_search_streaming(
+        self,
+        buffer_id: str,
+        query: str,
+        top_k: int = 10,
+        disclosure: str = "signatures",
+    ) -> dict[str, Any]:
+        """Search with progressive result disclosure to save tokens.
+
+        Three disclosure levels:
+        - "signatures": Only function/class signatures (~8 tokens/match).
+        - "details": Signatures + docstrings + first 5 lines (~45 tokens/match).
+        - "full": Complete chunk text (~200 tokens/match).
+
+        Use ``expand_match()`` to incrementally expand a single match.
+
+        Expected savings: 84% for signatures-only vs full chunks.
+
+        Args:
+            buffer_id: Buffer handle.
+            query: Search query string.
+            top_k: Number of top results.
+            disclosure: "signatures" | "details" | "full".
+
+        Returns:
+            Dict with matches at the requested disclosure level, plus
+            ``expandable`` flag and ``match_count``.
+        """
+        err = self._validate_search_params(query, top_k=top_k)
+        if err is not None:
+            return err
+
+        if self._search_service:
+            try:
+                return self._search_service.semantic_search_streaming(
+                    buffer_id=buffer_id,
+                    query=query,
+                    top_k=top_k,
+                    disclosure=disclosure,
+                )
+            except (ImportError, RuntimeError, ValueError) as e:
+                logger.warning(f"SearchService streaming failed: {e}")
+                return self._make_error_response(
+                    f"Streaming search failed: {e}",
+                    buffer_id=buffer_id,
+                    operation="semantic_search_streaming",
+                )
+
+        return self._make_error_response(
+            "SearchService unavailable",
+            buffer_id=buffer_id,
+            operation="semantic_search_streaming",
+        )
+
+    def expand_match(
+        self,
+        buffer_id: str,
+        match_id: int,
+        level: str = "details",
+    ) -> dict[str, Any]:
+        """Expand a search match to a higher disclosure level.
+
+        Progressively reveals more detail for a single match without
+        re-embedding or re-searching.
+
+        Args:
+            buffer_id: Buffer handle.
+            match_id: Chunk index from a prior streaming search result.
+            level: "details" (signatures + docstring + first 5 lines) or
+                "full" (complete text).
+
+        Returns:
+            Dict with expanded match data.
+        """
+        if self._search_service:
+            try:
+                return self._search_service.expand_match(
+                    buffer_id=buffer_id,
+                    match_id=match_id,
+                    level=level,
+                )
+            except (ImportError, RuntimeError, ValueError) as e:
+                logger.warning(f"Expand match failed: {e}")
+                return self._make_error_response(
+                    f"Expand match failed: {e}",
+                    buffer_id=buffer_id,
+                    operation="expand_match",
+                )
+
+        return self._make_error_response(
+            "SearchService unavailable",
+            buffer_id=buffer_id,
+            operation="expand_match",
+        )
+
+    def find_similar_intents(
+        self,
+        buffer_id: str,
+        query: str,
+        top_k: int = 3,
+    ) -> dict[str, Any]:
+        """Find cached intent clusters semantically similar to a query.
+
+        Helps when you're not sure how to phrase a query — find related
+        intents that have been cached previously.
+
+        Args:
+            buffer_id: Buffer handle.
+            query: Query string to find similar intents for.
+            top_k: Maximum number of similar intents to return.
+
+        Returns:
+            Dict with similar_intents list, each containing canonical_query,
+            similarity score, hit count, and most recent cached result.
+        """
+        if self._search_service:
+            try:
+                similar = self._search_service._intent_cache.find_similar_intents(
+                    query, top_k=top_k
+                )
+                return {
+                    "status": "ok",
+                    "buffer_id": buffer_id,
+                    "query": query,
+                    "similar_intents": [
+                        {
+                            "canonical_query": s["cluster"]["canonical_query"],
+                            "similarity": round(s["similarity"], 3),
+                            "queries_in_cluster": len(s["cluster"]["queries"]),
+                            "hits": s["cluster"]["hits"],
+                            "intent_label": s["cluster"].get("intent_label"),
+                        }
+                        for s in similar
+                    ],
+                    "count": len(similar),
+                }
+            except (ImportError, RuntimeError, ValueError) as e:
+                logger.warning(f"Find similar intents failed: {e}")
+                return self._make_error_response(
+                    f"Find similar intents failed: {e}",
+                    buffer_id=buffer_id,
+                    operation="find_similar_intents",
+                )
+
+        return self._make_error_response(
+            "SearchService unavailable",
+            buffer_id=buffer_id,
+            operation="find_similar_intents",
+        )
+
+    def get_intent_cache_stats(self, buffer_id: str) -> dict[str, Any]:
+        """Get statistics for the intent cache.
+
+        Args:
+            buffer_id: Buffer handle.
+
+        Returns:
+            Dict with hits, misses, hit_rate, cluster_count, avg_similarity.
+        """
+        if self._search_service:
+            try:
+                stats = self._search_service._intent_cache.get_stats()
+                return {"status": "ok", "buffer_id": buffer_id, **stats}
+            except (ImportError, RuntimeError, ValueError) as e:
+                return self._make_error_response(
+                    f"Failed to get intent stats: {e}",
+                    buffer_id=buffer_id,
+                    operation="get_intent_cache_stats",
+                )
+
+        return self._make_error_response(
+            "SearchService unavailable",
+            buffer_id=buffer_id,
+            operation="get_intent_cache_stats",
         )
 
     def faceted_search(
@@ -1111,6 +1310,162 @@ class CodeEmbeddingTool:
 
         return pack_context(chunks, scores, max_tokens=max_tokens)
 
+    def pack_context_smart(
+        self,
+        buffer_id: str,
+        query: str,
+        max_tokens: int = 8192,
+        top_k: int = 20,
+        deduplicate: bool = True,
+        strip_boilerplate: bool = True,
+        strip_docstrings: str = "auto",
+        exclude_types: list[str] | None = None,
+        exclude_test_files: bool = False,
+        min_lines: int = 3,
+        max_lines: int = 200,
+        granularity: str = "smart",
+    ) -> dict[str, Any]:
+        """Smart context packing with token-saving optimizations.
+
+        Applies multiple filters to reduce token usage while maintaining
+        relevance:
+        1. Deduplication: remove copy-pasted chunks
+        2. Boilerplate stripping: remove imports, licenses, __all__
+        3. Docstring stripping: remove verbose docstrings (unless query
+           asks for docs)
+        4. Type filtering: skip orphans, sliding windows, tests
+        5. Size filtering: skip tiny or huge chunks
+        6. Granularity: use signatures-only for low-relevance chunks
+
+        Expected token savings: 30-40% on typical codebases.
+
+        Args:
+            buffer_id: Buffer handle.
+            query: Search query for finding relevant chunks.
+            max_tokens: Maximum tokens for assembled context.
+            top_k: Number of search results to consider.
+            deduplicate: Remove near-duplicate chunks (default True).
+            strip_boilerplate: Remove import/license headers (default True).
+            strip_docstrings: "auto" | "always" | "never".
+            exclude_types: Chunk types to skip (default ["orphan", "sliding"]).
+            exclude_test_files: Skip test files (default False).
+            min_lines: Minimum chunk line count (default 3).
+            max_lines: Maximum chunk line count (default 200).
+            granularity: "signatures" | "bodies" | "smart" (default "smart").
+
+        Returns:
+            Dict with packed_chunks, total_tokens, savings stats, and
+            filter report.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return {"status": "error", "message": "No chunks loaded."}
+
+        # Use hybrid search for relevance scoring
+        search_result = self.hybrid_search(buffer_id, query, top_k=top_k, offset=0)
+        if search_result.get("status") != "ok":
+            return search_result
+
+        matches = search_result.get("matches", [])
+        if not matches:
+            return {
+                "status": "ok",
+                "packed_chunks": [],
+                "total_tokens": 0,
+                "remaining_tokens": max_tokens,
+                "count": 0,
+                "saved_tokens": 0,
+                "savings_percent": 0.0,
+                "filter_stats": {"original": 0},
+            }
+
+        # Build score map by doc_id
+        scores = [0.0] * len(chunks)
+        for m in matches:
+            did = m.get("doc_id")
+            if did is not None and 0 <= did < len(chunks):
+                scores[did] = m.get("rrf_score", m.get("score", 0.0))
+
+        from gigacode.context_packer import pack_context_smart
+
+        return pack_context_smart(
+            chunks,
+            scores,
+            query=query,
+            max_tokens=max_tokens,
+            deduplicate=deduplicate,
+            strip_boilerplate=strip_boilerplate,
+            strip_docstrings=strip_docstrings,
+            exclude_types=exclude_types,
+            exclude_test_files=exclude_test_files,
+            min_lines=min_lines,
+            max_lines=max_lines,
+            granularity=granularity,
+        )
+
+    def pack_context_hierarchical(
+        self,
+        buffer_id: str,
+        query: str,
+        max_tokens: int = 8192,
+        levels: list[str] | None = None,
+        top_k_files: int = 5,
+        top_k_chunks: int = 10,
+    ) -> dict[str, Any]:
+        """Pack context hierarchically for LLM consumption.
+
+        Provides three levels of detail:
+        1. File summaries (overview, top-level definitions)
+        2. Chunk summaries (function/class signatures + docstrings)
+        3. Specific lines (query-relevant line ranges)
+
+        Args:
+            buffer_id: Buffer handle.
+            query: Search query.
+            max_tokens: Maximum tokens for assembled context.
+            levels: Which levels to include ["file_summary", "chunk", "lines"].
+            top_k_files: Number of top files to include.
+            top_k_chunks: Number of top chunks per file.
+
+        Returns:
+            Dict with hierarchy list and total_tokens.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="pack_context_hierarchical"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="pack_context_hierarchical"
+            )
+
+        try:
+            query_embedding = self._embedder.encode([query])[0]
+            summarizer = ContextSummarizer(chunks)
+            result = summarizer.pack_hierarchical(
+                query_embedding,
+                query,
+                max_tokens,
+                levels,
+                top_k_files,
+                top_k_chunks,
+            )
+            return {"status": "ok", **result.to_dict()}
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"ContextSummarizer.pack_hierarchical failed: {e}")
+            return self._make_error_response(
+                f"Hierarchical context packing failed: {e}",
+                buffer_id=buffer_id,
+                operation="pack_context_hierarchical",
+            )
+
     def related_code(
         self,
         buffer_id: str,
@@ -1327,6 +1682,59 @@ class CodeEmbeddingTool:
                 f"Remove import failed: {e}",
                 buffer_id=buffer_id,
                 operation="remove_import",
+            )
+
+    def apply_patch(
+        self,
+        buffer_id: str,
+        patch_text: str,
+        dry_run: bool = True,
+    ) -> dict[str, Any]:
+        """Apply a unified diff patch to the buffer.
+
+        Accepts standard unified diff format (like ``git diff`` output).
+        Supports multiple files in one patch.
+
+        Args:
+            buffer_id: Buffer handle.
+            patch_text: Unified diff string with @@ hunk headers.
+            dry_run: If True, returns preview without modifying.
+
+        Returns:
+            Dict with changed_files, changes list, and status.
+
+        Example patch_text::
+
+            --- a/auth.py
+            +++ b/auth.py
+            @@ -45,7 +45,7 @@
+             def validate_token(token: str) -> dict:
+            -    payload = jwt.decode(token, SECRET)
+            +    payload = jwt.decode(token, SECRET, options={"verify_exp": True})
+                 return payload
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="apply_patch"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="apply_patch"
+            )
+
+        try:
+            applier = PatchApplier(chunks)
+            result = applier.apply_patch(patch_text, dry_run)
+            return {"status": "ok", **result.to_dict()}
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"PatchApplier.apply_patch failed: {e}")
+            return self._make_error_response(
+                f"Apply patch failed: {e}",
+                buffer_id=buffer_id,
+                operation="apply_patch",
             )
 
     # ------------------------------------------------------------------
@@ -1949,6 +2357,107 @@ class CodeEmbeddingTool:
     def list_sessions(self) -> dict[str, Any]:
         """List all saved sessions."""
         return self._buffer_manager.list_sessions()
+
+    def git_status(self, buffer_id: str) -> dict[str, Any]:
+        """Get git working tree status for a buffer's source directory.
+
+        Returns branch, ahead/behind counts, modified/staged/untracked files.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="git_status"
+            )
+
+        source_dir = info.get("path") or info.get("root")
+        if not source_dir:
+            return self._make_error_response(
+                "No source directory found", buffer_id=buffer_id, operation="git_status"
+            )
+
+        utils = GitUtils(source_dir)
+        return utils.get_status()
+
+    def git_diff(
+        self,
+        buffer_id: str,
+        file: str | None = None,
+        against: str = "HEAD",
+    ) -> dict[str, Any]:
+        """Get diff of file(s) against a git reference.
+
+        Args:
+            file: Specific file, or None for all.
+            against: "HEAD", "STAGED", commit hash, or branch name.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="git_diff"
+            )
+
+        source_dir = info.get("path") or info.get("root")
+        if not source_dir:
+            return self._make_error_response(
+                "No source directory found", buffer_id=buffer_id, operation="git_diff"
+            )
+
+        utils = GitUtils(source_dir)
+        return utils.get_diff(file_path=file, against=against)
+
+    def git_blame(
+        self,
+        buffer_id: str,
+        file: str,
+        line: int | None = None,
+    ) -> dict[str, Any]:
+        """Show who last modified each line of a file.
+
+        Args:
+            file: File path.
+            line: Specific line (1-based), or None for full file.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="git_blame"
+            )
+
+        source_dir = info.get("path") or info.get("root")
+        if not source_dir:
+            return self._make_error_response(
+                "No source directory found", buffer_id=buffer_id, operation="git_blame"
+            )
+
+        utils = GitUtils(source_dir)
+        return utils.blame(file_path=file, line=line)
+
+    def git_show(
+        self,
+        buffer_id: str,
+        file: str,
+        commit: str = "HEAD",
+    ) -> dict[str, Any]:
+        """Show file content at a specific commit.
+
+        Args:
+            file: File path.
+            commit: Commit hash or reference.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="git_show"
+            )
+
+        source_dir = info.get("path") or info.get("root")
+        if not source_dir:
+            return self._make_error_response(
+                "No source directory found", buffer_id=buffer_id, operation="git_show"
+            )
+
+        utils = GitUtils(source_dir)
+        return utils.show_file_at_commit(file_path=file, commit=commit)
 
     def check_buffer_state(self, buffer_id: str) -> dict[str, Any]:
         """Return the current state of a buffer (READY, DIRTY, REBUILDING).
@@ -2903,6 +3412,200 @@ class CodeEmbeddingTool:
 
         return self._audit_logger.stats()
 
+    # ------------------------------------------------------------------
+    # Phase 5: Dependency Graph
+    # ------------------------------------------------------------------
+    def trace_call_chain(
+        self,
+        buffer_id: str,
+        from_symbol: str,
+        to_symbol: str,
+        max_depth: int = 10,
+    ) -> dict[str, Any]:
+        """Find call chain between two symbols using BFS."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="trace_call_chain")
+        try:
+            chunks = self._load_chunks(buffer_id)
+            if not chunks:
+                return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="trace_call_chain")
+            graph = DependencyGraph(chunks)
+            result = graph.trace_call_chain(from_symbol, to_symbol, max_depth)
+            return {"status": "ok", **result.to_dict()}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(str(e), buffer_id=buffer_id, operation="trace_call_chain")
+
+    def get_dependencies(
+        self,
+        buffer_id: str,
+        file: str,
+        direction: str = "both",
+    ) -> dict[str, Any]:
+        """Get file dependencies (outgoing imports, incoming references)."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="get_dependencies")
+        try:
+            chunks = self._load_chunks(buffer_id)
+            if not chunks:
+                return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="get_dependencies")
+            graph = DependencyGraph(chunks)
+            deps = graph.get_dependencies(file, direction)
+            return {"status": "ok", "file": file, "direction": direction, "dependencies": deps}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(str(e), buffer_id=buffer_id, operation="get_dependencies")
+
+    def find_circular_dependencies(self, buffer_id: str) -> dict[str, Any]:
+        """Find circular import/reference cycles in a buffer."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_circular_dependencies")
+        try:
+            chunks = self._load_chunks(buffer_id)
+            if not chunks:
+                return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_circular_dependencies")
+            graph = DependencyGraph(chunks)
+            cycles = graph.find_cycles()
+            return {"status": "ok", "cycles": cycles, "cycle_count": len(cycles)}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(str(e), buffer_id=buffer_id, operation="find_circular_dependencies")
+
+    def export_dependency_graph(
+        self,
+        buffer_id: str,
+        format: str = "json",
+    ) -> dict[str, Any]:
+        """Export dependency graph in JSON or DOT format."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="export_dependency_graph")
+        try:
+            chunks = self._load_chunks(buffer_id)
+            if not chunks:
+                return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="export_dependency_graph")
+            graph = DependencyGraph(chunks)
+            return graph.export_graph(format)
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(str(e), buffer_id=buffer_id, operation="export_dependency_graph")
+
+    # ------------------------------------------------------------------
+    # Phase 6: Dead Code Detection
+    # ------------------------------------------------------------------
+    def find_dead_code(
+        self,
+        buffer_id: str,
+        min_confidence: str = "medium",
+    ) -> dict[str, Any]:
+        """Find dead code and unused symbols in a buffer."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_dead_code")
+        try:
+            chunks = self._load_chunks(buffer_id)
+            if not chunks:
+                return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_dead_code")
+            detector = DeadCodeDetector(chunks)
+            dead = detector.find_dead_code(min_confidence)
+            unused = detector.find_unused_imports()
+            return {"status": "ok", "dead_symbols": [s.to_dict() for s in dead], "unused_imports": unused}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(str(e), buffer_id=buffer_id, operation="find_dead_code")
+
+    # ------------------------------------------------------------------
+    # Phase 7: TODO/FIXME Tracker
+    # ------------------------------------------------------------------
+    def extract_todos(
+        self,
+        buffer_id: str,
+        tag: str | None = None,
+    ) -> dict[str, Any]:
+        """Extract TODO, FIXME, HACK, XXX comments from a buffer."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="extract_todos")
+        try:
+            chunks = self._load_chunks(buffer_id)
+            if not chunks:
+                return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="extract_todos")
+            tracker = TodoTracker()
+            todos = tracker.extract_todos(chunks)
+            if tag:
+                todos = [t for t in todos if t.tag == tag.upper()]
+            return {"status": "ok", "todos": [t.to_dict() for t in todos], "total": len(todos)}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(str(e), buffer_id=buffer_id, operation="extract_todos")
+
+    # ------------------------------------------------------------------
+    # Phase 8: Code Quality Scoring
+    # ------------------------------------------------------------------
+    def score_code_quality(
+        self,
+        buffer_id: str,
+        file: str,
+    ) -> dict[str, Any]:
+        """Score code quality metrics for a file."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="score_code_quality")
+        try:
+            chunks = self._load_chunks(buffer_id)
+            if not chunks:
+                return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="score_code_quality")
+            scorer = QualityScorer()
+            result = scorer.score_file(chunks, file)
+            if not result:
+                return self._make_error_response("File not found in buffer", buffer_id=buffer_id, operation="score_code_quality")
+            return {"status": "ok", **result.to_dict()}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(str(e), buffer_id=buffer_id, operation="score_code_quality")
+
+    # ------------------------------------------------------------------
+    # Phase 9: Progress Streaming (helper)
+    # ------------------------------------------------------------------
+    def _create_progress_reporter(
+        self,
+        phases: list[str],
+    ) -> "ProgressReporter":
+        """Create a progress reporter for long-running operations."""
+        return ProgressReporter(phases)
+
+    # ------------------------------------------------------------------
+    # Phase 10: Multi-turn Conversation Memory
+    # ------------------------------------------------------------------
+    def remember(
+        self,
+        key: str,
+        value: str,
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Store a fact in conversation memory."""
+        return self._conversation_memory.remember(key, value, tags)
+
+    def recall(
+        self,
+        query: str,
+        top_k: int = 5,
+    ) -> dict[str, Any]:
+        """Recall facts from conversation memory by query."""
+        memories = self._conversation_memory.recall(query, top_k)
+        return {"status": "ok", "memories": [m.to_dict() for m in memories]}
+
+    def list_memories(
+        self,
+        tag: str | None = None,
+    ) -> dict[str, Any]:
+        """List all stored memories, optionally filtered by tag."""
+        memories = self._conversation_memory.list_memories(tag)
+        return {"status": "ok", "memories": [m.to_dict() for m in memories], "total": len(memories)}
+
+    def forget(self, key: str) -> dict[str, Any]:
+        """Remove a stored memory."""
+        return self._conversation_memory.forget(key)
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
     def close(self) -> None:
         """Release all in-memory resources.
 

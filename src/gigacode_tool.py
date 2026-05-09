@@ -42,6 +42,12 @@ from src.size_guard import check_size
 from src.buffer_state import BufferState, BufferStateTransition
 from src.operation_config import OperationType, OperationConfig
 from src.health_status import HealthStatus, HealthStatusTracker
+from gigacode.dependency_graph import DependencyGraph
+from gigacode.dead_code_detector import DeadCodeDetector
+from gigacode.todo_tracker import TodoTracker
+from gigacode.quality_scorer import QualityScorer
+from gigacode.progress_stream import ProgressReporter
+from gigacode.conversation_memory import ConversationMemory
 
 logger = logging.getLogger(__name__)
 
@@ -132,9 +138,15 @@ class CodeEmbeddingTool:
 
         # Query result cache
         self._query_cache = QueryCache(maxsize=256)
-        
+
         # Health status tracker (Phase 6)
         self._health_tracker = HealthStatusTracker()
+        
+        # Conversation memory (Phase 10)
+        self._conversation_memory = ConversationMemory(self.work_dir / "memories.json")
+
+        # Multi-turn conversation memory (Phase 10)
+        self._conversation_memory = ConversationMemory(self.work_dir / "memories.json")
 
     # ------------------------------------------------------------------
     # Schema exposure
@@ -1594,6 +1606,131 @@ class CodeEmbeddingTool:
         self._lexical_cache.clear()
         self._query_cache.clear()
         logger.debug("CodeEmbeddingTool closed; all in-memory caches released.")
+
+    # ------------------------------------------------------------------
+    # Phases 5-10: Call/Dependency Graph, Dead Code, TODOs, Quality,
+    #              Progress Streaming, Conversation Memory
+    # ------------------------------------------------------------------
+    def trace_call_chain(
+        self,
+        buffer_id: str,
+        from_symbol: str,
+        to_symbol: str,
+        max_depth: int = 10,
+    ) -> dict[str, Any]:
+        """Find call chain between two symbols."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="trace_call_chain")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="trace_call_chain")
+        graph = DependencyGraph(chunks)
+        result = graph.trace_call_chain(from_symbol, to_symbol, max_depth)
+        return {"status": "ok", **result.to_dict()}
+
+    def get_dependencies(
+        self,
+        buffer_id: str,
+        file: str,
+        direction: str = "both",
+    ) -> dict[str, Any]:
+        """Get file dependencies."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="get_dependencies")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="get_dependencies")
+        graph = DependencyGraph(chunks)
+        deps = graph.get_dependencies(file, direction)
+        return {"status": "ok", "file": file, "direction": direction, "dependencies": deps}
+
+    def find_circular_dependencies(self, buffer_id: str) -> dict[str, Any]:
+        """Find circular dependencies in a buffer."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_circular_dependencies")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_circular_dependencies")
+        graph = DependencyGraph(chunks)
+        cycles = graph.find_cycles()
+        return {"status": "ok", "cycles": cycles, "cycle_count": len(cycles)}
+
+    def export_dependency_graph(self, buffer_id: str, format: str = "json") -> dict[str, Any]:
+        """Export dependency graph."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="export_dependency_graph")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="export_dependency_graph")
+        graph = DependencyGraph(chunks)
+        return graph.export_graph(format)
+
+    def find_dead_code(self, buffer_id: str, min_confidence: str = "medium") -> dict[str, Any]:
+        """Find dead code and unused imports in a buffer."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_dead_code")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_dead_code")
+        detector = DeadCodeDetector(chunks)
+        dead = detector.find_dead_code(min_confidence)
+        unused = detector.find_unused_imports()
+        return {"status": "ok", "dead_symbols": [s.to_dict() for s in dead], "unused_imports": unused}
+
+    def extract_todos(self, buffer_id: str, tag: str | None = None) -> dict[str, Any]:
+        """Extract TODO/FIXME comments from a buffer."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="extract_todos")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="extract_todos")
+        tracker = TodoTracker()
+        todos = tracker.extract_todos(chunks)
+        if tag:
+            todos = [t for t in todos if t.tag == tag.upper()]
+        return {"status": "ok", "todos": [t.to_dict() for t in todos], "total": len(todos)}
+
+    def score_code_quality(self, buffer_id: str, file: str) -> dict[str, Any]:
+        """Score code quality for a specific file in a buffer."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="score_code_quality")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="score_code_quality")
+        scorer = QualityScorer()
+        result = scorer.score_file(chunks, file)
+        if not result:
+            return self._make_error_response("File not found in buffer", buffer_id=buffer_id, operation="score_code_quality")
+        return {"status": "ok", **result.to_dict()}
+
+    def _create_progress_reporter(self, phases: list[str]) -> "ProgressReporter":
+        """Create a progress reporter for long-running operations."""
+        return ProgressReporter(phases)
+
+    def remember(self, key: str, value: str, tags: list[str] | None = None) -> dict[str, Any]:
+        """Store a fact in conversation memory."""
+        return self._conversation_memory.remember(key, value, tags)
+
+    def recall(self, query: str, top_k: int = 5) -> dict[str, Any]:
+        """Recall facts from conversation memory."""
+        memories = self._conversation_memory.recall(query, top_k)
+        return {"status": "ok", "memories": [m.to_dict() for m in memories]}
+
+    def list_memories(self, tag: str | None = None) -> dict[str, Any]:
+        """List all stored memories, optionally filtered by tag."""
+        memories = self._conversation_memory.list_memories(tag)
+        return {"status": "ok", "memories": [m.to_dict() for m in memories], "total": len(memories)}
+
+    def forget(self, key: str) -> dict[str, Any]:
+        """Forget a stored memory by key."""
+        return self._conversation_memory.forget(key)
     
     # ------------------------------------------------------------------
     # Phase 6: State-Based Access Control
@@ -1766,6 +1903,127 @@ class CodeEmbeddingTool:
             json.dumps(self._registry, separators=(",", ":"), indent=2),
             encoding="utf-8",
         )
+
+    # ------------------------------------------------------------------
+    # Phase 5: Dependency Graph
+    # ------------------------------------------------------------------
+    def trace_call_chain(self, buffer_id: str, from_symbol: str, to_symbol: str, max_depth: int = 10) -> dict[str, Any]:
+        """Find call chain between two symbols."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="trace_call_chain")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="trace_call_chain")
+        graph = DependencyGraph(chunks)
+        result = graph.trace_call_chain(from_symbol, to_symbol, max_depth)
+        return {"status": "ok", **result.to_dict()}
+
+    def get_dependencies(self, buffer_id: str, file: str, direction: str = "both") -> dict[str, Any]:
+        """Get file dependencies."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="get_dependencies")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="get_dependencies")
+        graph = DependencyGraph(chunks)
+        deps = graph.get_dependencies(file, direction)
+        return {"status": "ok", "file": file, "direction": direction, "dependencies": deps}
+
+    def find_circular_dependencies(self, buffer_id: str) -> dict[str, Any]:
+        """Find circular dependencies in a buffer."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_circular_dependencies")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_circular_dependencies")
+        graph = DependencyGraph(chunks)
+        cycles = graph.find_cycles()
+        return {"status": "ok", "cycles": cycles, "cycle_count": len(cycles)}
+
+    def export_dependency_graph(self, buffer_id: str, format: str = "json") -> dict[str, Any]:
+        """Export dependency graph."""
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="export_dependency_graph")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="export_dependency_graph")
+        graph = DependencyGraph(chunks)
+        return graph.export_graph(format)
+
+    # ------------------------------------------------------------------
+    # Phase 6: Dead Code Detection
+    # ------------------------------------------------------------------
+    def find_dead_code(self, buffer_id: str, min_confidence: str = "medium") -> dict[str, Any]:
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_dead_code")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_dead_code")
+        detector = DeadCodeDetector(chunks)
+        dead = detector.find_dead_code(min_confidence)
+        unused = detector.find_unused_imports()
+        return {"status": "ok", "dead_symbols": [s.to_dict() for s in dead], "unused_imports": unused}
+
+    # ------------------------------------------------------------------
+    # Phase 7: TODO/FIXME Tracker
+    # ------------------------------------------------------------------
+    def extract_todos(self, buffer_id: str, tag: str | None = None) -> dict[str, Any]:
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="extract_todos")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="extract_todos")
+        tracker = TodoTracker()
+        todos = tracker.extract_todos(chunks)
+        if tag:
+            todos = [t for t in todos if t.tag == tag.upper()]
+        return {"status": "ok", "todos": [t.to_dict() for t in todos], "total": len(todos)}
+
+    # ------------------------------------------------------------------
+    # Phase 8: Code Quality Scoring
+    # ------------------------------------------------------------------
+    def score_code_quality(self, buffer_id: str, file: str) -> dict[str, Any]:
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="score_code_quality")
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="score_code_quality")
+        scorer = QualityScorer()
+        result = scorer.score_file(chunks, file)
+        if not result:
+            return self._make_error_response("File not found in buffer", buffer_id=buffer_id, operation="score_code_quality")
+        return {"status": "ok", **result.to_dict()}
+
+    # ------------------------------------------------------------------
+    # Phase 9: Streaming Support Infrastructure
+    # ------------------------------------------------------------------
+    def _create_progress_reporter(self, phases: list[str]) -> "ProgressReporter":
+        from gigacode.progress_stream import ProgressReporter
+        return ProgressReporter(phases)
+
+    # ------------------------------------------------------------------
+    # Phase 10: Multi-turn Conversation Memory
+    # ------------------------------------------------------------------
+    def remember(self, key: str, value: str, tags: list[str] | None = None) -> dict[str, Any]:
+        return self._conversation_memory.remember(key, value, tags)
+
+    def recall(self, query: str, top_k: int = 5) -> dict[str, Any]:
+        memories = self._conversation_memory.recall(query, top_k)
+        return {"status": "ok", "memories": [m.to_dict() for m in memories]}
+
+    def list_memories(self, tag: str | None = None) -> dict[str, Any]:
+        memories = self._conversation_memory.list_memories(tag)
+        return {"status": "ok", "memories": [m.to_dict() for m in memories], "total": len(memories)}
+
+    def forget(self, key: str) -> dict[str, Any]:
+        return self._conversation_memory.forget(key)
 
     def __enter__(self) -> CodeEmbeddingTool:
         return self

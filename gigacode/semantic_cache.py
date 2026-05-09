@@ -21,7 +21,10 @@ __all__ = [
     "CacheEntry",
     "SemanticQueryCache",
     "SearchResultCache",
+    "IntentCache",
 ]
+
+from gigacode.intent_cache import IntentCache
 
 
 @dataclass

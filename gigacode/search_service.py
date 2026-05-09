@@ -133,12 +133,19 @@ class SearchService:
         self._embedder = embedder
         self._prometheus_exporter = prometheus_exporter
         self._logger = StructuredJsonLogger(__name__)
-        
+
         # Semantic cache for query embeddings with paraphrase detection
         self._semantic_query_cache = SemanticQueryCache(
             max_entries=500,
             similarity_threshold=0.95,
             embedder=embedder,
+        )
+
+        # Intent cache for clustering paraphrased queries
+        self._intent_cache = IntentCache(
+            embedder=embedder,
+            similarity_threshold=0.88,
+            max_entries=200,
         )
 
     def semantic_search(
@@ -201,6 +208,26 @@ class SearchService:
                     logger.debug(f"Semantic cache hit for query: {normalized_query[:50]}")
                     return cached_results
 
+            # Check intent cache for paraphrased intent clusters
+            intent_cluster, intent_similarity = self._intent_cache.get_intent(normalized_query)
+            if intent_cluster is not None and intent_cluster["results"]:
+                # Use most recent cached result for this intent
+                latest_result = intent_cluster["results"][-1]
+                if isinstance(latest_result, dict) and latest_result.get("buffer_id") == buffer_id:
+                    latest_result = latest_result.copy()
+                    latest_result["cache_hit"] = True
+                    latest_result["intent_cache"] = True
+                    latest_result["intent_similarity"] = round(intent_similarity, 3)
+                    latest_result["canonical_query"] = intent_cluster["canonical_query"]
+                    elapsed = (time.perf_counter() - start_time) * 1000
+                    latest_result["elapsed_ms"] = elapsed
+                    self._record_metrics(operation, buffer_id, elapsed, "ok")
+                    logger.debug(
+                        f"Intent cache hit (sim={intent_similarity:.3f}) "
+                        f"for query: {normalized_query[:50]}"
+                    )
+                    return latest_result
+
             # Get index and chunks
             index = self._index_manager._get_index(buffer_id)
             chunks = self._index_manager._load_chunks(buffer_id)
@@ -232,11 +259,15 @@ class SearchService:
                 np.array([query_embedding], dtype=np.float32), k=top_k
             )
 
-            # Build results
+            # Build results with multi-level disclosure
             matches = []
             for score, idx in zip(scores[0], indices[0]):
                 if idx >= 0 and idx < len(chunks):
                     chunk = chunks[idx]
+                    # Compute signature (first line + docstring)
+                    signature_lines = self._extract_signature(chunk.text)
+                    # Compute details (signature + first 5 lines)
+                    detail_lines = self._extract_details(chunk.text)
                     matches.append(
                         SearchMatch(
                             file=chunk.file,
@@ -269,6 +300,13 @@ class SearchService:
                 logger.debug(f"Cached semantic search result for: {normalized_query[:50]}")
             except (RuntimeError, ValueError, TypeError, ImportError) as e:
                 logger.warning(f"Failed to cache semantic search result: {e}")
+
+            # Also cache in intent cache for paraphrased query clustering
+            try:
+                self._intent_cache.put_intent(normalized_query, response.to_dict())
+                logger.debug(f"Cached intent for: {normalized_query[:50]}")
+            except (RuntimeError, ValueError, TypeError, ImportError) as e:
+                logger.warning(f"Failed to cache intent: {e}")
 
             elapsed = (time.perf_counter() - start_time) * 1000
             self._record_metrics(operation, buffer_id, elapsed, "ok")
@@ -884,6 +922,179 @@ class SearchService:
                 "error": str(e),
                 "buffer_id": buffer_id,
             }
+
+    # =========================================================================
+    # Streaming Search (Phase 2: Incremental Result Disclosure)
+    # =========================================================================
+
+    def semantic_search_streaming(
+        self,
+        buffer_id: str,
+        query: str,
+        top_k: int = 10,
+        disclosure: str = "signatures",
+    ) -> dict[str, Any]:
+        """Perform semantic search with progressive result disclosure.
+
+        Phase 1 (signatures): Return just function/class signatures.
+        Phase 2 (details): Expand to signatures + docstrings + first 5 lines.
+        Phase 3 (full): Expand to complete chunk text.
+
+        This saves tokens by only returning the level of detail needed.
+
+        Args:
+            buffer_id: Buffer ID to search in.
+            query: Search query string.
+            top_k: Number of top results.
+            disclosure: "signatures" | "details" | "full".
+
+        Returns:
+            Dict with matches at the requested disclosure level.
+        """
+        start_time = time.perf_counter()
+        operation = "semantic_search_streaming"
+
+        try:
+            if not buffer_id or not query:
+                return {"status": "error", "error": "buffer_id and query required"}
+
+            if top_k < 1 or top_k > 1000:
+                top_k = min(max(top_k, 1), 1000)
+
+            normalized_query = self._normalize_query(query)
+
+            index = self._index_manager._get_index(buffer_id)
+            chunks = self._index_manager._load_chunks(buffer_id)
+
+            if index is None or chunks is None:
+                return {"status": "error", "error": "Buffer not indexed"}
+
+            query_embedding = self._embedder.embed(normalized_query)
+            if query_embedding is None:
+                return {"status": "error", "error": "Failed to embed query"}
+
+            scores, indices = index.search(
+                np.array([query_embedding], dtype=np.float32), k=top_k
+            )
+
+            matches = []
+            for score, idx in zip(scores[0], indices[0]):
+                if idx >= 0 and idx < len(chunks):
+                    chunk = chunks[idx]
+                    match = self._build_disclosed_match(
+                        chunk, float(score), idx, disclosure
+                    )
+                    matches.append(match)
+
+            elapsed = (time.perf_counter() - start_time) * 1000
+            self._record_metrics(operation, buffer_id, elapsed, "ok")
+
+            return {
+                "status": "ok",
+                "buffer_id": buffer_id,
+                "query": query,
+                "disclosure": disclosure,
+                "matches": matches,
+                "elapsed_ms": elapsed,
+                "expandable": disclosure != "full",
+                "match_count": len(matches),
+            }
+
+        except (RuntimeError, ValueError, TypeError, ImportError) as e:
+            self._record_metrics(operation, buffer_id, 0, "error")
+            return {"status": "error", "error": str(e)}
+
+    def expand_match(
+        self,
+        buffer_id: str,
+        match_id: int,
+        level: str = "details",
+    ) -> dict[str, Any]:
+        """Expand a search match to a higher disclosure level.
+
+        Args:
+            buffer_id: Buffer ID.
+            match_id: Index of the match from search results.
+            level: "details" | "full".
+
+        Returns:
+            Dict with expanded match data.
+        """
+        try:
+            chunks = self._index_manager._load_chunks(buffer_id)
+            if not chunks or match_id < 0 or match_id >= len(chunks):
+                return {"status": "error", "error": f"Invalid match_id {match_id}"}
+
+            chunk = chunks[match_id]
+            match = self._build_disclosed_match(chunk, 0.0, match_id, level)
+
+            return {
+                "status": "ok",
+                "buffer_id": buffer_id,
+                "match_id": match_id,
+                "level": level,
+                "match": match,
+            }
+
+        except (RuntimeError, ValueError, TypeError, ImportError) as e:
+            return {"status": "error", "error": str(e)}
+
+    def _build_disclosed_match(
+        self,
+        chunk: Any,
+        score: float,
+        idx: int,
+        disclosure: str,
+    ) -> dict[str, Any]:
+        """Build a match dict at the requested disclosure level."""
+        base = {
+            "match_id": idx,
+            "file": chunk.file,
+            "start_line": chunk.start_line,
+            "end_line": chunk.end_line,
+            "type": chunk.type,
+            "name": chunk.name,
+            "score": round(score, 4),
+        }
+
+        if disclosure == "signatures":
+            base["signature"] = self._extract_signature(chunk.text)
+            base["tokens"] = len(base["signature"]) // 4
+            base["has_more"] = True
+
+        elif disclosure == "details":
+            base["signature"] = self._extract_signature(chunk.text)
+            base["docstring"] = self._extract_docstring(chunk.text)
+            base["first_lines"] = "\n".join(chunk.text.splitlines()[:5])
+            detail_text = f"{base['signature']}\n{base['docstring'] or ''}\n{base['first_lines']}"
+            base["tokens"] = len(detail_text) // 4
+            base["has_more"] = True
+
+        else:  # "full"
+            base["text"] = chunk.text
+            base["tokens"] = len(chunk.text) // 4
+            base["has_more"] = False
+
+        return base
+
+    @staticmethod
+    def _extract_signature(text: str) -> str:
+        """Extract the first line (usually the function/class signature)."""
+        lines = text.splitlines()
+        if not lines:
+            return ""
+        return lines[0].strip()
+
+    @staticmethod
+    def _extract_docstring(text: str) -> str | None:
+        """Extract the triple-quoted docstring from text."""
+        for quote in ('"""', "'''"):
+            start = text.find(quote)
+            if start >= 0:
+                end = text.find(quote, start + 3)
+                if end > start:
+                    return text[start + 3:end].strip()
+        return None
 
     # =========================================================================
     # Helper Methods
