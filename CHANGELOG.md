@@ -7,9 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.1] - 2026-05-09
 
-### Added — Agent Improvements v4 (Phases 1–5)
-
-Implemented 5 AI-native features from `docs/agent_improvements_v4.md`:
+### Added — Agent Improvements v4 
 
 #### Automatic Cross-File Context Assembly
 - **`gigacode/context_assembler.py`** — `ContextAssembler.assemble()` now enforces `max_tokens` via priority-ranked truncation (target chunk → callers → tests → interfaces → semantic neighbors). Previously only reported total after the fact.
