@@ -56,7 +56,7 @@ _MAX_DIRTY_BEFORE_AUTO_REBUILD = 3
 
 class LRUDict(OrderedDict):
     """Bounded LRU dict. Evicts least-recently-used item when max_size exceeded.
-    
+
     Usage:
         cache = LRUDict(max_size=10)
         cache['key'] = value  # Auto-evicts oldest if size exceeds max_size
@@ -89,7 +89,6 @@ class LRUDict(OrderedDict):
         if key in self:
             return self[key]
         return default
-
 
 
 class CodeEmbeddingTool:
@@ -141,7 +140,7 @@ class CodeEmbeddingTool:
 
         # Health status tracker (Phase 6)
         self._health_tracker = HealthStatusTracker()
-        
+
         # Conversation memory (Phase 10)
         self._conversation_memory = ConversationMemory(self.work_dir / "memories.json")
 
@@ -154,6 +153,7 @@ class CodeEmbeddingTool:
     @staticmethod
     def get_tool_schemas() -> list[dict[str, Any]]:
         from src.tool_schema import get_all_schemas
+
         return get_all_schemas()
 
     # ------------------------------------------------------------------
@@ -161,16 +161,19 @@ class CodeEmbeddingTool:
     # ------------------------------------------------------------------
     @staticmethod
     def _make_error_response(
-        message: str, buffer_id: str | None = None, operation: str = "", context: dict[str, Any] | None = None
+        message: str,
+        buffer_id: str | None = None,
+        operation: str = "",
+        context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a structured error response with context.
-        
+
         Args:
             message: Human-readable error message.
             buffer_id: Buffer ID if applicable.
             operation: Operation name (e.g., 'semantic_search', 'write_code').
             context: Additional context dict.
-        
+
         Returns:
             Dict with ErrorResponse.to_dict() format (includes context field).
         """
@@ -193,10 +196,16 @@ class CodeEmbeddingTool:
             return {"status": "error", "message": "query must be a non-empty string."}
         if top_k is not None:
             if not isinstance(top_k, int) or top_k < 1 or top_k > 10_000:
-                return {"status": "error", "message": "top_k must be an integer between 1 and 10000."}
+                return {
+                    "status": "error",
+                    "message": "top_k must be an integer between 1 and 10000.",
+                }
         if max_results is not None:
             if not isinstance(max_results, int) or max_results < 1 or max_results > 100_000:
-                return {"status": "error", "message": "max_results must be an integer between 1 and 100000."}
+                return {
+                    "status": "error",
+                    "message": "max_results must be an integer between 1 and 100000.",
+                }
         return None
 
     # ------------------------------------------------------------------
@@ -264,10 +273,14 @@ class CodeEmbeddingTool:
 
         # Stage 1: chunk all files
         all_chunks: list[CodeChunk] = []
-        file_chunks_map: dict[str, list[int]] = {}  # rel_path -> list of chunk indices in all_chunks
+        file_chunks_map: dict[str, list[int]] = (
+            {}
+        )  # rel_path -> list of chunk indices in all_chunks
         for f in files:
             try:
-                chunks = chunk_file(f, language_hint=language_hint, sliding_window_size=sliding_window_size)
+                chunks = chunk_file(
+                    f, language_hint=language_hint, sliding_window_size=sliding_window_size
+                )
             except Exception as exc:
                 logger.warning("Failed to chunk %s: %s", f, exc)
                 continue
@@ -344,18 +357,28 @@ class CodeEmbeddingTool:
 
         self._save_registry()
         self._index_cache[buffer_id] = index
-        
+
         # Persist all state including lexical index
-        self._save_buffer_state(buffer_dir, all_chunks, embeddings, index, lexical_index=lexical, file_chunks_map=file_chunks_map)
+        self._save_buffer_state(
+            buffer_dir,
+            all_chunks,
+            embeddings,
+            index,
+            lexical_index=lexical,
+            file_chunks_map=file_chunks_map,
+        )
         logger.info(
             "embed_codebase completed: buffer_id=%s chunks=%d files=%d elapsed=%.3fs",
-            buffer_id, token_count, len(files), elapsed,
+            buffer_id,
+            token_count,
+            len(files),
+            elapsed,
         )
         metrics = get_metrics()
         metrics.record_histogram("embed_codebase_latency_s", elapsed)
         metrics.record_histogram("embed_chunks_count", token_count)
         metrics.increment_counter("embed_codebase_calls")
-        
+
         response = EmbedResponse(
             status=ResponseStatus.OK,
             buffer_id=buffer_id,
@@ -448,13 +471,15 @@ class CodeEmbeddingTool:
 
         info = self._get_buffer_info(buffer_id)
         if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="semantic_search")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="semantic_search"
+            )
 
         cached = self._query_cache.get(buffer_id, query, top_k + offset, "semantic")
         if cached is not None:
             cached_matches = cached.get("matches", [])
             # Slice and convert to SearchMatch if needed
-            sliced = cached_matches[offset:offset + top_k]
+            sliced = cached_matches[offset : offset + top_k]
             if sliced and isinstance(sliced[0], dict):
                 sliced = [SearchMatch(**m) if isinstance(m, dict) else m for m in sliced]
             metrics = get_metrics()
@@ -477,7 +502,10 @@ class CodeEmbeddingTool:
         elapsed = time.perf_counter() - t0
         logger.debug(
             "semantic_search: buffer_id=%s top_k=%d elapsed=%.3fs gpu=%s",
-            buffer_id, top_k, elapsed, index.is_gpu,
+            buffer_id,
+            top_k,
+            elapsed,
+            index.is_gpu,
         )
 
         matches_list: list[SearchMatch] = []
@@ -485,26 +513,30 @@ class CodeEmbeddingTool:
             if idx < 0 or idx >= len(chunks):
                 continue
             ch = chunks[idx]
-            matches_list.append(SearchMatch(
-                file=ch.file,
-                start_line=ch.start_line,
-                end_line=ch.end_line,
-                type=ch.type,
-                name=ch.name,
-                score=float(score),
-                doc_id=int(idx),
-                match_type="semantic",
-            ))
+            matches_list.append(
+                SearchMatch(
+                    file=ch.file,
+                    start_line=ch.start_line,
+                    end_line=ch.end_line,
+                    type=ch.type,
+                    name=ch.name,
+                    score=float(score),
+                    doc_id=int(idx),
+                    match_type="semantic",
+                )
+            )
 
-        self._query_cache.set(buffer_id, query, top_k + offset, "semantic", {"matches": matches_list})
+        self._query_cache.set(
+            buffer_id, query, top_k + offset, "semantic", {"matches": matches_list}
+        )
         metrics = get_metrics()
         metrics.record_cache_miss("semantic_search_cache")
         metrics.record_histogram("semantic_search_latency_s", elapsed)
         metrics.increment_counter("semantic_search_calls")
-        
+
         response = SearchResponse(
             status=ResponseStatus.OK,
-            matches=matches_list[offset:offset + top_k],
+            matches=matches_list[offset : offset + top_k],
             cached=False,
         )
         return response.to_dict()
@@ -537,13 +569,15 @@ class CodeEmbeddingTool:
 
         info = self._get_buffer_info(buffer_id)
         if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="hybrid_search")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="hybrid_search"
+            )
 
         cached = self._query_cache.get(buffer_id, query, top_k + offset, "hybrid")
         if cached is not None:
             cached_matches = cached.get("matches", [])
             # Slice and convert to SearchMatch if needed
-            sliced = cached_matches[offset:offset + top_k]
+            sliced = cached_matches[offset : offset + top_k]
             if sliced and isinstance(sliced[0], dict):
                 sliced = [SearchMatch(**m) if isinstance(m, dict) else m for m in sliced]
             metrics = get_metrics()
@@ -568,16 +602,21 @@ class CodeEmbeddingTool:
         elapsed = time.perf_counter() - t0
         logger.debug(
             "hybrid_search semantic leg: buffer_id=%s top_k=%d elapsed=%.3fs gpu=%s",
-            buffer_id, top_k, elapsed, index.is_gpu,
+            buffer_id,
+            top_k,
+            elapsed,
+            index.is_gpu,
         )
         semantic_results: list[dict[str, Any]] = []
         for score, idx in zip(distances[0], indices[0]):
             if idx < 0 or idx >= len(chunks):
                 continue
-            semantic_results.append({
-                "doc_id": int(idx),
-                "score": float(score),
-            })
+            semantic_results.append(
+                {
+                    "doc_id": int(idx),
+                    "score": float(score),
+                }
+            )
 
         # Lexical results
         lexical = self._get_lexical_index(buffer_id)
@@ -596,18 +635,20 @@ class CodeEmbeddingTool:
         for m in merged:
             idx = m["doc_id"]
             ch = chunks[idx]
-            matches_list.append(SearchMatch(
-                file=ch.file,
-                start_line=ch.start_line,
-                end_line=ch.end_line,
-                type=ch.type,
-                name=ch.name,
-                rrf_score=m.get("rrf_score", 0.0),
-                semantic_rank=m.get("semantic_rank"),
-                lexical_rank=m.get("lexical_rank"),
-                doc_id=idx,
-                match_type="hybrid",
-            ))
+            matches_list.append(
+                SearchMatch(
+                    file=ch.file,
+                    start_line=ch.start_line,
+                    end_line=ch.end_line,
+                    type=ch.type,
+                    name=ch.name,
+                    rrf_score=m.get("rrf_score", 0.0),
+                    semantic_rank=m.get("semantic_rank"),
+                    lexical_rank=m.get("lexical_rank"),
+                    doc_id=idx,
+                    match_type="hybrid",
+                )
+            )
 
         self._query_cache.set(buffer_id, query, top_k + offset, "hybrid", {"matches": matches_list})
         elapsed_hybrid = time.perf_counter() - t0_hybrid
@@ -615,10 +656,10 @@ class CodeEmbeddingTool:
         metrics.record_cache_miss("hybrid_search_cache")
         metrics.record_histogram("hybrid_search_latency_s", elapsed_hybrid)
         metrics.increment_counter("hybrid_search_calls")
-        
+
         response = SearchResponse(
             status=ResponseStatus.OK,
-            matches=matches_list[offset:offset + top_k],
+            matches=matches_list[offset : offset + top_k],
             cached=False,
         )
         return response.to_dict()
@@ -661,11 +702,13 @@ class CodeEmbeddingTool:
             for line_no, raw_line in enumerate(lines, start=1):
                 haystack = raw_line if case_sensitive else raw_line.lower()
                 if target in haystack:
-                    matches.append({
-                        "file": rel_path,
-                        "line": line_no,
-                        "content": raw_line,
-                    })
+                    matches.append(
+                        {
+                            "file": rel_path,
+                            "line": line_no,
+                            "content": raw_line,
+                        }
+                    )
                     if len(matches) >= max_results:
                         return {"status": "ok", "matches": matches, "total": len(matches)}
 
@@ -773,7 +816,9 @@ class CodeEmbeddingTool:
 
         info = self._get_buffer_info(buffer_id)
         if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="search_symbols")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="search_symbols"
+            )
 
         chunks = self._load_chunks(buffer_id)
         if chunks is None:
@@ -796,19 +841,21 @@ class CodeEmbeddingTool:
         name_matches: list[tuple[int, SearchMatch]] = []  # (chunk_idx, match)
         for idx, ch in enumerate(chunks):
             if ch.name and query_lower in ch.name.lower():
-                name_matches.append((
-                    idx,
-                    SearchMatch(
-                        file=ch.file,
-                        start_line=ch.start_line,
-                        end_line=ch.end_line,
-                        type=ch.type,
-                        name=ch.name,
-                        score=1.0,
-                        doc_id=idx,
-                        match_type="name",
+                name_matches.append(
+                    (
+                        idx,
+                        SearchMatch(
+                            file=ch.file,
+                            start_line=ch.start_line,
+                            end_line=ch.end_line,
+                            type=ch.type,
+                            name=ch.name,
+                            score=1.0,
+                            doc_id=idx,
+                            match_type="name",
+                        ),
                     )
-                ))
+                )
 
         # Semantic search filtered to symbols
         index = self._get_index(buffer_id)
@@ -821,19 +868,21 @@ class CodeEmbeddingTool:
                 continue
             ch = chunks[idx]
             if ch.type in _SYMBOL_TYPES:
-                semantic_matches.append((
-                    int(idx),
-                    SearchMatch(
-                        file=ch.file,
-                        start_line=ch.start_line,
-                        end_line=ch.end_line,
-                        type=ch.type,
-                        name=ch.name,
-                        score=float(score),
-                        doc_id=int(idx),
-                        match_type="semantic",
+                semantic_matches.append(
+                    (
+                        int(idx),
+                        SearchMatch(
+                            file=ch.file,
+                            start_line=ch.start_line,
+                            end_line=ch.end_line,
+                            type=ch.type,
+                            name=ch.name,
+                            score=float(score),
+                            doc_id=int(idx),
+                            match_type="semantic",
+                        ),
                     )
-                ))
+                )
             if len(semantic_matches) >= top_k:
                 break
 
@@ -923,17 +972,28 @@ class CodeEmbeddingTool:
             if len(cluster_indices) >= 2:
                 start_ch = chunks[cluster_indices[0]]
                 end_ch = chunks[cluster_indices[-1]]
-                avg_score = float(np.mean([
-                    float(np.dot(embeddings[cluster_indices[a]], embeddings[cluster_indices[a + 1]]))
-                    for a in range(len(cluster_indices) - 1)
-                ]))
-                cluster_items.append(ClusterItem(
-                    file=start_ch.file,
-                    start_line=start_ch.start_line,
-                    end_line=end_ch.end_line,
-                    size=len(cluster_indices),
-                    avg_score=round(avg_score, 4),
-                ))
+                avg_score = float(
+                    np.mean(
+                        [
+                            float(
+                                np.dot(
+                                    embeddings[cluster_indices[a]],
+                                    embeddings[cluster_indices[a + 1]],
+                                )
+                            )
+                            for a in range(len(cluster_indices) - 1)
+                        ]
+                    )
+                )
+                cluster_items.append(
+                    ClusterItem(
+                        file=start_ch.file,
+                        start_line=start_ch.start_line,
+                        end_line=end_ch.end_line,
+                        size=len(cluster_indices),
+                        avg_score=round(avg_score, 4),
+                    )
+                )
 
         response = ClusterResponse(
             status=ResponseStatus.OK,
@@ -1015,7 +1075,13 @@ class CodeEmbeddingTool:
 
         matches = search_result.get("matches", [])
         if not matches:
-            return {"status": "ok", "packed_chunks": [], "total_tokens": 0, "remaining_tokens": max_tokens, "count": 0}
+            return {
+                "status": "ok",
+                "packed_chunks": [],
+                "total_tokens": 0,
+                "remaining_tokens": max_tokens,
+                "count": 0,
+            }
 
         # Build score map by doc_id
         scores = [0.0] * len(chunks)
@@ -1038,24 +1104,30 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         info = self._get_buffer_info(buffer_id)
         if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="read_code")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="read_code"
+            )
 
         snapshot = self._load_source_snapshot(buffer_id)
         if snapshot is None:
             return self._make_error_response(
-                "Source snapshot missing", buffer_id=buffer_id, operation="read_code",
-                context={"reason": "snapshot_file_not_found"}
+                "Source snapshot missing",
+                buffer_id=buffer_id,
+                operation="read_code",
+                context={"reason": "snapshot_file_not_found"},
             )
 
         if file is not None:
             if file not in snapshot:
                 return self._make_error_response(
-                    f"File not in buffer: {file}", buffer_id=buffer_id, operation="read_code",
-                    context={"requested_file": file}
+                    f"File not in buffer: {file}",
+                    buffer_id=buffer_id,
+                    operation="read_code",
+                    context={"requested_file": file},
                 )
             lines = snapshot[file]
             end = end_line if end_line is not None else len(lines) + 1
-            selected = lines[start_line - 1:end - 1]
+            selected = lines[start_line - 1 : end - 1]
             return {
                 "status": "ok",
                 "file": file,
@@ -1067,7 +1139,7 @@ class CodeEmbeddingTool:
         result: dict[str, list[str]] = {}
         for fname, lines in snapshot.items():
             end = end_line if end_line is not None else len(lines) + 1
-            result[fname] = lines[start_line - 1:end - 1]
+            result[fname] = lines[start_line - 1 : end - 1]
         return {"status": "ok", "files": result}
 
     def write_code(
@@ -1090,7 +1162,7 @@ class CodeEmbeddingTool:
 
         old_lines = snapshot[file]
         end = end_line if end_line is not None else len(old_lines) + 1
-        new_file_lines = old_lines[:start_line - 1] + new_lines + old_lines[end - 1:]
+        new_file_lines = old_lines[: start_line - 1] + new_lines + old_lines[end - 1 :]
         snapshot[file] = new_file_lines
         self._save_source_snapshot(buffer_id, snapshot)
 
@@ -1127,13 +1199,17 @@ class CodeEmbeddingTool:
             current_hash = hashlib.sha256(current_text.encode("utf-8")).hexdigest()
             if old_hashes.get(rel_path) != current_hash:
                 disk_path = root / rel_path
-                disk_lines = disk_path.read_text(encoding="utf-8").splitlines() if disk_path.exists() else []
-                changed.append({
-                    "file": rel_path,
-                    "buffer_lines": len(lines),
-                    "disk_lines": len(disk_lines),
-                    "dirty": info.get("dirty_files", {}).get(rel_path, False),
-                })
+                disk_lines = (
+                    disk_path.read_text(encoding="utf-8").splitlines() if disk_path.exists() else []
+                )
+                changed.append(
+                    {
+                        "file": rel_path,
+                        "buffer_lines": len(lines),
+                        "disk_lines": len(disk_lines),
+                        "dirty": info.get("dirty_files", {}).get(rel_path, False),
+                    }
+                )
         return {"status": "ok", "changed_files": changed}
 
     def discard(
@@ -1216,9 +1292,7 @@ class CodeEmbeddingTool:
                         }
                 disk_path.parent.mkdir(parents=True, exist_ok=True)
                 disk_path.write_text("\n".join(lines), encoding="utf-8")
-                new_hashes[rel_path] = hashlib.sha256(
-                    "\n".join(lines).encode("utf-8")
-                ).hexdigest()
+                new_hashes[rel_path] = hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
             written.append(rel_path)
 
         if not dry_run:
@@ -1332,7 +1406,12 @@ class CodeEmbeddingTool:
         for rel_path in files:
             lines = snapshot.get(rel_path, [])
             text = "\n".join(lines)
-            file_chunks = chunk_text(text, language_hint=language_hint, filename_hint=rel_path, sliding_window_size=sliding_window_size)
+            file_chunks = chunk_text(
+                text,
+                language_hint=language_hint,
+                filename_hint=rel_path,
+                sliding_window_size=sliding_window_size,
+            )
             for ch in file_chunks:
                 ch.file = rel_path
                 ch.id = next_id
@@ -1350,7 +1429,11 @@ class CodeEmbeddingTool:
         kept_embeddings = embeddings[kept_mask]
         if new_embeddings_list:
             new_embeddings = np.vstack(new_embeddings_list)
-            final_embeddings = np.vstack([kept_embeddings, new_embeddings]) if kept_embeddings.size else new_embeddings
+            final_embeddings = (
+                np.vstack([kept_embeddings, new_embeddings])
+                if kept_embeddings.size
+                else new_embeddings
+            )
         else:
             final_embeddings = kept_embeddings
 
@@ -1366,7 +1449,9 @@ class CodeEmbeddingTool:
         self._lexical_cache[buffer_id] = lexical
 
         # Persist all state including lexical index
-        self._save_buffer_state(buffer_dir, new_chunks, final_embeddings, index, lexical_index=lexical)
+        self._save_buffer_state(
+            buffer_dir, new_chunks, final_embeddings, index, lexical_index=lexical
+        )
 
         self._query_cache.invalidate_buffer(buffer_id)
 
@@ -1393,7 +1478,9 @@ class CodeEmbeddingTool:
         index.save(index_path)
         if lexical_index is not None:
             lexical_data = lexical_index.to_dict()
-            lexical_path.write_bytes(json.dumps(lexical_data, separators=(",", ":")).encode("utf-8"))
+            lexical_path.write_bytes(
+                json.dumps(lexical_data, separators=(",", ":")).encode("utf-8")
+            )
         if file_chunks_map is not None:
             fcm_path.write_bytes(json.dumps(file_chunks_map, separators=(",", ":")).encode("utf-8"))
 
@@ -1460,22 +1547,25 @@ class CodeEmbeddingTool:
         # First check in-memory cache
         if buffer_id in self._lexical_cache:
             return self._lexical_cache[buffer_id]
-        
+
         # Try to load from disk
         lexical = self._load_lexical_index(buffer_id)
         if lexical is not None:
             self._lexical_cache[buffer_id] = lexical
             return lexical
-        
+
         # Fall back to building from chunks (O(n) cost)
         chunks = self._load_chunks(buffer_id)
         if chunks is None:
-            raise RuntimeError(f"Cannot build lexical index for buffer_id={buffer_id}: chunks not found")
-        
+            raise RuntimeError(
+                f"Cannot build lexical index for buffer_id={buffer_id}: chunks not found"
+            )
+
         logger.warning(
             "Lexical index missing for buffer_id=%s; building from chunks "
             "(%d items). Consider warmup via embed_codebase or commit.",
-            buffer_id, len(chunks),
+            buffer_id,
+            len(chunks),
         )
         lexical = LexicalIndex()
         for i, ch in enumerate(chunks):
@@ -1489,7 +1579,9 @@ class CodeEmbeddingTool:
     def _save_registry(self) -> None:
         with self._registry_path.open("wb") as fh:
             fh.write(
-                json.dumps(self._registry, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                json.dumps(self._registry, ensure_ascii=False, separators=(",", ":")).encode(
+                    "utf-8"
+                )
             )
 
     # ------------------------------------------------------------------
@@ -1529,44 +1621,45 @@ class CodeEmbeddingTool:
         Can be called periodically (e.g., every 60 seconds) to monitor system health.
         """
         import datetime
-        
+
         warnings = []
         status = "healthy"
-        
+
         # Check cache utilization
         index_util = (len(self._index_cache) / self._index_cache.max_size) * 100
         lexical_util = (len(self._lexical_cache) / self._lexical_cache.max_size) * 100
         query_stats = self._query_cache.stats()
         query_util = (query_stats["size"] / query_stats["maxsize"]) * 100
-        
+
         max_util = max(index_util, lexical_util, query_util)
         if max_util > 90:
             warnings.append(f"High cache utilization: {max_util:.1f}% (may evict buffers soon)")
             status = "degraded"
         elif max_util > 75:
             warnings.append(f"Elevated cache utilization: {max_util:.1f}%")
-        
+
         # Check GPU availability
         faiss_available = False
         gpu_available = False
         try:
             import faiss
+
             faiss_available = True
             ngpu = faiss.get_num_gpus()
             gpu_available = ngpu > 0
         except Exception:
             pass
-        
+
         if self.use_gpu and not gpu_available:
             warnings.append("GPU requested but not available; using CPU")
             status = "degraded"
-        
+
         # Check embedder
         embedder_ready = self._embedder is not None and self._embedder.model is not None
         if not embedder_ready:
             warnings.append("Embedder not initialized")
             status = "unhealthy"
-        
+
         return {
             "status": status,
             "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
@@ -1621,10 +1714,14 @@ class CodeEmbeddingTool:
         """Find call chain between two symbols."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="trace_call_chain")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="trace_call_chain"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="trace_call_chain")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="trace_call_chain"
+            )
         graph = DependencyGraph(chunks)
         result = graph.trace_call_chain(from_symbol, to_symbol, max_depth)
         return {"status": "ok", **result.to_dict()}
@@ -1638,10 +1735,14 @@ class CodeEmbeddingTool:
         """Get file dependencies."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="get_dependencies")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_dependencies"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="get_dependencies")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_dependencies"
+            )
         graph = DependencyGraph(chunks)
         deps = graph.get_dependencies(file, direction)
         return {"status": "ok", "file": file, "direction": direction, "dependencies": deps}
@@ -1650,10 +1751,14 @@ class CodeEmbeddingTool:
         """Find circular dependencies in a buffer."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_circular_dependencies")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="find_circular_dependencies"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_circular_dependencies")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="find_circular_dependencies"
+            )
         graph = DependencyGraph(chunks)
         cycles = graph.find_cycles()
         return {"status": "ok", "cycles": cycles, "cycle_count": len(cycles)}
@@ -1662,10 +1767,14 @@ class CodeEmbeddingTool:
         """Export dependency graph."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="export_dependency_graph")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="export_dependency_graph"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="export_dependency_graph")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="export_dependency_graph"
+            )
         graph = DependencyGraph(chunks)
         return graph.export_graph(format)
 
@@ -1673,23 +1782,35 @@ class CodeEmbeddingTool:
         """Find dead code and unused imports in a buffer."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_dead_code")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="find_dead_code"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_dead_code")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="find_dead_code"
+            )
         detector = DeadCodeDetector(chunks)
         dead = detector.find_dead_code(min_confidence)
         unused = detector.find_unused_imports()
-        return {"status": "ok", "dead_symbols": [s.to_dict() for s in dead], "unused_imports": unused}
+        return {
+            "status": "ok",
+            "dead_symbols": [s.to_dict() for s in dead],
+            "unused_imports": unused,
+        }
 
     def extract_todos(self, buffer_id: str, tag: str | None = None) -> dict[str, Any]:
         """Extract TODO/FIXME comments from a buffer."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="extract_todos")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="extract_todos"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="extract_todos")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="extract_todos"
+            )
         tracker = TodoTracker()
         todos = tracker.extract_todos(chunks)
         if tag:
@@ -1700,14 +1821,20 @@ class CodeEmbeddingTool:
         """Score code quality for a specific file in a buffer."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="score_code_quality")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="score_code_quality"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="score_code_quality")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="score_code_quality"
+            )
         scorer = QualityScorer()
         result = scorer.score_file(chunks, file)
         if not result:
-            return self._make_error_response("File not found in buffer", buffer_id=buffer_id, operation="score_code_quality")
+            return self._make_error_response(
+                "File not found in buffer", buffer_id=buffer_id, operation="score_code_quality"
+            )
         return {"status": "ok", **result.to_dict()}
 
     def _create_progress_reporter(self, phases: list[str]) -> "ProgressReporter":
@@ -1731,21 +1858,19 @@ class CodeEmbeddingTool:
     def forget(self, key: str) -> dict[str, Any]:
         """Forget a stored memory by key."""
         return self._conversation_memory.forget(key)
-    
+
     # ------------------------------------------------------------------
     # Phase 6: State-Based Access Control
     # ------------------------------------------------------------------
     def _check_state_for_operation(
-        self, 
-        buffer_id: str, 
-        operation_type: OperationType
+        self, buffer_id: str, operation_type: OperationType
     ) -> tuple[bool, str]:
         """Check if buffer state allows the requested operation.
-        
+
         Args:
             buffer_id: Buffer identifier
             operation_type: Type of operation (QUERY, WRITE, REBUILD, READ)
-        
+
         Returns:
             (allowed: bool, reason: str) tuple
         """
@@ -1753,90 +1878,93 @@ class CodeEmbeddingTool:
             current_state = self._get_buffer_state(buffer_id)
         except ValueError:
             return False, f"Unknown buffer_id: {buffer_id}"
-        
+
         # Get allowed states for this operation type
         state_requirements = OperationConfig.get_state_requirements()
         allowed_states = state_requirements.get(operation_type, [])
-        
+
         if current_state in allowed_states:
             return True, ""
-        
+
         # Build error message
         if operation_type == OperationType.QUERY:
             if current_state == BufferState.REBUILDING:
                 return False, "Buffer is rebuilding indices. Please wait..."
             elif current_state == BufferState.DIRTY:
                 return False, "Results may be stale (buffer has uncommitted changes)"
-        
+
         elif operation_type == OperationType.WRITE:
-            return False, f"Cannot write to buffer in {current_state.value} state. Buffer must be in {BufferState.READY.value} state."
-        
+            return (
+                False,
+                f"Cannot write to buffer in {current_state.value} state. Buffer must be in {BufferState.READY.value} state.",
+            )
+
         elif operation_type == OperationType.READ:
             if current_state == BufferState.REBUILDING:
                 return False, "Buffer is rebuilding indices. Please wait..."
-        
+
         return False, f"Operation not allowed in {current_state.value} state"
-    
+
     def _get_buffer_state(self, buffer_id: str) -> BufferState:
         """Get current buffer state from registry.
-        
+
         Args:
             buffer_id: Buffer identifier
-        
+
         Returns:
             BufferState enum value
-        
+
         Raises:
             ValueError: If buffer_id not found
         """
         if buffer_id not in self._registry:
             raise ValueError(f"Unknown buffer_id: {buffer_id}")
-        
+
         info = self._registry[buffer_id]
         state_str = info.get("state", BufferState.READY.value)
         return BufferState(state_str)
-    
+
     def _set_buffer_state(self, buffer_id: str, new_state: BufferState) -> None:
         """Set buffer state with validation and logging.
-        
+
         Args:
             buffer_id: Buffer identifier
             new_state: New buffer state
-        
+
         Raises:
             ValueError: If transition is invalid
         """
         if buffer_id not in self._registry:
             raise ValueError(f"Unknown buffer_id: {buffer_id}")
-        
+
         info = self._registry[buffer_id]
         current_state_str = info.get("state", BufferState.READY.value)
         current_state = BufferState(current_state_str)
-        
+
         # Validate transition
         BufferStateTransition.validate_or_raise(current_state, new_state)
-        
+
         # Update registry
         info["state"] = new_state.value
         info["state_changed_at"] = time.time()
-        
+
         # Persist registry
         self._save_registry()
-        
+
         # Update health tracker
         self._health_tracker.update_buffer_state(buffer_id, new_state)
-        
+
         # Log transition
         logger.info(
             f"Buffer state transition: {buffer_id} {current_state.value} → {new_state.value}"
         )
-    
+
     def _get_buffer_health(self, buffer_id: str) -> dict[str, Any]:
         """Get health status for a buffer.
-        
+
         Args:
             buffer_id: Buffer identifier
-        
+
         Returns:
             Dictionary with health information or error
         """
@@ -1847,56 +1975,56 @@ class CodeEmbeddingTool:
             OperationConfig.INDEX_AGE_WARNING_SECONDS,
             OperationConfig.INDEX_AGE_DEGRADED_SECONDS,
         )
-        
+
         if health is None:
             return {"error": f"Unknown buffer_id: {buffer_id}"}
-        
+
         return health.to_dict()
-    
+
     def _check_state_for_query(self, buffer_id: str) -> tuple[bool, str]:
         """Check if buffer state allows queries.
-        
+
         Args:
             buffer_id: Buffer identifier
-        
+
         Returns:
             (allowed, reason) tuple
         """
         return self._check_state_for_operation(buffer_id, OperationType.QUERY)
-    
+
     def _check_state_for_write(self, buffer_id: str) -> tuple[bool, str]:
         """Check if buffer state allows writes.
-        
+
         Args:
             buffer_id: Buffer identifier
-        
+
         Returns:
             (allowed, reason) tuple
         """
         return self._check_state_for_operation(buffer_id, OperationType.WRITE)
-    
+
     def _check_state_for_read(self, buffer_id: str) -> tuple[bool, str]:
         """Check if buffer state allows reads.
-        
+
         Args:
             buffer_id: Buffer identifier
-        
+
         Returns:
             (allowed, reason) tuple
         """
         return self._check_state_for_operation(buffer_id, OperationType.READ)
-    
+
     def _check_state_for_rebuild(self, buffer_id: str) -> tuple[bool, str]:
         """Check if buffer state allows rebuilds.
-        
+
         Args:
             buffer_id: Buffer identifier
-        
+
         Returns:
             (allowed, reason) tuple
         """
         return self._check_state_for_operation(buffer_id, OperationType.REBUILD)
-    
+
     def _save_registry(self) -> None:
         """Save registry to disk."""
         self._registry_path.write_text(
@@ -1907,26 +2035,38 @@ class CodeEmbeddingTool:
     # ------------------------------------------------------------------
     # Phase 5: Dependency Graph
     # ------------------------------------------------------------------
-    def trace_call_chain(self, buffer_id: str, from_symbol: str, to_symbol: str, max_depth: int = 10) -> dict[str, Any]:
+    def trace_call_chain(
+        self, buffer_id: str, from_symbol: str, to_symbol: str, max_depth: int = 10
+    ) -> dict[str, Any]:
         """Find call chain between two symbols."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="trace_call_chain")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="trace_call_chain"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="trace_call_chain")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="trace_call_chain"
+            )
         graph = DependencyGraph(chunks)
         result = graph.trace_call_chain(from_symbol, to_symbol, max_depth)
         return {"status": "ok", **result.to_dict()}
 
-    def get_dependencies(self, buffer_id: str, file: str, direction: str = "both") -> dict[str, Any]:
+    def get_dependencies(
+        self, buffer_id: str, file: str, direction: str = "both"
+    ) -> dict[str, Any]:
         """Get file dependencies."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="get_dependencies")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_dependencies"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="get_dependencies")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_dependencies"
+            )
         graph = DependencyGraph(chunks)
         deps = graph.get_dependencies(file, direction)
         return {"status": "ok", "file": file, "direction": direction, "dependencies": deps}
@@ -1935,10 +2075,14 @@ class CodeEmbeddingTool:
         """Find circular dependencies in a buffer."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_circular_dependencies")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="find_circular_dependencies"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_circular_dependencies")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="find_circular_dependencies"
+            )
         graph = DependencyGraph(chunks)
         cycles = graph.find_cycles()
         return {"status": "ok", "cycles": cycles, "cycle_count": len(cycles)}
@@ -1947,10 +2091,14 @@ class CodeEmbeddingTool:
         """Export dependency graph."""
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="export_dependency_graph")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="export_dependency_graph"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="export_dependency_graph")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="export_dependency_graph"
+            )
         graph = DependencyGraph(chunks)
         return graph.export_graph(format)
 
@@ -1960,14 +2108,22 @@ class CodeEmbeddingTool:
     def find_dead_code(self, buffer_id: str, min_confidence: str = "medium") -> dict[str, Any]:
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_dead_code")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="find_dead_code"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_dead_code")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="find_dead_code"
+            )
         detector = DeadCodeDetector(chunks)
         dead = detector.find_dead_code(min_confidence)
         unused = detector.find_unused_imports()
-        return {"status": "ok", "dead_symbols": [s.to_dict() for s in dead], "unused_imports": unused}
+        return {
+            "status": "ok",
+            "dead_symbols": [s.to_dict() for s in dead],
+            "unused_imports": unused,
+        }
 
     # ------------------------------------------------------------------
     # Phase 7: TODO/FIXME Tracker
@@ -1975,10 +2131,14 @@ class CodeEmbeddingTool:
     def extract_todos(self, buffer_id: str, tag: str | None = None) -> dict[str, Any]:
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="extract_todos")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="extract_todos"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="extract_todos")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="extract_todos"
+            )
         tracker = TodoTracker()
         todos = tracker.extract_todos(chunks)
         if tag:
@@ -1991,14 +2151,20 @@ class CodeEmbeddingTool:
     def score_code_quality(self, buffer_id: str, file: str) -> dict[str, Any]:
         info = self._get_buffer_info(buffer_id)
         if not info:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="score_code_quality")
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="score_code_quality"
+            )
         chunks = self._load_chunks(buffer_id)
         if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="score_code_quality")
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="score_code_quality"
+            )
         scorer = QualityScorer()
         result = scorer.score_file(chunks, file)
         if not result:
-            return self._make_error_response("File not found in buffer", buffer_id=buffer_id, operation="score_code_quality")
+            return self._make_error_response(
+                "File not found in buffer", buffer_id=buffer_id, operation="score_code_quality"
+            )
         return {"status": "ok", **result.to_dict()}
 
     # ------------------------------------------------------------------
@@ -2006,6 +2172,7 @@ class CodeEmbeddingTool:
     # ------------------------------------------------------------------
     def _create_progress_reporter(self, phases: list[str]) -> "ProgressReporter":
         from gigacode.progress_stream import ProgressReporter
+
         return ProgressReporter(phases)
 
     # ------------------------------------------------------------------
