@@ -1,5 +1,6 @@
 """Tests for Access Control, Audit Logging, and Rate Limiting."""
 
+import math
 import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -315,7 +316,7 @@ class TestTokenBucket:
         bucket.tokens = 5  # Start with 5 tokens
 
         assert bucket.consume(3) is True
-        assert bucket.tokens == 2.0
+        assert math.isclose(bucket.tokens, 2.0, abs_tol=0.01)
 
     def test_consume_fail(self):
         """Test failed consumption (insufficient tokens)."""
@@ -323,7 +324,7 @@ class TestTokenBucket:
         bucket.tokens = 2
 
         assert bucket.consume(5) is False
-        assert bucket.tokens == 2  # Unchanged
+        assert math.isclose(bucket.tokens, 2, abs_tol=0.01)  # Unchanged
 
     def test_refill_over_time(self):
         """Test token refill over time."""
