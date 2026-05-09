@@ -5,6 +5,65 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-09
+
+### Added
+
+#### Agent Ergonomics — Cross-file Context & Refactoring (v0.5)
+
+- **Cross-file context assembly** (`gigacode/context_assembler.py`): `ContextAssembler` finds callers, tests, and interface implementations for any symbol. New `CodeChunk` fields: `symbols_defined`, `symbols_called`, `imports`.
+- **Refactor engine** (`gigacode/refactor_engine.py`): `RefactorEngine` with `PatchApplier` for unified diff parsing + fuzzy matching. New API: `refactor_rename()`, `add_import()`, `remove_import()`.
+- **Session persistence** (`gigacode/multi_buffer.py`): `MultiBufferManager` + `BufferAliasRegistry` for buffer aliases, virtual buffers, and session auto-resume. New API: `create_alias()`, `resolve_alias()`, `list_aliases()`, `auto_resume()`, `save_session()`, `load_session()`, `list_sessions()`.
+
+#### Code Intelligence — Search & Symbol Operations (v0.5)
+
+- **Faceted search** (`gigacode/faceted_search.py`): `FacetedSearcher` with language/path/type/line-count filters, confidence scoring, score breakdowns, and "why" explanations. New API: `faceted_search()`.
+- **Symbol index** (`gigacode/symbol_index.py`): `SymbolIndex` with exact/prefix/fuzzy search, jump-to-definition, find-references. New API: `search_symbols()`, `get_symbol_definition()`, `get_symbol_references()`, `list_file_symbols()`.
+- **Type-aware search** (`gigacode/type_search.py`): `TypeSearcher` for type signature matching and interface implementation discovery. New API: `search_by_type()`, `find_implementations()`.
+- **Resource budgeting** (`gigacode/resource_budget.py`): Pre-embed cost estimation (`estimate_budget()`), `ConfidenceScorer`, `MemoryBudget`. New API: `estimate_budget()`, `get_memory_usage()`, `score_result_confidence()`.
+- **Git utilities** (`gigacode/git_utils.py`): `GitUtils` with GitPython + subprocess fallback. New API: `git_status()`, `git_diff()`, `git_blame()`, `git_show()`.
+
+#### Advanced Analysis Modules (v0.5)
+
+- **Dependency graph** (`gigacode/dependency_graph.py`): BFS call chain tracing, cycle detection, graph export. New API: `trace_call_chain()`, `find_circular_dependencies()`, `export_graph()`.
+- **Dead code detector** (`gigacode/dead_code_detector.py`): Unused symbol detection. New API: `find_dead_code()`.
+- **TODO tracker** (`gigacode/todo_tracker.py`): TODO/FIXME/HACK/XXX extraction with priority. New API: `extract_todos()`.
+- **Quality scorer** (`gigacode/quality_scorer.py`): Cyclomatic complexity, docstring coverage, nesting depth. New API: `score_code_quality()`.
+- **Conversation memory** (`gigacode/conversation_memory.py`): Multi-turn key-value memory with tag filtering. New API: `remember()`, `recall()`, `forget()`, `get_recent()`.
+- **Context summarizer** (`gigacode/context_summarizer.py`): 3-level hierarchical packing (file summary → chunk → specific lines). New API: `pack_context_hierarchical()`.
+- **Audit log enhancements** (`gigacode/audit_logger.py`): Query interface, test context extraction, test suggestion generation. New API: `get_audit_log()`, `get_test_context()`, `suggest_tests()`.
+
+#### Token-Saving Features (v0.5 — Phase 1-3)
+
+- **Smart context packing** (`gigacode/context_packer.py`): `pack_context_smart()` with deduplication (SHA256 hash), boilerplate stripping (licenses, imports, `__all__`), docstring stripping (auto-detect "doc" in query), test file exclusion, size filtering, and granularity control ("signatures" / "bodies" / "smart"). Expected 30-40% token savings.
+- **Incremental result streaming** (`gigacode/search_service.py`): `semantic_search_streaming()` with 3 disclosure levels — `signatures` (~8 tokens/match), `details` (~45 tokens/match), `full` (~200 tokens/match). `expand_match()` for on-demand expansion without re-embedding. Expected 84% savings for signatures-only vs full chunks.
+- **Query intent caching** (`gigacode/intent_cache.py`): `IntentCache` class with semantic clustering (cosine similarity threshold 0.88), 3-layer cache hierarchy (index cache → semantic cache → intent clusters), per-cluster hit tracking. New API: `find_similar_intents()`, `get_intent_cache_stats()`. Expected 67% savings on paraphrased queries.
+
+#### Phases 4-10 Integration (v0.5)
+
+- **Intent-based action router** (`gigacode/intent_router.py`): `IntentClassifier` (8 categories: feature, bug, refactor, docs, testing, optimization, cleanup, unknown) + `ActionPlanner` with category-specific sequences. New API: `plan_actions()`.
+- **solve() unified loop** (`gigacode/solver.py`): `SolveExecutor` with state tracking, audit trail, auto-commit/rollback. 9 status states. New API: `solve()`, `rollback()`, `commit()`.
+- **Diff-aware search** (`gigacode/diff_aware_search.py`): `DiffAwareSearch` with 3 scopes (`changes`, `changes+deps`, `all`), dirty-file filtering, dependency expansion, performance metrics. New API: `search_since_last_edit()`.
+- **Agent profile chunking** (`gigacode/agent_profile.py`): 5 pre-built strategies (reviewer, debugger, architect, documenter, generic) with profile-specific include/exclude rules, query enhancement per profile. New API: `embed_codebase(..., agent_profile=...)`, `set_agent_profile()`.
+- **Conflict prediction** (`gigacode/conflict_predictor.py`): `ConflictPredictor` with file-level risk assessment, dependency risk propagation, real git log parsing (subprocess fallback), recommendations. New API: `predict_conflicts()`.
+- **"Why this matters" annotations** (`gigacode/why_annotator.py`): `RelevanceExplainer` with 7 reason types, multi-factor scoring, call-site analysis via `SymbolIndex`, import analysis via `DependencyGraph`. New API: `annotate_search_results()`.
+- **Undo stack with branching** (`gigacode/undo_redo.py`): `UndoRedoStack` with `reverse()` on `UndoableOperation`, `BranchManager` for git-like branches, `BranchedBufferManager` per-buffer isolation. New API: `undo()`, `redo()`, `branch()`, `checkout()`, `list_branches()`, `delete_branch()`, `history()`.
+
+#### Phase Integration Infrastructure (v0.5)
+
+- **`phases_integration.py`** — `PhasesIntegrationMixin` combining Phase4Mixin through Phase10Mixin via multiple inheritance. `setup_phases_4_10()` initializes all phases in dependency order. `create_enhanced_tool_class()` factory for standalone use.
+- **Wired into `CodeEmbeddingTool`** — `gigacode_tool.py` now inherits `PhasesIntegrationMixin`; `setup_phases_4_10()` called in `__init__` with defensive `try/except` (phases 4-10 are optional enhancements that do not crash the core tool).
+
+### Changed
+
+- **`gigacode_tool.py` API surface expanded** from ~30 to ~65+ public methods across all phases.
+- **`CodeChunk` metadata enhanced** — Added `symbols_defined`, `symbols_called`, `imports` fields populated during chunking.
+- **`context_packer.pack_context()` now delegates** to `pack_context_smart()` with backward-compatible defaults (no smart optimizations unless `smart=True`).
+- **`semantic_search()` enhanced** with intent cache checking (3-layer cache: index manager → semantic query cache → intent cache).
+- **Smart packing defaults** — `granularity="smart"` (top 3 chunks full, rest signatures), `strip_docstrings="auto"` (strip unless query mentions "doc"), `exclude_types=["orphan", "sliding"]`.
+- **P2 API alignment** — All phase modules now use `hasattr()` checks for buffer and search service methods, adapting to actual `CodeEmbeddingTool` API signatures (e.g., `write_code(buffer_id, file, start_line, new_lines)`, `read_code(buffer_id, file=...)`, `semantic_search()` vs `search()`).
+- **Stub implementations replaced** — `solver.py` execution paths (`_search`, `_read`, `_write`, `_run_tests`, `_rollback`, `_commit`) now call real tool APIs via `hasattr()` delegation. `conflict_predictor.py` git integration uses `git log` subprocess fallback. `why_annotator.py` call-site/import analysis uses `SymbolIndex` + `DependencyGraph`.
+
 ## [0.4.0] - 2026-05-08
 
 ### Added
