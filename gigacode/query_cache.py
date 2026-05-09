@@ -17,6 +17,11 @@ if TYPE_CHECKING:
     from gigacode.embedder import Embedder
 
 
+__all__ = [
+    "QueryCache",
+]
+
+
 class QueryCache:
     """Simple in-memory LRU cache with optional semantic similarity matching.
     
@@ -138,7 +143,7 @@ class QueryCache:
                         self._order.append(similar_key)
                         self._semantic_hits += 1
                         return self._data[similar_key]
-            except Exception:
+            except (RuntimeError, ValueError, TypeError):
                 # Silently fall back to text-based key on embedding failure
                 pass
         
@@ -168,7 +173,7 @@ class QueryCache:
                 query_emb = self._embedder.encode([query.lower().strip()], batch_size=1)
                 if query_emb.shape[0] > 0:
                     self._query_embeddings[key] = query_emb[0]
-            except Exception:
+            except (RuntimeError, ValueError, TypeError):
                 # Silently skip embedding storage on failure
                 pass
         

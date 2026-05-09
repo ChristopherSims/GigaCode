@@ -57,7 +57,7 @@ class FAISSIndexOptimizer:
             # Try to get GPU resources
             res = faiss.StandardGpuResources()
             return True
-        except Exception:
+        except (RuntimeError, ImportError):
             logger.warning("FAISS GPU not available, using CPU")
             return False
     
@@ -204,7 +204,7 @@ class FAISSIndexOptimizer:
             
             return index
         
-        except Exception as e:
+        except (RuntimeError, ImportError, ValueError, TypeError) as e:
             logger.error(f"Failed to create index: {e}")
             return None
     
@@ -229,7 +229,7 @@ class FAISSIndexOptimizer:
             vectors_f32 = vectors.astype(np.float32)
             index.add(vectors_f32)
             return index
-        except Exception as e:
+        except (RuntimeError, ImportError, ValueError, TypeError) as e:
             logger.error(f"Failed to create flat index: {e}")
             return None
     
@@ -270,7 +270,7 @@ class FAISSIndexOptimizer:
             logger.debug(f"IVF index: nlist={nlist}, nprobe={nprobe}")
             
             return index
-        except Exception as e:
+        except (RuntimeError, ImportError, ValueError, TypeError) as e:
             logger.error(f"Failed to create IVF index: {e}")
             return None
     
@@ -306,7 +306,7 @@ class FAISSIndexOptimizer:
             logger.debug(f"HNSW index: nlinks={nlinks}, efConstruction={efConstruction}")
             
             return index
-        except Exception as e:
+        except (RuntimeError, ImportError, ValueError, TypeError) as e:
             logger.error(f"Failed to create HNSW index: {e}")
             return None
     
@@ -335,7 +335,7 @@ class FAISSIndexOptimizer:
             distances, indices = index.search(query_f32, k)
             
             return distances[0], indices[0]
-        except Exception as e:
+        except (RuntimeError, ImportError, ValueError, TypeError) as e:
             logger.error(f"Search failed: {e}")
             return np.array([]), np.array([])
     
@@ -353,7 +353,7 @@ class FAISSIndexOptimizer:
                 "ntotal": index.ntotal,
                 "index_factory_type": str(type(index)),
             }
-        except Exception as e:
+        except (RuntimeError, ImportError, ValueError, TypeError) as e:
             logger.error(f"Failed to get index info: {e}")
             return {}
 

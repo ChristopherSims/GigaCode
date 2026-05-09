@@ -26,6 +26,13 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "TransactionLog",
+    "FileLocker",
+    "StateManager",
+]
+
+
 @dataclass
 class TransactionLog:
     """Write-ahead log entry for transaction recovery."""
@@ -50,66 +57,37 @@ class TransactionLog:
         return cls(**data)
 
 
-# Thread-local storage for file locks
-_file_locks: dict[Path, threading.RLock] = {}
-_locks_lock = threading.Lock()
-
-
-def _get_file_lock(file_path: Path) -> threading.RLock:
-    """Get or create a lock for the file path."""
-    with _locks_lock:
-        if file_path not in _file_locks:
-            _file_locks[file_path] = threading.RLock()
-        return _file_locks[file_path]
-
-
 class FileLocker:
-    """In-process file locking using threading locks.
+    """Cross-process file locking using filelock library.
     
-    For true cross-process locking on Windows, would need additional mechanisms.
-    This implementation handles single-process scenarios (like pytest tests).
+    Provides true exclusive locking across processes and threads
+    on all platforms (Windows, Linux, macOS).
     """
     
     def __init__(self, file_path: Path):
+        from filelock import FileLock
         self.file_path = file_path
         self.lock_file = file_path.parent / f".{file_path.name}.lock"
-        self.lock_handle = None
+        self._file_lock = FileLock(str(self.lock_file), timeout=10.0)
         self.is_locked = False
-        self._lock = _get_file_lock(file_path)
     
     def acquire(self, timeout: float = 10.0) -> bool:
         """Acquire exclusive lock on file."""
         try:
-            # Use threading lock for in-process synchronization
-            acquired = self._lock.acquire(timeout=timeout)
-            if acquired:
-                # Create lock file as a marker
-                try:
-                    self.lock_file.parent.mkdir(parents=True, exist_ok=True)
-                    self.lock_file.touch(exist_ok=True)
-                    self.is_locked = True
-                    logger.debug(f"Acquired lock on {self.file_path}")
-                except Exception as e:
-                    # If we can't create the marker file, release the lock
-                    self._lock.release()
-                    logger.error(f"Failed to create lock marker: {e}")
-                    return False
-            return acquired
+            self._file_lock.acquire(timeout=timeout)
+            self.is_locked = True
+            logger.debug(f"Acquired lock on {self.file_path}")
+            return True
         except Exception as e:
             logger.error(f"Failed to acquire lock: {e}")
             return False
-    
+
     def release(self) -> None:
         """Release file lock."""
         try:
             if not self.is_locked:
                 return
-            
-            # Try to clean up lock file marker
-            self.lock_file.unlink(missing_ok=True)
-            
-            # Release threading lock
-            self._lock.release()
+            self._file_lock.release()
             self.is_locked = False
             logger.debug(f"Released lock on {self.file_path}")
         except Exception as e:
@@ -266,7 +244,7 @@ class StateManager:
                 temp_path.replace(self.registry_path)
                 logger.debug("Registry saved atomically")
                 return
-            except Exception as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 last_error = e
                 logger.error(f"Failed to save registry: {e}")
                 if attempt < max_retries - 1:

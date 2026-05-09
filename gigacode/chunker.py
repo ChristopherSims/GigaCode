@@ -14,6 +14,13 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+__all__ = [
+    "CodeChunk",
+    "chunk_text",
+    "chunk_file",
+]
+
 # Node types that define logical boundaries (language-agnostic fallback)
 _DEFINITION_TYPES = {
     "function_definition",
@@ -76,6 +83,10 @@ class CodeChunk:
     name: str | None
     text: str
     embedding: list[float] | None = None
+    # Symbol metadata for context assembly and cross-reference
+    symbols_defined: list[str] | None = None   # e.g., ["UserRepository", "validate_email"]
+    symbols_called: list[str] | None = None    # e.g., ["hash_password", "db.query"]
+    imports: list[str] | None = None           # e.g., ["fastapi.security", "jwt"]
 
     def dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -138,7 +149,7 @@ def _get_grammar(language_hint: str | None) -> Any | None:
             pkg.replace("_", "-")
         )
         return None
-    except Exception as exc:
+    except (ImportError, AttributeError, TypeError) as exc:
         logger.debug("Could not load grammar %s: %s", pkg, exc)
         return None
 
@@ -209,7 +220,7 @@ def _chunk_with_tree_sitter(text: str, language_hint: str | None, file_hint: str
     try:
         from tree_sitter import Parser
         parser = Parser(grammar)
-    except Exception as exc:
+    except (ImportError, ModuleNotFoundError, TypeError) as exc:
         logger.debug(
             "Parser initialization failed for language_hint=%r (file=%s): %s; will fall back to sliding window.",
             language_hint, file_hint, exc
@@ -276,6 +287,10 @@ def _chunk_with_tree_sitter(text: str, language_hint: str | None, file_hint: str
     next_id = 0
     prev_end = 0
 
+    # Determine language for import/call extraction
+    normalized_hint = (language_hint or "").lower()
+    from gigacode.context_assembler import _extract_calls, _extract_imports
+
     for start, end, ctype, name in defs:
         if start > prev_end + 1:
             # Orphan chunk
@@ -290,10 +305,20 @@ def _chunk_with_tree_sitter(text: str, language_hint: str | None, file_hint: str
                     type="orphan",
                     name=None,
                     text=orphan_text,
+                    symbols_defined=[],
+                    symbols_called=_extract_calls(orphan_text, normalized_hint),
+                    imports=_extract_imports(orphan_text, normalized_hint),
                 ))
                 next_id += 1
         chunk_lines = lines[start - 1:end]
         chunk_text = "\n".join(chunk_lines)
+        # Extract symbols: the defined symbol + any calls inside
+        symbols_defined = [name] if name else []
+        symbols_called = _extract_calls(chunk_text, normalized_hint)
+        # Remove self-calls from symbols_called
+        if name and name in symbols_called:
+            symbols_called = [c for c in symbols_called if c != name]
+        imports = _extract_imports(chunk_text, normalized_hint)
         chunks.append(CodeChunk(
             id=next_id,
             file=file_hint,
@@ -302,6 +327,9 @@ def _chunk_with_tree_sitter(text: str, language_hint: str | None, file_hint: str
             type=ctype,
             name=name,
             text=chunk_text,
+            symbols_defined=symbols_defined,
+            symbols_called=symbols_called,
+            imports=imports,
         ))
         next_id += 1
         prev_end = end
@@ -319,20 +347,31 @@ def _chunk_with_tree_sitter(text: str, language_hint: str | None, file_hint: str
                 type="orphan",
                 name=None,
                 text=orphan_text,
+                symbols_defined=[],
+                symbols_called=_extract_calls(orphan_text, normalized_hint),
+                imports=_extract_imports(orphan_text, normalized_hint),
             ))
 
     return chunks
 
 
-def _chunk_sliding_window(text: str, file_hint: str = "", window: int = 30, overlap: int = 5) -> list[CodeChunk]:
+def _chunk_sliding_window(
+    text: str,
+    file_hint: str = "",
+    window: int = 30,
+    overlap: int = 5,
+    language_hint: str | None = None,
+) -> list[CodeChunk]:
     """Fallback chunker: sliding windows of *window* lines with *overlap*."""
     lines = text.splitlines()
     if not lines:
         return []
 
+    normalized_hint = (language_hint or "").lower()
+    from gigacode.context_assembler import _extract_calls, _extract_imports
+
     chunks: list[CodeChunk] = []
     step = window - overlap
-    idx = 0
     cid = 0
     for start in range(0, len(lines), step):
         end = min(start + window, len(lines))
@@ -346,6 +385,9 @@ def _chunk_sliding_window(text: str, file_hint: str = "", window: int = 30, over
             type="sliding",
             name=None,
             text=chunk_text,
+            symbols_defined=[],
+            symbols_called=_extract_calls(chunk_text, normalized_hint),
+            imports=_extract_imports(chunk_text, normalized_hint),
         ))
         cid += 1
         if end == len(lines):
@@ -426,4 +468,12 @@ def chunk_file(
     if language_hint is None:
         from gigacode.language_detect import detect_language
         language_hint = detect_language(p)
-    return chunk_text(text, language_hint=language_hint, filename_hint=str(p), sliding_window_size=sliding_window_size)
+    chunks = chunk_text(text, language_hint=language_hint, filename_hint=str(p), sliding_window_size=sliding_window_size)
+    # Store full-file imports at chunk level for sliding window chunks
+    # (tree-sitter chunks already have per-chunk imports)
+    from gigacode.context_assembler import _extract_imports
+    full_file_imports = _extract_imports(text, (language_hint or "").lower())
+    for chunk in chunks:
+        if not chunk.imports:
+            chunk.imports = full_file_imports
+    return chunks

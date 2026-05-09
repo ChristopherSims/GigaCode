@@ -12,6 +12,11 @@ from gigacode.json_logger import StructuredJsonLogger
 json_logger = StructuredJsonLogger(__name__)
 
 
+__all__ = [
+    "LRUDict",
+]
+
+
 class LRUDict(OrderedDict):
     """Bounded LRU dict. Evicts least-recently-used item when max_size exceeded.
     

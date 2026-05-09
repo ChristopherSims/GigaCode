@@ -8,6 +8,12 @@ from typing import Any, Dict, Optional
 from gigacode.response_types import ErrorResponse
 
 
+__all__ = [
+    "make_error_response",
+    "validate_search_params",
+]
+
+
 def make_error_response(
     message: str,
     buffer_id: Optional[str] = None,

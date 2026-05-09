@@ -22,6 +22,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+__all__ = [
+    "main",
+]
+
 try:
     from mcp.server import Server
     from mcp.server.lowlevel.server import NotificationOptions
@@ -68,7 +73,7 @@ async def _run_stdio(tool: Any) -> None:
             return [TextContent(type="text", text=json.dumps({"status": "error", "message": f"Unknown tool: {name}"}))]
         try:
             result = method(**arguments)
-        except Exception as exc:
+        except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
             logger.exception("MCP tool %s failed", name)
             return [TextContent(type="text", text=json.dumps({"status": "error", "message": str(exc)}))]
         return [TextContent(type="text", text=_result_to_text(result))]
@@ -137,7 +142,7 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
             return [TextContent(type="text", text=json.dumps({"status": "error", "message": f"Unknown tool: {name}"}))]
         try:
             result = method(**arguments)
-        except Exception as exc:
+        except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
             logger.exception("MCP tool %s failed", name)
             return [TextContent(type="text", text=json.dumps({"status": "error", "message": str(exc)}))]
         return [TextContent(type="text", text=_result_to_text(result))]

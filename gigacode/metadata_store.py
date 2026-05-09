@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 _DEFAULT_INDENT = 2
 
 
+__all__ = [
+    "save_metadata",
+    "load_metadata",
+]
+
+
 @retry_on_io_error(max_attempts=3, delay_s=0.5)
 def save_metadata(
     path: str | Path, metadata_list: list[dict[str, Any]], *, compact: bool = True

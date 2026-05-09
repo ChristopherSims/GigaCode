@@ -32,6 +32,11 @@ logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger('index_manager')
 
 
+__all__ = [
+    "IndexManager",
+]
+
+
 class IndexManager:
     """Manage FAISS/Lexical indices and query caching.
     
@@ -125,13 +130,13 @@ class IndexManager:
             )
             
             return index
-        except Exception as exc:
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             json_logger.warning(
                 operation='load_index',
                 message=f'Failed to load index for {buffer_id}: {exc}'
             )
             return None
-    
+
     def _get_lexical_index(self, buffer_id: str) -> LexicalIndex | None:
         """Load BM25 index from cache or disk.
         
@@ -162,13 +167,13 @@ class IndexManager:
             )
             
             return lexical_index
-        except Exception as exc:
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             json_logger.warning(
                 operation='load_lexical_index',
                 message=f'Failed to load lexical index for {buffer_id}: {exc}'
             )
             return None
-    
+
     def _load_chunks(self, buffer_id: str) -> list[CodeChunk] | None:
         """Load chunks from buffer metadata file.
         
@@ -199,13 +204,13 @@ class IndexManager:
             ]
             
             return chunks
-        except Exception as exc:
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             json_logger.warning(
                 operation='load_chunks',
                 message=f'Failed to load chunks for {buffer_id}: {exc}'
             )
             return None
-    
+
     # ------------------------------------------------------------------
     # GPU Memory Management
     # ------------------------------------------------------------------
@@ -236,13 +241,13 @@ class IndexManager:
                 "reserved_mb": reserved / 1024 / 1024,
                 "total_mb": total_memory / 1024 / 1024,
             }
-        except Exception as exc:
+        except (OSError, ImportError, AttributeError) as exc:
             json_logger.warning(
                 operation='check_gpu_memory',
                 message=f'GPU memory check failed: {exc}'
             )
             return {"status": "error", "message": str(exc)}
-    
+
     def _evict_gpu_indices(self, buffer_id: str) -> None:
         """Remove index from GPU when evicted from cache.
         
@@ -261,12 +266,12 @@ class IndexManager:
                 operation='evict_gpu_index',
                 details={'buffer_id': buffer_id}
             )
-        except Exception as exc:
+        except (OSError, AttributeError) as exc:
             json_logger.warning(
                 operation='evict_gpu_index',
                 message=f'Failed to evict GPU index for {buffer_id}: {exc}'
             )
-    
+
     # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------
@@ -321,13 +326,13 @@ class IndexManager:
             )
             
             return {"status": "ok", "buffer_id": buffer_id}
-        except Exception as exc:
+        except (OSError, TypeError, ValueError) as exc:
             json_logger.error(
                 operation='save_buffer_state',
                 message=f'Failed to save buffer state: {exc}'
             )
             return {"status": "error", "message": str(exc)}
-    
+
     def load_buffer_state(
         self,
         buffer_id: str,
@@ -348,14 +353,14 @@ class IndexManager:
         if embeddings_path.exists():
             try:
                 embeddings = np.load(embeddings_path)
-            except Exception as exc:
+            except (OSError, ValueError) as exc:
                 json_logger.warning(
                     operation='load_embeddings',
                     message=f'Failed to load embeddings: {exc}'
                 )
-        
+
         return index, chunks, embeddings
-    
+
     # ------------------------------------------------------------------
     # Index Creation
     # ------------------------------------------------------------------
@@ -441,14 +446,14 @@ class IndexManager:
                 "embeddings_shape": list(embeddings.shape),
                 "elapsed_s": elapsed,
             }
-        except Exception as exc:
+        except (OSError, TypeError, ValueError, ImportError) as exc:
             json_logger.error(
                 operation='create_indices',
                 buffer_id=buffer_id,
                 message=f'Failed to create indices: {exc}'
             )
             return {"status": "error", "message": str(exc)}
-    
+
     def _rebuild_files(
         self,
         buffer_id: str,
@@ -511,7 +516,7 @@ class IndexManager:
                             f"Incremental rebuild: {total_changed} changed, "
                             f"{total_kept} kept, {len(chunks) - total_changed - total_kept} removed"
                         )
-                except Exception as e:
+                except (OSError, TypeError, ValueError) as e:
                     logger.warning(f"Incremental update failed, falling back to full rebuild: {e}")
             
             # Recreate indices
@@ -558,14 +563,14 @@ class IndexManager:
                 "rebuilt_files": files,
                 "chunks_count": len(chunks),
             }
-        except Exception as exc:
+        except (OSError, TypeError, ValueError, ImportError) as exc:
             json_logger.error(
                 operation='rebuild_files',
                 buffer_id=buffer_id,
                 message=f'Failed to rebuild files: {exc}'
             )
             return {"status": "error", "message": str(exc)}
-    
+
     # ------------------------------------------------------------------
     # Query Caching
     # ------------------------------------------------------------------

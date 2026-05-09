@@ -15,6 +15,14 @@ from typing import Any, Optional
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "FileMetadata",
+    "SnapshotManifest",
+    "SnapshotManager",
+    "SnapshotDiffer",
+]
+
+
 @dataclass
 class FileMetadata:
     """Lightweight metadata for a file in the snapshot."""
@@ -132,7 +140,7 @@ class SnapshotManager:
                     meta = FileMetadata.from_file(file_path)
                     file_metadata[rel_path] = meta
                     logger.debug(f"Snapshot: {rel_path} ({meta.size} bytes, {meta.lines} lines)")
-                except Exception as e:
+                except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
                     logger.warning(f"Failed to snapshot {rel_path}: {e}")
         
         manifest = SnapshotManifest(
@@ -192,7 +200,7 @@ class SnapshotManager:
         
         try:
             return file_path.read_text(encoding='utf-8')
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
             logger.error(f"Failed to read {relative_path}: {e}")
             return None
     
@@ -242,7 +250,7 @@ class SnapshotManager:
                     new_hash = hashlib.sha256(content).hexdigest()
                     if new_hash != meta.hash:
                         changes["changed"].append(rel_path)
-                except Exception as e:
+                except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
                     logger.warning(f"Failed to check {rel_path}: {e}")
                     changes["changed"].append(rel_path)
         
@@ -364,7 +372,7 @@ class SnapshotManager:
                 "merged": True,
                 "message": "File written successfully"
             }
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
             logger.error(f"Failed to write {relative_path}: {e}")
             return {
                 "status": "error",
@@ -389,7 +397,7 @@ class SnapshotManager:
                 try:
                     meta = FileMetadata.from_file(file_path)
                     self.manifest.files[rel_path] = meta
-                except Exception as e:
+                except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
                     logger.warning(f"Failed to update metadata for {rel_path}: {e}")
         
         self.manifest.modified_at = now

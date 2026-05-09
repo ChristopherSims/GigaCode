@@ -9,6 +9,20 @@ from __future__ import annotations
 from typing import Any
 
 
+__all__ = [
+    "GigaCodeError",
+    "BufferNotFound",
+    "CorruptedMetadata",
+    "QueryLimitExceeded",
+    "GPUMemoryExhausted",
+    "InvalidPathError",
+    "RateLimitExceeded",
+    "EmbeddingError",
+    "SearchError",
+    "CommitError",
+]
+
+
 class GigaCodeError(Exception):
     """Base exception for all GigaCode errors."""
 
@@ -41,3 +55,23 @@ class QueryLimitExceeded(GigaCodeError):
 
 class GPUMemoryExhausted(GigaCodeError):
     """Raised when GPU VRAM is insufficient for the requested index upload."""
+
+
+class InvalidPathError(GigaCodeError):
+    """Raised when a file path is invalid or escapes the allowed root."""
+
+
+class RateLimitExceeded(GigaCodeError):
+    """Raised when rate limit is exceeded for an operation."""
+
+
+class EmbeddingError(GigaCodeError):
+    """Raised when embedding operation fails."""
+
+
+class SearchError(GigaCodeError):
+    """Raised when search operation fails."""
+
+
+class CommitError(GigaCodeError):
+    """Raised when commit operation fails due to conflicts or I/O errors."""

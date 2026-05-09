@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 import time
 
+import pytest
 import numpy as np
 
 # Add parent to path for imports
@@ -122,8 +123,7 @@ def test_faiss_integration():
         )
         
         if index is None:
-            print("⚠️  FAISS not available, skipping index creation tests")
-            return True
+            pytest.skip("FAISS not available, skipping index creation tests")
         
         assert index.ntotal == vector_count
         print(f"✅ Created flat index with {index.ntotal} vectors")

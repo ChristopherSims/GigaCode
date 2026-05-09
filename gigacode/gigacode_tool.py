@@ -31,27 +31,35 @@ from gigacode.lexical_index import LexicalIndex
 from gigacode.metadata_store import load_metadata, save_metadata
 from gigacode.metrics import get_metrics
 from gigacode.metrics_exporter import configure_prometheus
-from gigacode.query_cache import QueryCache
-from gigacode.snapshot_manager import SnapshotManager
-from gigacode.state_manager import StateManager
+from gigacode.exceptions import (
+    GigaCodeError,
+    BufferNotFound,
+    InvalidPathError,
+    EmbeddingError,
+    SearchError,
+    CommitError,
+    RateLimitExceeded,
+    QueryLimitExceeded,
+)
 from gigacode.response_types import (
     SearchMatch,
     SearchResponse,
     ResponseStatus,
     EmbedResponse,
-    ClusterResponse,
-    ClusterItem,
-    ErrorResponse,
 )
-from gigacode.retry_utils import retry_on_io_error
 from gigacode.size_guard import check_size
-from gigacode.operation_config import OperationType, OperationConfig
-from gigacode.health_status import HealthStatus, HealthStatusTracker
 from gigacode.path_utils import validate_buffer_path
-from gigacode.lru_cache import LRUDict
 from gigacode import response_adapters
 from gigacode import tool_validation
 from gigacode.tool_security import ToolSecurityLayer
+from gigacode.context_assembler import ContextAssembler
+from gigacode.refactor_engine import RefactorEngine
+from gigacode.retry_utils import retry_on_io_error
+from gigacode.faceted_search import FacetedSearcher, SearchFilter
+from gigacode.symbol_index import SymbolIndex
+from gigacode.type_search import TypeSearcher
+from gigacode.multi_buffer import MultiBufferManager
+from gigacode.resource_budget import estimate_budget as _estimate_budget, ConfidenceScorer
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger('tool')
@@ -115,14 +123,6 @@ class CodeEmbeddingTool:
         )
         self._embedding_dim = self._embedder.embedding_dim
 
-        # Query result cache with semantic similarity matching
-        # (Managers will use this cache)
-        self._query_cache = QueryCache(
-            maxsize=256,
-            embedder=self._embedder,
-            similarity_threshold=0.95,  # Catch paraphrased queries (e.g., "find add" vs "locate addition")
-        )
-
         # Phase 4: State manager for crash recovery and transaction safety
         # Enables write-ahead logging (WAL) for commit operations
         self._state_manager = StateManager(self.work_dir)
@@ -182,6 +182,9 @@ class CodeEmbeddingTool:
             if self._search_service is None:
                 logger.warning("SearchService unavailable: sklearn or other optional dependency missing. Search operations will fail.")
         
+        # Multi-buffer orchestration manager (aliases and virtual buffers)
+        self._multi_buffer_manager = MultiBufferManager(self.work_dir)
+
         # Phase 7: Prometheus metrics export via HTTP endpoint
         self._prometheus_exporter = None
         if enable_prometheus:
@@ -206,21 +209,6 @@ class CodeEmbeddingTool:
     # ------------------------------------------------------------------
     # Schema exposure
     # ------------------------------------------------------------------
-
-    # Delegation properties for backward compatibility with registry access
-    @property
-    def _registry(self) -> dict[str, Any]:
-        """Access registry from StateManager (backward compatibility)."""
-        if self._state_manager is None:
-            return {}
-        return self._state_manager.registry
-    
-    @property
-    def _registry_path(self) -> Path:
-        """Access registry path from StateManager (backward compatibility)."""
-        if self._state_manager is None:
-            return self.work_dir / ".registry.json"
-        return self._state_manager.registry_path
 
     @staticmethod
     def get_tool_schemas() -> list[dict[str, Any]]:
@@ -263,7 +251,7 @@ class CodeEmbeddingTool:
         }
 
     # ------------------------------------------------------------------
-    # Input validation (thin wrappers to tool_validation module)
+    # Input validation (delegated to tool_validation module)
     # ------------------------------------------------------------------
     @staticmethod
     def _make_error_response(
@@ -282,7 +270,7 @@ class CodeEmbeddingTool:
         return tool_validation.validate_search_params(query, top_k=top_k, max_results=max_results)
 
     # ------------------------------------------------------------------
-    # Phase 5: Response adapters (thin wrappers to response_adapters module)
+    # Phase 5: Response adapters (delegated to response_adapters module)
     # ------------------------------------------------------------------
     @staticmethod
     def _adapt_search_response(
@@ -332,7 +320,7 @@ class CodeEmbeddingTool:
             try:
                 with f.open("r", encoding="utf-8", errors="replace") as fh:
                     total_lines += sum(1 for _ in fh)
-            except Exception as exc:
+            except (OSError, PermissionError, UnicodeDecodeError) as exc:
                 json_logger.debug(
                 operation='chunk_file',
                 message=f'Could not count lines in {f}: {exc}',
@@ -438,7 +426,7 @@ class CodeEmbeddingTool:
                 message=str(e),
             )
             return {"status": "warning", "message": str(e)}
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             json_logger.error(
                 operation='embed_codebase',
                 status='error',
@@ -481,7 +469,7 @@ class CodeEmbeddingTool:
         if err is not None:
             return err
         
-        # Phase 5: Delegate to SearchService if available
+        # Phase 5: Delegate to SearchService
         if self._search_service:
             try:
                 result = self._search_service.semantic_search(
@@ -490,86 +478,93 @@ class CodeEmbeddingTool:
                     top_k=top_k + offset,
                 )
                 return self._adapt_search_response(result, offset=offset, top_k=top_k)
-            except Exception as e:
-                logger.warning(f"SearchService delegation failed: {e}. Falling back to monolithic implementation.")
-                # Fall through to monolithic implementation below
-        
-        # Monolithic implementation (fallback)
+            except (ImportError, RuntimeError, ValueError) as e:
+                logger.warning(f"SearchService delegation failed: {e}")
+                return self._make_error_response(
+                    f"Search failed: {e}",
+                    buffer_id=buffer_id,
+                    operation="semantic_search",
+                )
+
+        return self._make_error_response(
+            "SearchService unavailable",
+            buffer_id=buffer_id,
+            operation="semantic_search",
+        )
+
+    def faceted_search(
+        self,
+        buffer_id: str,
+        query: str,
+        filters: dict[str, Any] | None = None,
+        top_k: int = 10,
+        include_uncertain: bool = True,
+        confidence_threshold: float = 0.5,
+    ) -> dict[str, Any]:
+        """Perform faceted semantic search with filters and result explanation.
+
+        Args:
+            buffer_id: Buffer handle.
+            query: Search query string.
+            filters: Optional filter dict with keys:
+                - language (str): e.g. "python", "javascript"
+                - path_regex (str): regex to match file paths
+                - type_in (list[str]): chunk types ["function", "class", ...]
+                - min_lines (int): minimum chunk line count
+                - max_lines (int): maximum chunk line count
+                - file_pattern (str): glob pattern e.g. "src/**/*.py"
+            top_k: Number of top results.
+            include_uncertain: Include matches with lower confidence.
+            confidence_threshold: Minimum score for confident matches.
+
+        Returns:
+            Dict with matches (each has score, confidence, score_breakdown, why),
+            uncertain_matches, total_matches, filtered_out.
+        """
         info = self._get_buffer_info(buffer_id)
         if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="semantic_search")
-
-        cached = self._query_cache.get(buffer_id, query, top_k + offset, "semantic")
-        if cached is not None:
-            cached_matches = cached.get("matches", [])
-            # Slice and convert to SearchMatch if needed
-            sliced = cached_matches[offset:offset + top_k]
-            if sliced and isinstance(sliced[0], dict):
-                sliced = [SearchMatch(**m) if isinstance(m, dict) else m for m in sliced]
-            metrics = get_metrics()
-            metrics.record_cache_hit("semantic_search_cache")
-            response = SearchResponse(
-                status=ResponseStatus.OK,
-                matches=sliced,
-                cached=True,
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="faceted_search"
             )
-            return response.to_dict()
 
-        index = self._get_index(buffer_id)
         chunks = self._load_chunks(buffer_id)
-        if chunks is None:
-            return {"status": "error", "message": "Chunk metadata missing."}
-
-        t0 = time.perf_counter()
-        q_emb = self._embedder.encode([query], batch_size=1)
-        distances, indices = index.search(q_emb, top_k + offset)
-        elapsed = time.perf_counter() - t0
-
-        matches_list: list[SearchMatch] = []
-        for score, idx in zip(distances[0], indices[0]):
-            if idx < 0 or idx >= len(chunks):
-                continue
-            ch = chunks[idx]
-            matches_list.append(SearchMatch(
-                file=ch.file,
-                start_line=ch.start_line,
-                end_line=ch.end_line,
-                type=ch.type,
-                name=ch.name,
-                score=float(score),
-                doc_id=int(idx),
-                match_type="semantic",
-            ))
-
-        # Log search with JSON structure
-        json_logger.debug(
-            operation='semantic_search',
-            buffer_id=buffer_id,
-            elapsed_s=elapsed,
-            details={'top_k': top_k, 'gpu': index.is_gpu, 'matches': len(matches_list)},
-        )
-
-        # Phase 7: Record operation metrics for Prometheus
-        if self._prometheus_exporter:
-            self._prometheus_exporter.record_operation(
-                operation='semantic_search',
-                duration_s=elapsed,
-                status='ok',
-                chunk_count=len(matches_list),
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="faceted_search"
             )
 
-        self._query_cache.set(buffer_id, query, top_k + offset, "semantic", {"matches": matches_list})
-        metrics = get_metrics()
-        metrics.record_cache_miss("semantic_search_cache")
-        metrics.record_histogram("semantic_search_latency_s", elapsed)
-        metrics.increment_counter("semantic_search_calls")
-        
-        response = SearchResponse(
-            status=ResponseStatus.OK,
-            matches=matches_list[offset:offset + top_k],
-            cached=False,
-        )
-        return response.to_dict()
+        buffer_dir = Path(info["buffer_dir"])
+        embeddings_path = buffer_dir / "embeddings.npy"
+        embeddings: np.ndarray | None = None
+        if embeddings_path.exists():
+            try:
+                embeddings = np.load(embeddings_path)
+            except (OSError, ValueError) as e:
+                logger.warning(f"Failed to load embeddings for {buffer_id}: {e}")
+
+        query_embedding = self._embedder.encode([query])
+
+        filter_obj = SearchFilter.from_dict(filters) if filters else None
+        searcher = FacetedSearcher(chunks, embeddings)
+
+        try:
+            result = searcher.search(
+                query_embedding,
+                query,
+                filter_obj,
+                top_k,
+                include_uncertain,
+                confidence_threshold,
+            )
+            result.buffer_id = buffer_id
+            return {"status": "ok", **result.to_dict()}
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"FacetedSearcher.search failed: {e}")
+            return self._make_error_response(
+                f"Faceted search failed: {e}",
+                buffer_id=buffer_id,
+                operation="faceted_search",
+            )
 
     def hybrid_search(
         self,
@@ -602,7 +597,7 @@ class CodeEmbeddingTool:
         if info is None:
             return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="hybrid_search")
 
-        # Phase 5: Delegate to SearchService if available
+        # Phase 5: Delegate to SearchService
         if self._search_service:
             try:
                 result = self._search_service.hybrid_search(
@@ -613,106 +608,19 @@ class CodeEmbeddingTool:
                     lexical_weight=lexical_weight,
                 )
                 return self._adapt_search_response(result, offset=offset, top_k=top_k)
-            except Exception as e:
-                logger.warning(f"SearchService delegation failed: {e}. Falling back to monolithic implementation.")
-                # Fall through to monolithic implementation below
-        
-        # Monolithic implementation (fallback)
-        cached = self._query_cache.get(buffer_id, query, top_k + offset, "hybrid")
-        if cached is not None:
-            cached_matches = cached.get("matches", [])
-            # Slice and convert to SearchMatch if needed
-            sliced = cached_matches[offset:offset + top_k]
-            if sliced and isinstance(sliced[0], dict):
-                sliced = [SearchMatch(**m) if isinstance(m, dict) else m for m in sliced]
-            metrics = get_metrics()
-            metrics.record_cache_hit("hybrid_search_cache")
-            response = SearchResponse(
-                status=ResponseStatus.OK,
-                matches=sliced,
-                cached=True,
-            )
-            return response.to_dict()
+            except (ImportError, RuntimeError, ValueError) as e:
+                logger.warning(f"SearchService delegation failed: {e}")
+                return self._make_error_response(
+                    f"Search failed: {e}",
+                    buffer_id=buffer_id,
+                    operation="hybrid_search",
+                )
 
-        t0_hybrid = time.perf_counter()
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None:
-            return {"status": "error", "message": "Chunk metadata missing."}
-
-        # Semantic results
-        index = self._get_index(buffer_id)
-        t0 = time.perf_counter()
-        q_emb = self._embedder.encode([query], batch_size=1)
-        distances, indices = index.search(q_emb, top_k * 4 + offset)
-        elapsed = time.perf_counter() - t0
-        json_logger.debug(
-            operation='hybrid_search_semantic',
+        return self._make_error_response(
+            "SearchService unavailable",
             buffer_id=buffer_id,
-            elapsed_s=elapsed,
-            details={'top_k': top_k, 'gpu': index.is_gpu},
+            operation="hybrid_search",
         )
-        semantic_results: list[dict[str, Any]] = []
-        for score, idx in zip(distances[0], indices[0]):
-            if idx < 0 or idx >= len(chunks):
-                continue
-            semantic_results.append({
-                "doc_id": int(idx),
-                "score": float(score),
-            })
-
-        # Lexical results
-        lexical = self._get_lexical_index(buffer_id)
-        lexical_results = lexical.search(query, top_k=top_k * 4 + offset)
-
-        merged = reciprocal_rank_fusion(
-            semantic_results,
-            lexical_results,
-            semantic_weight=semantic_weight,
-            lexical_weight=lexical_weight,
-            top_k=top_k + offset,
-        )
-
-        # Enrich merged results with chunk metadata
-        matches_list: list[SearchMatch] = []
-        for m in merged:
-            idx = m["doc_id"]
-            ch = chunks[idx]
-            matches_list.append(SearchMatch(
-                file=ch.file,
-                start_line=ch.start_line,
-                end_line=ch.end_line,
-                type=ch.type,
-                name=ch.name,
-                rrf_score=m.get("rrf_score", 0.0),
-                semantic_rank=m.get("semantic_rank"),
-                lexical_rank=m.get("lexical_rank"),
-                doc_id=idx,
-                match_type="hybrid",
-            ))
-
-        self._query_cache.set(buffer_id, query, top_k + offset, "hybrid", {"matches": matches_list})
-        elapsed_hybrid = time.perf_counter() - t0_hybrid
-        
-        # Phase 7: Record operation metrics for Prometheus
-        if self._prometheus_exporter:
-            self._prometheus_exporter.record_operation(
-                operation='hybrid_search',
-                duration_s=elapsed_hybrid,
-                status='ok',
-                chunk_count=len(matches_list),
-            )
-        
-        metrics = get_metrics()
-        metrics.record_cache_miss("hybrid_search_cache")
-        metrics.record_histogram("hybrid_search_latency_s", elapsed_hybrid)
-        metrics.increment_counter("hybrid_search_calls")
-        
-        response = SearchResponse(
-            status=ResponseStatus.OK,
-            matches=matches_list[offset:offset + top_k],
-            cached=False,
-        )
-        return response.to_dict()
 
     # ------------------------------------------------------------------
     # Literal text search (grep-style)
@@ -831,6 +739,217 @@ class CodeEmbeddingTool:
         )
         return self._adapt_search_response(result, offset=0, top_k=top_k)
 
+    def search_by_type(
+        self,
+        buffer_id: str,
+        type_pattern: str,
+        top_k: int = 10,
+    ) -> dict[str, Any]:
+        """Find functions and classes by type signature pattern.
+
+        Args:
+            buffer_id: Buffer handle.
+            type_pattern: Type pattern to search (e.g., "Callable[[str], bool]", "dict[str, int]").
+            top_k: Maximum results.
+
+        Returns:
+            Dict with matches, each containing type_signature, match_score, match_reason.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="search_by_type"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="search_by_type"
+            )
+
+        searcher = TypeSearcher(chunks)
+        try:
+            matches = searcher.search_by_type(type_pattern, top_k)
+            return {"status": "ok", "matches": [m.to_dict() for m in matches]}
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"TypeSearcher.search_by_type failed: {e}")
+            return self._make_error_response(
+                f"Type search failed: {e}",
+                buffer_id=buffer_id,
+                operation="search_by_type",
+            )
+
+    def find_implementations(
+        self,
+        buffer_id: str,
+        interface_name: str,
+        top_k: int = 10,
+    ) -> dict[str, Any]:
+        """Find classes implementing a given interface/protocol.
+
+        Args:
+            buffer_id: Buffer handle.
+            interface_name: Interface name (e.g., "DataStore", "Iterator").
+            top_k: Maximum results.
+
+        Returns:
+            Dict with implementations list, each with class_name, inheritance_type, confidence.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="find_implementations"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="find_implementations"
+            )
+
+        searcher = TypeSearcher(chunks)
+        try:
+            implementations = searcher.find_implementations(interface_name, top_k)
+            return {"status": "ok", "implementations": implementations}
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"TypeSearcher.find_implementations failed: {e}")
+            return self._make_error_response(
+                f"Find implementations failed: {e}",
+                buffer_id=buffer_id,
+                operation="find_implementations",
+            )
+
+    def symbol_search(
+        self,
+        buffer_id: str,
+        query: str,
+    ) -> dict[str, Any]:
+        """Search for symbols by name (exact, prefix, fuzzy).
+
+        Args:
+            buffer_id: Buffer handle.
+            query: Symbol name to search (e.g., "UserRepository", "validate_email").
+
+        Returns:
+            Dict with exact_matches, prefix_matches, fuzzy_matches.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="symbol_search"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="symbol_search"
+            )
+
+        try:
+            index = SymbolIndex(chunks)
+            result = index.search(query)
+            return {"status": "ok", **result.to_dict()}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Symbol search failed: {e}",
+                buffer_id=buffer_id,
+                operation="symbol_search",
+            )
+
+    def get_symbol_definition(
+        self,
+        buffer_id: str,
+        symbol: str,
+    ) -> dict[str, Any]:
+        """Jump to definition of a symbol.
+
+        Supports qualified names like "UserRepository.validate_email".
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_symbol_definition"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_symbol_definition"
+            )
+
+        try:
+            index = SymbolIndex(chunks)
+            definitions = index.get_definition(symbol)
+            return {"status": "ok", "definitions": [d.to_dict() for d in definitions]}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Get definition failed: {e}",
+                buffer_id=buffer_id,
+                operation="get_symbol_definition",
+            )
+
+    def get_symbol_references(
+        self,
+        buffer_id: str,
+        symbol: str,
+        top_k: int = 50,
+    ) -> dict[str, Any]:
+        """Find all references to a symbol across the codebase.
+
+        Returns reference locations with context lines and confidence scores.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_symbol_references"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_symbol_references"
+            )
+
+        try:
+            index = SymbolIndex(chunks)
+            references = index.get_references(symbol, top_k)
+            return {"status": "ok", "references": [r.to_dict() for r in references]}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Get references failed: {e}",
+                buffer_id=buffer_id,
+                operation="get_symbol_references",
+            )
+
+    def list_file_symbols(
+        self,
+        buffer_id: str,
+        file: str,
+    ) -> dict[str, Any]:
+        """List all symbols defined in a specific file."""
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="list_file_symbols"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="list_file_symbols"
+            )
+
+        try:
+            index = SymbolIndex(chunks)
+            symbols = index.get_file_symbols(file)
+            return {"status": "ok", "symbols": [s.to_dict() for s in symbols]}
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"List file symbols failed: {e}",
+                buffer_id=buffer_id,
+                operation="list_file_symbols",
+            )
+
     # ------------------------------------------------------------------
     # Clustering
     # ------------------------------------------------------------------
@@ -871,12 +990,27 @@ class CodeEmbeddingTool:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="cluster_code")
-        
-        result = self._search_service.cluster_code(
-            buffer_id=buffer_id,
-            n_clusters=max(2, int(1.0 / (1.0 - threshold + 0.1))),  # Convert threshold to n_clusters estimate
-        )
-        return self._adapt_cluster_response(result)
+
+        if not self._search_service:
+            return self._make_error_response(
+                "SearchService unavailable",
+                buffer_id=buffer_id,
+                operation="cluster_code",
+            )
+
+        try:
+            result = self._search_service.cluster_code(
+                buffer_id=buffer_id,
+                n_clusters=max(2, int(1.0 / (1.0 - threshold + 0.1))),  # Convert threshold to n_clusters estimate
+            )
+            return self._adapt_cluster_response(result)
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"SearchService.cluster_code failed: {e}")
+            return self._make_error_response(
+                f"Clustering failed: {e}",
+                buffer_id=buffer_id,
+                operation="cluster_code",
+            )
 
     def find_duplicates(
         self,
@@ -917,12 +1051,27 @@ class CodeEmbeddingTool:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_duplicates")
-        
-        result = self._search_service.find_duplicates(
-            buffer_id=buffer_id,
-            threshold=threshold,
-        )
-        return self._adapt_duplicate_response(result)
+
+        if not self._search_service:
+            return self._make_error_response(
+                "SearchService unavailable",
+                buffer_id=buffer_id,
+                operation="find_duplicates",
+            )
+
+        try:
+            result = self._search_service.find_duplicates(
+                buffer_id=buffer_id,
+                threshold=threshold,
+            )
+            return self._adapt_duplicate_response(result)
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"SearchService.find_duplicates failed: {e}")
+            return self._make_error_response(
+                f"Duplicate detection failed: {e}",
+                buffer_id=buffer_id,
+                operation="find_duplicates",
+            )
 
     def pack_context(
         self,
@@ -944,7 +1093,7 @@ class CodeEmbeddingTool:
         if chunks is None or not chunks:
             return {"status": "error", "message": "No chunks loaded."}
 
-        # Use hybrid search for relevance scoring
+        # Use hybrid search for relevance scoring (always delegates to SearchService)
         search_result = self.hybrid_search(buffer_id, query, top_k=top_k, offset=0)
         if search_result.get("status") != "ok":
             return search_result
@@ -961,6 +1110,224 @@ class CodeEmbeddingTool:
                 scores[did] = m.get("rrf_score", m.get("score", 0.0))
 
         return pack_context(chunks, scores, max_tokens=max_tokens)
+
+    def related_code(
+        self,
+        buffer_id: str,
+        file: str,
+        start_line: int,
+        end_line: int | None = None,
+        include: list[str] | None = None,
+        top_k: int = 10,
+        max_tokens: int = 8192,
+    ) -> dict[str, Any]:
+        """Assemble cross-file related context for a code location.
+
+        Given a file and line range, finds:
+        - Callers of the target symbol
+        - Related test files
+        - Interface definitions (classes, traits, protocols)
+        - Semantic neighbors (similar chunks in other files)
+        - Imports for the target chunk
+
+        Args:
+            buffer_id: Buffer handle.
+            file: Relative file path within the buffer.
+            start_line: Start line (1-based).
+            end_line: End line (1-based). If None, uses start_line.
+            include: Context types to include:
+                ["callers", "tests", "interfaces", "imports", "semantic"]
+                Default: all.
+            top_k: Maximum number of results per category.
+            max_tokens: Token budget for assembled context.
+
+        Returns:
+            Dict with ``status``, the assembled context fields
+            (callers, tests, interfaces, imports, semantic_neighbors),
+            and ``total_tokens``.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="related_code"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="related_code"
+            )
+
+        # Load embeddings from disk
+        buffer_dir = Path(info["buffer_dir"])
+        embeddings_path = buffer_dir / "embeddings.npy"
+        embeddings: np.ndarray | None = None
+        if embeddings_path.exists():
+            try:
+                embeddings = np.load(embeddings_path)
+            except (OSError, ValueError) as e:
+                logger.warning(f"Failed to load embeddings for {buffer_id}: {e}")
+
+        language = info.get("language_hint", "python")
+
+        assembler = ContextAssembler(
+            chunks=chunks,
+            embeddings=embeddings,
+            language=language,
+        )
+
+        try:
+            result = assembler.assemble(
+                file=file,
+                start_line=start_line,
+                end_line=end_line,
+                include=include,
+                max_tokens=max_tokens,
+            )
+            return {"status": "ok", **result.to_dict()}
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"ContextAssembler.assemble failed: {e}")
+            return self._make_error_response(
+                f"Related code assembly failed: {e}",
+                buffer_id=buffer_id,
+                operation="related_code",
+            )
+
+    def refactor_rename(
+        self,
+        buffer_id: str,
+        old_name: str,
+        new_name: str,
+        scope: str = "buffer",
+        dry_run: bool = True,
+    ) -> dict[str, Any]:
+        """Rename a symbol across the codebase.
+
+        Args:
+            buffer_id: Buffer handle.
+            old_name: Current symbol name.
+            new_name: Desired symbol name.
+            scope: "buffer" to rename across all files.
+            dry_run: If True, returns preview without modifying.
+
+        Returns:
+            Dict with status, changed_files, changes list.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="refactor_rename"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="refactor_rename"
+            )
+
+        try:
+            engine = RefactorEngine(chunks)
+            result = engine.rename_symbol(old_name, new_name, scope, dry_run)
+            return result.to_dict()
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"RefactorEngine.rename_symbol failed: {e}")
+            return self._make_error_response(
+                f"Rename failed: {e}",
+                buffer_id=buffer_id,
+                operation="refactor_rename",
+            )
+
+    def add_import(
+        self,
+        buffer_id: str,
+        file: str,
+        module: str,
+        symbols: list[str] | None = None,
+        language_hint: str | None = None,
+        dry_run: bool = True,
+    ) -> dict[str, Any]:
+        """Add an import statement to a file.
+
+        Args:
+            buffer_id: Buffer handle.
+            file: Target file path.
+            module: Module to import.
+            symbols: Specific symbols, or None for module import.
+            language_hint: Language for syntax selection.
+            dry_run: If True, returns preview without modifying.
+
+        Returns:
+            Dict with status, changed_files, changes list.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="add_import"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="add_import"
+            )
+
+        try:
+            engine = RefactorEngine(chunks)
+            language = language_hint or info.get("language_hint", "python")
+            result = engine.add_import(file, module, symbols, language, dry_run)
+            return result.to_dict()
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"RefactorEngine.add_import failed: {e}")
+            return self._make_error_response(
+                f"Add import failed: {e}",
+                buffer_id=buffer_id,
+                operation="add_import",
+            )
+
+    def remove_import(
+        self,
+        buffer_id: str,
+        file: str,
+        module: str,
+        language_hint: str | None = None,
+        dry_run: bool = True,
+    ) -> dict[str, Any]:
+        """Remove an import statement from a file.
+
+        Args:
+            buffer_id: Buffer handle.
+            file: Target file path.
+            module: Module to remove.
+            language_hint: Language for syntax selection.
+            dry_run: If True, returns preview without modifying.
+
+        Returns:
+            Dict with status, changed_files, changes list.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="remove_import"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="remove_import"
+            )
+
+        try:
+            engine = RefactorEngine(chunks)
+            language = language_hint or info.get("language_hint", "python")
+            result = engine.remove_import(file, module, language, dry_run)
+            return result.to_dict()
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"RefactorEngine.remove_import failed: {e}")
+            return self._make_error_response(
+                f"Remove import failed: {e}",
+                buffer_id=buffer_id,
+                operation="remove_import",
+            )
 
     # ------------------------------------------------------------------
     # Read / Write / Commit (Agent editing workflow)
@@ -1473,7 +1840,7 @@ class CodeEmbeddingTool:
             
             return result
 
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             # Phase 4: Rollback on any error
             if transaction_id:
                 json_logger.error(
@@ -1497,6 +1864,121 @@ class CodeEmbeddingTool:
         # Clean up query cache
         self._query_cache.invalidate_buffer(buffer_id)
         return result
+
+    # ------------------------------------------------------------------
+    # Multi-buffer orchestration (aliases and virtual buffers)
+    # ------------------------------------------------------------------
+    def create_alias(self, alias: str, buffer_id: str) -> dict[str, Any]:
+        """Create a human-readable alias for a buffer ID.
+
+        Example:
+            tool.create_alias("main-project", "uuid-here")
+            # Later: tool.semantic_search("main-project", query="...")
+        """
+        return self._multi_buffer_manager.alias_registry.create_alias(alias, buffer_id)
+
+    def resolve_alias(self, alias: str) -> dict[str, Any]:
+        """Resolve an alias to its buffer ID."""
+        return self._multi_buffer_manager.alias_registry.resolve_alias(alias)
+
+    def list_aliases(self) -> dict[str, Any]:
+        """List all buffer aliases."""
+        return self._multi_buffer_manager.alias_registry.list_aliases()
+
+    def create_virtual_buffer(
+        self,
+        alias: str,
+        buffer_ids: list[str],
+        description: str = "",
+    ) -> dict[str, Any]:
+        """Create a virtual buffer aggregating multiple sub-buffers.
+
+        Example:
+            tool.create_virtual_buffer(
+                "monorepo",
+                ["buf-frontend", "buf-backend", "buf-shared"],
+                description="Full monorepo view"
+            )
+        """
+        return self._multi_buffer_manager.virtual_buffer_manager.create_virtual_buffer(
+            alias, buffer_ids, description
+        )
+
+    def list_virtual_buffers(self) -> dict[str, Any]:
+        """List all virtual buffers."""
+        return self._multi_buffer_manager.virtual_buffer_manager.list_virtual_buffers()
+
+    def delete_virtual_buffer(self, alias: str) -> dict[str, Any]:
+        """Delete a virtual buffer."""
+        return self._multi_buffer_manager.virtual_buffer_manager.delete_virtual_buffer(alias)
+
+    def auto_resume(self, path: str | Path, pattern: str = "*.py") -> dict[str, Any]:
+        """Check if a codebase was previously embedded and is unchanged.
+
+        Returns:
+            {"status": "resumed", "buffer_id": ..., "num_chunks": ...} if found
+            {"status": "not_found", "message": "..."} if not
+        """
+        result = self._buffer_manager.check_existing_buffer(path, pattern)
+        if result.get("status") == "not_found":
+            result["message"] = f"No existing buffer found for {path} with pattern {pattern!r}"
+        return result
+
+    def save_session(self, alias: str, buffer_ids: list[str] | None = None) -> dict[str, Any]:
+        """Save current session state under an alias.
+
+        Args:
+            alias: Session name (e.g., "main-project")
+            buffer_ids: Specific buffers to save. If None, saves all registered buffers.
+        """
+        if buffer_ids is None:
+            buffer_ids = list(self._buffer_manager.list_buffers().keys())
+        return self._buffer_manager.save_session(alias, buffer_ids)
+
+    def load_session(self, alias: str) -> dict[str, Any]:
+        """Restore a previously saved session.
+
+        Returns:
+            {"status": "ok", "buffer_ids": [...], "missing": [...]}
+        """
+        result = self._buffer_manager.load_session(alias)
+        if "missing_buffer_ids" in result:
+            result["missing"] = result.pop("missing_buffer_ids")
+        return result
+
+    def list_sessions(self) -> dict[str, Any]:
+        """List all saved sessions."""
+        return self._buffer_manager.list_sessions()
+
+    def check_buffer_state(self, buffer_id: str) -> dict[str, Any]:
+        """Return the current state of a buffer (READY, DIRTY, REBUILDING).
+
+        Args:
+            buffer_id: Buffer handle.
+
+        Returns:
+            Dict with ``status``, ``buffer_id``, ``state``, and optional
+            ``state_changed_at`` timestamp.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="check_buffer_state"
+            )
+
+        try:
+            state = self._get_buffer_state(buffer_id)
+        except ValueError as e:
+            return self._make_error_response(
+                str(e), buffer_id=buffer_id, operation="check_buffer_state"
+            )
+
+        return {
+            "status": "ok",
+            "buffer_id": buffer_id,
+            "state": state.value,
+            "state_changed_at": info.get("state_changed_at"),
+        }
 
     # ------------------------------------------------------------------
     # Incremental rebuild (batch / deferred)
@@ -1721,7 +2203,7 @@ class CodeEmbeddingTool:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             return LexicalIndex.from_dict(data)
-        except Exception as exc:
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             json_logger.warning(
                 operation='_load_lexical_index',
                 message=f'Failed to load lexical index from {path}: {exc}',
@@ -1845,7 +2327,7 @@ class CodeEmbeddingTool:
             
             self._snapshot_managers[buffer_id] = snapshot_mgr
             return snapshot_mgr
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
             json_logger.error(
                 operation='_get_snapshot_manager',
                 buffer_id=buffer_id,
@@ -1867,93 +2349,118 @@ class CodeEmbeddingTool:
                 )
 
     # ------------------------------------------------------------------
+    # Resource budgeting and confidence scoring
+    # ------------------------------------------------------------------
+    def estimate_budget(
+        self,
+        path: str | Path,
+        pattern: str = "*.py",
+    ) -> dict[str, Any]:
+        """Estimate resource requirements before embedding a codebase.
+
+        Returns:
+            Dict with estimated_ram_mb, estimated_embed_time_s,
+            estimated_search_latency_ms, num_files, num_lines,
+            estimated_chunks, recommended_device, warnings.
+        """
+        try:
+            return _estimate_budget(
+                path,
+                pattern,
+                embedding_dim=self._embedding_dim,
+                device=self._embedder.device,
+            )
+        except (OSError, ValueError, RuntimeError) as e:
+            logger.warning(f"estimate_budget failed: {e}")
+            return {"status": "error", "message": f"Budget estimation failed: {e}"}
+
+    def get_memory_usage(self) -> dict[str, Any]:
+        """Get current memory usage of the tool."""
+        index_cache_size = len(getattr(self, '_index_cache', {}))
+        lexical_cache_size = len(getattr(self, '_lexical_cache', {}))
+        query_cache_size = len(getattr(self, '_query_cache', {}))
+
+        # Approximate memory for loaded buffers
+        buffer_memory_mb: dict[str, float] = {}
+        for buffer_id in getattr(self, '_index_cache', {}):
+            info = self._get_buffer_info(buffer_id)
+            if info is None:
+                continue
+            buffer_dir = Path(info.get("buffer_dir", self.work_dir / buffer_id))
+            embeddings_path = buffer_dir / "embeddings.npy"
+            chunks_path = buffer_dir / "chunks.json"
+
+            emb_mb = 0.0
+            chunks_mb = 0.0
+            if embeddings_path.exists():
+                emb_mb = embeddings_path.stat().st_size / (1024 * 1024)
+            if chunks_path.exists():
+                chunks_mb = chunks_path.stat().st_size / (1024 * 1024)
+            buffer_memory_mb[buffer_id] = round(emb_mb + chunks_mb, 2)
+
+        total_buffer_mb = round(sum(buffer_memory_mb.values()), 2)
+
+        return {
+            "status": "ok",
+            "index_cache_entries": index_cache_size,
+            "lexical_cache_entries": lexical_cache_size,
+            "query_cache_entries": query_cache_size,
+            "buffer_memory_mb": buffer_memory_mb,
+            "total_buffer_memory_mb": total_buffer_mb,
+        }
+
+    def score_result_confidence(
+        self,
+        score: float,
+        all_scores: list[float],
+    ) -> dict[str, Any]:
+        """Score the confidence of a search result.
+
+        Args:
+            score: The result's score.
+            all_scores: All scores from the same search.
+
+        Returns:
+            Dict with confidence (high/medium/low) and explanation.
+        """
+        try:
+            scorer = ConfidenceScorer()
+            confidence = scorer.classify(score, all_scores)
+            explanation = scorer.explain(score, confidence, all_scores)
+            return {
+                "status": "ok",
+                "score": round(score, 3),
+                "confidence": confidence,
+                "explanation": explanation,
+            }
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"score_result_confidence failed: {e}")
+            return {"status": "error", "message": f"Confidence scoring failed: {e}"}
+
+    # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
     def get_cache_stats(self) -> dict[str, Any]:
         """Return cache utilization statistics (delegated to IndexManager)."""
-        # Delegation attempt
         if self._index_manager:
             try:
-                result = self._index_manager.get_cache_stats()
-                return result
-            except Exception as e:
-                logger.warning(f"IndexManager.get_cache_stats delegation failed: {e}. Falling back...")
-        
-        # Monolithic fallback
-        return {
-            "index_cache_size": len(self._index_cache),
-            "index_cache_max": self._index_cache.max_size,
-            "lexical_cache_size": len(self._lexical_cache),
-            "lexical_cache_max": self._lexical_cache.max_size,
-            "query_cache_stats": self._query_cache.stats(),
-        }
+                return self._index_manager.get_cache_stats()
+            except (ImportError, RuntimeError, AttributeError) as e:
+                logger.warning(f"IndexManager.get_cache_stats failed: {e}")
+                return {"status": "error", "message": f"IndexManager unavailable: {e}"}
+
+        return {"status": "error", "message": "IndexManager unavailable"}
 
     def health_check(self) -> dict[str, Any]:
         """Perform a health check and return system status (delegated to IndexManager)."""
-        # Delegation attempt
         if self._index_manager:
             try:
-                result = self._index_manager.health_check()
-                return result
-            except Exception as e:
-                logger.warning(f"IndexManager.health_check delegation failed: {e}. Falling back...")
-        
-        # Monolithic fallback
-        import datetime
-        
-        warnings = []
-        status = "healthy"
-        
-        # Check cache utilization
-        index_util = (len(self._index_cache) / self._index_cache.max_size) * 100
-        lexical_util = (len(self._lexical_cache) / self._lexical_cache.max_size) * 100
-        query_stats = self._query_cache.stats()
-        query_util = (query_stats["size"] / query_stats["maxsize"]) * 100
-        
-        max_util = max(index_util, lexical_util, query_util)
-        if max_util > 90:
-            warnings.append(f"High cache utilization: {max_util:.1f}% (may evict buffers soon)")
-            status = "degraded"
-        elif max_util > 75:
-            warnings.append(f"Elevated cache utilization: {max_util:.1f}%")
-        
-        # Check GPU availability
-        faiss_available = False
-        gpu_available = False
-        try:
-            import faiss
-            faiss_available = True
-            ngpu = faiss.get_num_gpus()
-            gpu_available = ngpu > 0
-        except Exception:
-            pass
-        
-        if self.use_gpu and not gpu_available:
-            warnings.append("GPU requested but not available; using CPU")
-            status = "degraded"
-        
-        # Check embedder
-        embedder_ready = self._embedder is not None and self._embedder._model is not None
-        if not embedder_ready:
-            warnings.append("Embedder not initialized")
-            status = "unhealthy"
-        
-        return {
-            "status": status,
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-            "buffers_registered": len(self._registry),
-            "buffers_loaded": len(self._index_cache),
-            "cache_utilization_percent": {
-                "index_cache": round(index_util, 1),
-                "lexical_cache": round(lexical_util, 1),
-                "query_cache": round(query_util, 1),
-                "max": round(max_util, 1),
-            },
-            "embedder_ready": embedder_ready,
-            "faiss_available": faiss_available,
-            "faiss_gpu_available": gpu_available,
-            "warnings": warnings,
-        }
+                return self._index_manager.health_check()
+            except (ImportError, RuntimeError, AttributeError) as e:
+                logger.warning(f"IndexManager.health_check failed: {e}")
+                return {"status": "error", "message": f"IndexManager unavailable: {e}"}
+
+        return {"status": "error", "message": "IndexManager unavailable"}
 
     @staticmethod
     def get_metrics() -> dict[str, Any]:
@@ -2148,35 +2655,244 @@ class CodeEmbeddingTool:
         
         return allowed, reason
     
-    def get_audit_log(self, buffer_id: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
-        """Get audit log entries.
-        
+    def get_audit_log(
+        self,
+        buffer_id: str | None = None,
+        since: str | None = None,
+        operations: list[str] | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Query the audit log for operations.
+
         Args:
-            buffer_id: Filter by buffer (optional)
-            limit: Max entries to return
-            
+            buffer_id: Filter by buffer ID.
+            since: ISO timestamp (e.g., "2026-05-01").
+            operations: Filter by operation types.
+            limit: Max entries.
+
         Returns:
-            List of audit log entries
+            Dict with entries list.
         """
         # Check permission to view audit logs
         allowed, reason = self._check_permission("view_audit_log")
         if not allowed:
-            return []
-        
-        # Get entries
-        if buffer_id:
-            entries = self._audit_logger.get_buffer_history(buffer_id, limit)
-        else:
-            entries = self._audit_logger.query_logs(
-                user_id=self._security._current_user_id,
-                limit=limit,
+            return {"status": "error", "message": reason}
+
+        entries = self._security._audit_logger.query(
+            since=since,
+            operations=operations,
+            buffer_id=buffer_id,
+            limit=limit,
+        )
+        return {"status": "ok", "entries": entries}
+
+    def get_test_context(
+        self,
+        buffer_id: str,
+        file: str,
+        top_k: int = 10,
+    ) -> dict[str, Any]:
+        """Find test files that reference a given source file.
+
+        Uses file naming heuristics and embedding similarity to find
+        test files related to the source file.
+
+        Returns:
+            Dict with test_files list.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_test_context"
             )
-        
-        return [e.to_dict() for e in entries]
-    
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_test_context"
+            )
+
+        # Load embeddings
+        buffer_dir = Path(info["buffer_dir"])
+        embeddings_path = buffer_dir / "embeddings.npy"
+        embeddings: np.ndarray | None = None
+        if embeddings_path.exists():
+            try:
+                embeddings = np.load(embeddings_path)
+            except (OSError, ValueError) as e:
+                logger.warning(f"Failed to load embeddings for {buffer_id}: {e}")
+
+        language = info.get("language_hint", "python")
+
+        # Find test chunks using naming heuristics
+        test_chunks: list[CodeChunk] = []
+        for chunk in chunks:
+            if chunk.file and self._is_test_file(chunk.file, language):
+                test_chunks.append(chunk)
+
+        if not test_chunks:
+            return {"status": "ok", "test_files": []}
+
+        # Find source chunks for the given file
+        source_chunks = [ch for ch in chunks if ch.file == file]
+        if not source_chunks:
+            return {"status": "ok", "test_files": []}
+
+        # Compute similarity between test chunks and source chunks
+        if embeddings is None or embeddings.size == 0:
+            return {"status": "ok", "test_files": []}
+
+        source_indices = [ch.id for ch in source_chunks if 0 <= ch.id < len(embeddings)]
+        test_indices = [ch.id for ch in test_chunks if 0 <= ch.id < len(embeddings)]
+
+        if not source_indices or not test_indices:
+            return {"status": "ok", "test_files": []}
+
+        source_emb = embeddings[source_indices]
+        test_emb = embeddings[test_indices]
+
+        # Cosine similarity via normalized dot product
+        source_emb_norm = source_emb / (np.linalg.norm(source_emb, axis=1, keepdims=True) + 1e-10)
+        test_emb_norm = test_emb / (np.linalg.norm(test_emb, axis=1, keepdims=True) + 1e-10)
+        similarities = test_emb_norm @ source_emb_norm.T
+
+        # For each test chunk, take max similarity to any source chunk
+        max_scores = similarities.max(axis=1)
+
+        # Build results
+        scored_tests: list[tuple[CodeChunk, float]] = []
+        for idx, test_idx in enumerate(test_indices):
+            test_chunk = test_chunks[idx]
+            score = float(max_scores[idx])
+            scored_tests.append((test_chunk, score))
+
+        scored_tests.sort(key=lambda x: x[1], reverse=True)
+
+        test_files = []
+        seen_files: set[str] = set()
+        for chunk, score in scored_tests[:top_k]:
+            file_key = f"{chunk.file}:{chunk.start_line}-{chunk.end_line}"
+            if file_key not in seen_files:
+                seen_files.add(file_key)
+                test_files.append({
+                    "file": chunk.file,
+                    "start_line": chunk.start_line,
+                    "end_line": chunk.end_line,
+                    "type": chunk.type,
+                    "name": chunk.name,
+                    "score": round(score, 4),
+                })
+
+        return {"status": "ok", "test_files": test_files}
+
+    @staticmethod
+    def _is_test_file(filename: str, language: str = "python") -> bool:
+        """Check if a filename matches test file patterns."""
+        from gigacode.context_assembler import _TEST_FILE_PATTERNS
+
+        basename = Path(filename).name
+        patterns = _TEST_FILE_PATTERNS.get(language, [])
+        return any(p.match(basename) for p in patterns)
+
+    def suggest_tests(
+        self,
+        buffer_id: str,
+        changed_files: list[str],
+        top_k: int = 10,
+    ) -> dict[str, Any]:
+        """Suggest tests to run after file changes.
+
+        Args:
+            buffer_id: Buffer handle.
+            changed_files: List of changed file paths.
+            top_k: Max suggestions.
+
+        Returns:
+            Dict with suggested_tests list.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="suggest_tests"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="suggest_tests"
+            )
+
+        # Load embeddings
+        buffer_dir = Path(info["buffer_dir"])
+        embeddings_path = buffer_dir / "embeddings.npy"
+        embeddings: np.ndarray | None = None
+        if embeddings_path.exists():
+            try:
+                embeddings = np.load(embeddings_path)
+            except (OSError, ValueError) as e:
+                logger.warning(f"Failed to load embeddings for {buffer_id}: {e}")
+
+        language = info.get("language_hint", "python")
+
+        # Find test chunks
+        test_chunks = [ch for ch in chunks if ch.file and self._is_test_file(ch.file, language)]
+        if not test_chunks:
+            return {"status": "ok", "suggested_tests": []}
+
+        # Find changed file chunks
+        changed_chunks = [ch for ch in chunks if ch.file in changed_files]
+        if not changed_chunks:
+            return {"status": "ok", "suggested_tests": []}
+
+        if embeddings is None or embeddings.size == 0:
+            return {"status": "ok", "suggested_tests": []}
+
+        changed_indices = [ch.id for ch in changed_chunks if 0 <= ch.id < len(embeddings)]
+        test_indices = [ch.id for ch in test_chunks if 0 <= ch.id < len(embeddings)]
+
+        if not changed_indices or not test_indices:
+            return {"status": "ok", "suggested_tests": []}
+
+        changed_emb = embeddings[changed_indices]
+        test_emb = embeddings[test_indices]
+
+        # Cosine similarity
+        changed_emb_norm = changed_emb / (np.linalg.norm(changed_emb, axis=1, keepdims=True) + 1e-10)
+        test_emb_norm = test_emb / (np.linalg.norm(test_emb, axis=1, keepdims=True) + 1e-10)
+        similarities = test_emb_norm @ changed_emb_norm.T
+
+        # Max similarity per test chunk
+        max_scores = similarities.max(axis=1)
+
+        # Build and rank results
+        scored_tests: list[tuple[CodeChunk, float]] = []
+        for idx, test_idx in enumerate(test_indices):
+            test_chunk = test_chunks[idx]
+            score = float(max_scores[idx])
+            scored_tests.append((test_chunk, score))
+
+        scored_tests.sort(key=lambda x: x[1], reverse=True)
+
+        suggested_tests = []
+        seen_files: set[str] = set()
+        for chunk, score in scored_tests[:top_k]:
+            file_key = f"{chunk.file}:{chunk.start_line}-{chunk.end_line}"
+            if file_key not in seen_files:
+                seen_files.add(file_key)
+                suggested_tests.append({
+                    "file": chunk.file,
+                    "start_line": chunk.start_line,
+                    "end_line": chunk.end_line,
+                    "type": chunk.type,
+                    "name": chunk.name,
+                    "score": round(score, 4),
+                })
+
+        return {"status": "ok", "suggested_tests": suggested_tests}
+
     def get_audit_stats(self) -> dict[str, Any]:
         """Get audit log statistics.
-        
+
         Returns:
             Statistics dictionary
         """
@@ -2184,7 +2900,7 @@ class CodeEmbeddingTool:
         allowed, _ = self._check_permission("view_audit_log")
         if not allowed:
             return {}
-        
+
         return self._audit_logger.stats()
 
     def close(self) -> None:

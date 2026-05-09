@@ -12,6 +12,16 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
+
+__all__ = [
+    "AGENT_FACING_METHODS",
+    "extract_docstring_info",
+    "generate_schema_from_method",
+    "generate_all_schemas",
+    "validate_schemas_against_code",
+    "report_schema_validation",
+]
+
 # Public agent-facing methods that should have schemas
 AGENT_FACING_METHODS = {
     "embed_codebase",
@@ -188,7 +198,7 @@ def generate_all_schemas(tool_class: Any) -> dict[str, dict[str, Any]]:
         try:
             schema = generate_schema_from_method(method_name, method)
             generated[method_name] = schema
-        except Exception as exc:
+        except (ImportError, AttributeError, TypeError) as exc:
             logger.error("Failed to generate schema for %s: %s", method_name, exc)
     
     return generated

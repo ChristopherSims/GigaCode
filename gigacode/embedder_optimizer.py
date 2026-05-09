@@ -15,6 +15,12 @@ from gigacode.embedder import Embedder
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "OptimizedEmbedder",
+    "wrap_embedder_with_optimization",
+]
+
+
 class OptimizedEmbedder:
     """Wrapper around Embedder that automatically uses batch optimization.
     
@@ -54,7 +60,7 @@ class OptimizedEmbedder:
                     "OptimizedEmbedder initialized with batch optimization "
                     "(threshold: %d texts)", batch_threshold
                 )
-            except Exception as e:
+            except (RuntimeError, OSError, ImportError, ValueError) as e:
                 logger.warning(
                     "Failed to initialize BatchEmbedder: %s. "
                     "Will use standard embedder.", e
@@ -117,7 +123,7 @@ class OptimizedEmbedder:
                     show_progress=show_progress,
                 )
                 return np.asarray(embeddings, dtype=np.float32)
-            except Exception as e:
+            except (RuntimeError, OSError, ImportError, ValueError) as e:
                 logger.warning(
                     "Batch optimization failed: %s. Falling back to standard encoding.",
                     e,

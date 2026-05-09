@@ -21,6 +21,11 @@ _CODE_MODELS = [
 _FALLBACK_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
+__all__ = [
+    "Embedder",
+]
+
+
 class Embedder:
     """Lightweight wrapper around sentence-transformers with code defaults."""
 
@@ -42,7 +47,7 @@ class Embedder:
                     self._load(name)
                     loaded = True
                     break
-                except Exception as exc:
+                except (ImportError, OSError, RuntimeError, ValueError) as exc:
                     logger.debug("Code model %s unavailable (%s)", name, exc)
             if not loaded:
                 self._load(_FALLBACK_MODEL)

@@ -12,6 +12,12 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
+__all__ = [
+    "retry_on_io_error",
+    "retry_on_exception",
+]
+
+
 def retry_on_io_error(
     max_attempts: int = 3,
     delay_s: float = 0.5,

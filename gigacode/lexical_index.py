@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 
 
+__all__ = [
+    "LexicalIndex",
+]
+
+
 def _tokenize(text: str) -> list[str]:
     """Lower-case token list with CamelCase / snake_case splitting."""
     tokens: list[str] = []

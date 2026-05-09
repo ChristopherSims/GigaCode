@@ -17,6 +17,13 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "CacheEntry",
+    "SemanticQueryCache",
+    "SearchResultCache",
+]
+
+
 @dataclass
 class CacheEntry:
     """Entry in semantic cache."""
@@ -155,7 +162,7 @@ class SemanticQueryCache:
                             f"Cache HIT (semantic, {similarity:.3f}): {query[:50]}"
                         )
                         return entry.results, False
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError) as e:
                 logger.warning(f"Failed to compute embedding for semantic cache: {e}")
         
         self._misses += 1
@@ -178,7 +185,7 @@ class SemanticQueryCache:
         # Compute embedding
         try:
             embedding = self._compute_embedding(query)
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError) as e:
             logger.warning(f"Failed to compute embedding for caching: {e}")
             return
         

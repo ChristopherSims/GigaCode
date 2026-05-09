@@ -28,6 +28,12 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+__all__ = [
+    "run_server",
+    "main",
+]
+
 # ---------------------------------------------------------------------------
 # FastAPI path (preferred)
 # ---------------------------------------------------------------------------
@@ -85,7 +91,7 @@ def _make_handler(tool: Any) -> type:
             try:
                 raw = self.rfile.read(content_length).decode("utf-8")
                 req = json.loads(raw)
-            except Exception as exc:
+            except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
                 self._send_json(400, {"error": f"Invalid JSON: {exc}"})
                 return
 
@@ -105,7 +111,7 @@ def _make_handler(tool: Any) -> type:
             except TypeError as exc:
                 self._send_json(400, {"error": f"Invalid arguments for {tool_name}: {exc}"})
                 return
-            except Exception as exc:
+            except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
                 logger.exception("Tool %s failed", tool_name)
                 self._send_json(500, {"error": f"Tool execution failed: {exc}"})
                 return

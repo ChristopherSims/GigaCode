@@ -5,6 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+
+__all__ = [
+    "detect_language",
+    "get_tree_sitter_package",
+]
+
 # Mapping from file extension to language name
 _EXTENSION_MAP: dict[str, str] = {
     ".py": "python",
@@ -149,7 +155,7 @@ def detect_language(path: str | Path, hint: str | None = None) -> str | None:
             for key, lang in _SHEBANG_MAP.items():
                 if key in interpreter:
                     return lang
-    except Exception:
+    except (ImportError, ValueError, TypeError):
         pass
 
     return None

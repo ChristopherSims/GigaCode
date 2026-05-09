@@ -5,6 +5,35 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-08
+
+### Added
+- **CI/CD Pipeline** — GitHub Actions workflow `.github/workflows/ci.yml` running tests, lint, format, and typecheck across Python 3.9-3.12 on Ubuntu, Windows, and macOS.
+- **Cross-platform file locking** — Replaced in-process-only `threading.RLock` with `filelock` library for true cross-process safe file locking on all platforms.
+- **Centralized constants** — New `gigacode/constants.py` housing all magic numbers (batch sizes, cache limits, thresholds, defaults).
+- **Module exports (`__all__`)** — Added explicit `__all__` declarations to 45 modules for clean public APIs.
+- **Rate limiting enforcement** — `ToolSecurityLayer` now enforces per-operation and per-buffer rate limits with configurable limits via `DEFAULT_RATE_LIMITS`.
+- **Input validation** — Added `validate_query()`, `validate_buffer_id()`, and `validate_top_k()` methods to `ToolSecurityLayer`.
+- **Expanded exception hierarchy** — Added `InvalidPathError`, `RateLimitExceeded`, `EmbeddingError`, `SearchError`, `CommitError`.
+
+### Changed
+- **Specific exception handling** — Replaced all bare `except Exception:` blocks across `gigacode/` with specific exception types (`OSError`, `ValueError`, `RuntimeError`, `ImportError`, etc.).
+- **Reduced `gigacode_tool.py` bloat** — Removed ~230 lines of monolithic fallback implementations and dead code (backward-compat `_registry` properties, unused `_query_cache`). File reduced from 2219 to ~2007 lines.
+- **Refactored `ToolSecurityLayer`** — Now provides `enforce_rate_limit()`, `validate_query()`, `validate_buffer_id()`, `validate_top_k()` for consistent security enforcement.
+- **Updated `state_manager.py`** — Replaced `FileLocker` with `filelock`-based implementation. Removed Windows-only limitation note.
+
+### Fixed
+- **README duplication** — Removed the duplicate "Quick Start" section and outdated `src/` import paths.
+- **Test skip accuracy** — Fixed `test_faiss_optimizer.py` to use `pytest.skip()` instead of printing and returning `True`.
+
+### Security
+- **Path traversal protection** — Now enforced consistently via `validate_buffer_path()` in all file operations.
+- **Audit logging resilience** — Audit logger failures are now properly logged rather than silently swallowed.
+
+### Infrastructure
+- Added `filelock~=3.13.0` as a runtime dependency.
+- Added `.github/workflows/ci.yml` for automated quality gates.
+
 ## [0.3.0] - 2026-05-04
 
 ### Critical Fixes 

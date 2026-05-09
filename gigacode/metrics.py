@@ -15,6 +15,14 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "MetricType",
+    "HistogramStats",
+    "MetricsCollector",
+    "get_metrics",
+]
+
+
 class MetricType(str, Enum):
     """Types of metrics we track."""
     COUNTER = "counter"          # Monotonically increasing count

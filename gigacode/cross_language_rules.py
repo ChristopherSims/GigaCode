@@ -21,6 +21,16 @@ from gigacode.language_detect import detect_language, get_tree_sitter_package
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "EditResult",
+    "edit_file",
+    "COMMENT_SYNTAX",
+    "FUNCTION_NODE_TYPES",
+    "BARE_EXCEPTION_RE",
+    "RESOURCE_OPEN_RE",
+    "TYPE_HINT_PATTERNS",
+]
+
 # ---------------------------------------------------------------------------
 # Language-specific comment syntax
 # ---------------------------------------------------------------------------
@@ -228,7 +238,7 @@ def _apply_tree_sitter_rules(
         parser.set_language(lang)
         tree = parser.parse(bytes(source, "utf8"))
         root = tree.root_node
-    except Exception as exc:
+    except (ValueError, TypeError) as exc:
         logger.debug("tree-sitter rule application failed: %s", exc)
         return source, changes
 

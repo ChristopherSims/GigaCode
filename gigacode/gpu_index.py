@@ -15,11 +15,16 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+
+__all__ = [
+    "GpuIndex",
+]
+
 # faiss optional import handled gracefully
 try:
     import faiss
     _HAS_FAISS = True
-except Exception as exc:
+except (ImportError, ModuleNotFoundError) as exc:
     logger.warning("faiss not available (%s). Vector search will be brute-force.", exc)
     _HAS_FAISS = False
     faiss = None  # type: ignore[assignment]
@@ -28,7 +33,7 @@ except Exception as exc:
 try:
     from gigacode.faiss_optimizer import FAISSIndexOptimizer
     _HAS_OPTIMIZER = True
-except Exception:
+except (ImportError, ModuleNotFoundError):
     _HAS_OPTIMIZER = False
 
 
@@ -72,7 +77,7 @@ class GpuIndex:
             return False
         try:
             ngpu = faiss.get_num_gpus()
-        except Exception:
+        except (ImportError, AttributeError, RuntimeError):
             ngpu = 0
         if ngpu == 0:
             logger.info("No CUDA GPUs detected; using CPU FAISS.")
@@ -81,7 +86,7 @@ class GpuIndex:
             self._gpu_res = faiss.StandardGpuResources()
             logger.info("CUDA GPU available for FAISS (%d device(s)).", ngpu)
             return True
-        except Exception as exc:
+        except (RuntimeError, ImportError, OSError) as exc:
             logger.warning("GPU init failed (%s); using CPU FAISS.", exc)
             return False
 
@@ -113,7 +118,7 @@ class GpuIndex:
             self._gpu_index = faiss.index_cpu_to_gpu(self._gpu_res, self.gpu_id, self._cpu_index)
             self._gpu_dirty = False
             logger.debug("GPU index synced to device %d (%d vectors).", self.gpu_id, self._cpu_index.ntotal)
-        except Exception as exc:
+        except (RuntimeError, OSError, ValueError) as exc:
             logger.warning("GPU sync to device %d failed (%s); falling back to CPU search.", self.gpu_id, exc)
             self._gpu_index = None
 
@@ -127,7 +132,7 @@ class GpuIndex:
             available = mem_total - mem_used
             logger.debug("GPU memory: %.1f MB used / %.1f MB total", mem_used / 1024 / 1024, mem_total / 1024 / 1024)
             return available
-        except Exception as exc:
+        except (RuntimeError, AttributeError, OSError) as exc:
             logger.debug("Could not query GPU memory (%s); skipping check", exc)
             return None
 

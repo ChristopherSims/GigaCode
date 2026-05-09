@@ -35,6 +35,11 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "SearchService",
+]
+
+
 @dataclass
 class SearchMatch:
     """A single search result match."""
@@ -262,7 +267,7 @@ class SearchService:
             try:
                 self._semantic_query_cache.put(normalized_query, response.to_dict())
                 logger.debug(f"Cached semantic search result for: {normalized_query[:50]}")
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError, ImportError) as e:
                 logger.warning(f"Failed to cache semantic search result: {e}")
 
             elapsed = (time.perf_counter() - start_time) * 1000
@@ -277,7 +282,7 @@ class SearchService:
 
             return response
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, ImportError) as e:
             elapsed = (time.perf_counter() - start_time) * 1000
             self._record_metrics(operation, buffer_id, elapsed, "error")
             self._logger.error(
@@ -396,7 +401,7 @@ class SearchService:
 
             return response
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, ImportError) as e:
             elapsed = (time.perf_counter() - start_time) * 1000
             self._record_metrics(operation, buffer_id, elapsed, "error")
             self._logger.error(
@@ -495,7 +500,7 @@ class SearchService:
 
             return response
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, ImportError) as e:
             elapsed = (time.perf_counter() - start_time) * 1000
             self._record_metrics(operation, buffer_id, elapsed, "error")
             return {
@@ -569,7 +574,7 @@ class SearchService:
                 "elapsed_ms": elapsed,
             }
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, ImportError) as e:
             elapsed = (time.perf_counter() - start_time) * 1000
             self._record_metrics(operation, buffer_id, elapsed, "error")
             return {
@@ -661,7 +666,7 @@ class SearchService:
 
             return response
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, ImportError) as e:
             elapsed = (time.perf_counter() - start_time) * 1000
             self._record_metrics(operation, buffer_id, elapsed, "error")
             return {
@@ -718,7 +723,7 @@ class SearchService:
                 embeddings = index.index.reconstruct_batch(
                     np.arange(len(chunks))
                 )
-            except Exception:
+            except (RuntimeError, ValueError):
                 # Fallback: use index vectors directly
                 embeddings = index.index.reconstruct_n()
 
@@ -761,7 +766,7 @@ class SearchService:
 
             return result
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, ImportError) as e:
             elapsed = (time.perf_counter() - start_time) * 1000
             self._record_metrics(operation, buffer_id, elapsed, "error")
             self._logger.error(
@@ -850,7 +855,7 @@ class SearchService:
                                     },
                                 )
                             )
-                    except Exception:
+                    except (RuntimeError, ValueError, TypeError):
                         continue
 
             result = DuplicateResult(
@@ -865,7 +870,7 @@ class SearchService:
 
             return result
 
-        except Exception as e:
+        except (RuntimeError, ValueError, TypeError, ImportError) as e:
             elapsed = (time.perf_counter() - start_time) * 1000
             self._record_metrics(operation, buffer_id, elapsed, "error")
             self._logger.error(
@@ -913,5 +918,5 @@ class SearchService:
                     elapsed_ms=elapsed_ms,
                     status=status,
                 )
-            except Exception as e:
+            except (RuntimeError, ValueError, TypeError, ImportError) as e:
                 logger.warning(f"Failed to record metrics: {e}")

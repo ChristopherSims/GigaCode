@@ -20,6 +20,12 @@ Example:
 from enum import Enum
 
 
+__all__ = [
+    "OperationType",
+    "OperationConfig",
+]
+
+
 class OperationType(Enum):
     """
     > Classification of different operation types.

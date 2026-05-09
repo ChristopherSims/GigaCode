@@ -16,6 +16,12 @@ from enum import Enum
 from typing import Optional
 
 
+__all__ = [
+    "BufferState",
+    "BufferStateTransition",
+]
+
+
 class BufferState(Enum):
     """Buffer state enumeration."""
     

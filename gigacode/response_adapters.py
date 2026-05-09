@@ -14,6 +14,14 @@ from gigacode.response_types import (
 )
 
 
+__all__ = [
+    "adapt_search_response",
+    "adapt_file_response",
+    "adapt_cluster_response",
+    "adapt_duplicate_response",
+]
+
+
 def adapt_search_response(
     service_result: Any,
     offset: int = 0,

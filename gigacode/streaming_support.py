@@ -17,6 +17,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "StreamingFileReader",
+    "ChunkBoundaryPreserver",
+    "StreamingChunker",
+    "supports_streaming",
+]
+
+
 class StreamingFileReader:
     """Read large files in chunks with boundary awareness."""
     
@@ -187,7 +195,7 @@ class StreamingChunker:
         for chunk_content, start_line, end_line in self.reader.read_chunks(file_path):
             try:
                 chunk_handler(chunk_content, start_line, end_line)
-            except Exception as e:
+            except (OSError, ValueError, RuntimeError) as e:
                 logger.error(f"Error processing chunk {start_line}-{end_line}: {e}")
                 raise
 

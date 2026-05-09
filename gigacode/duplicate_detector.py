@@ -21,6 +21,13 @@ _DEFAULT_ROWS = _DEFAULT_NUM_HASHES // _DEFAULT_BANDS
 _DEFAULT_JACCARD_THRESHOLD = 0.85
 
 
+__all__ = [
+    "MinHash",
+    "LshIndex",
+    "find_duplicates",
+]
+
+
 def _tokenize(text: str) -> list[str]:
     """Simple token list for n-gram generation."""
     tokens = re.findall(r"[A-Za-z0-9_]+", text)

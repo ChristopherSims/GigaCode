@@ -15,6 +15,11 @@ logger = logging.getLogger(__name__)
 _RRF_K = 60
 
 
+__all__ = [
+    "reciprocal_rank_fusion",
+]
+
+
 def reciprocal_rank_fusion(
     semantic_results: list[dict[str, Any]],
     lexical_results: list[dict[str, Any]],

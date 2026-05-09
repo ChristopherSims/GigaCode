@@ -7,6 +7,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "check_size",
+]
+
+
 def check_size(
     token_count: int,
     embedding_dim: int,

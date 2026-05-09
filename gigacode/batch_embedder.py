@@ -17,6 +17,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "EmbeddingCache",
+    "BatchEmbeddingProcessor",
+    "BatchEmbedder",
+    "optimize_embedder",
+]
+
+
 @dataclass
 class EmbeddingCache:
     """Simple LRU cache for embeddings to avoid recomputation."""
@@ -89,7 +97,7 @@ class BatchEmbeddingProcessor:
                 import torch
                 # Heuristic: ~100MB per batch on GPU
                 return 256
-            except Exception:
+            except (ImportError, ModuleNotFoundError):
                 return 64
         else:
             # CPU: smaller batches

@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 _CHARS_PER_TOKEN = 4.0
 
 
+__all__ = [
+    "pack_context",
+]
+
+
 def _approx_token_count(text: str) -> int:
     """Fast approximate token count."""
     return max(1, int(len(text) / _CHARS_PER_TOKEN))
@@ -27,7 +32,7 @@ def _exact_token_count(text: str) -> int:
         import tiktoken
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
-    except Exception:
+    except (ImportError, ModuleNotFoundError):
         return _approx_token_count(text)
 
 

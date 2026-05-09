@@ -45,6 +45,14 @@ from enum import Enum
 from gigacode.access_control import Role
 
 
+__all__ = [
+    "RateLimitError",
+    "TokenBucket",
+    "DEFAULT_LIMITS",
+    "RateLimiter",
+]
+
+
 class RateLimitError(Exception):
     """Exception thrown when rate limit is exceeded.
     

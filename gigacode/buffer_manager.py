@@ -13,9 +13,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import shutil
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, TYPE_CHECKING
 
@@ -35,6 +37,11 @@ logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger('buffer_manager')
 
 _MAX_DIRTY_BEFORE_AUTO_REBUILD = 3
+
+
+__all__ = [
+    "BufferManager",
+]
 
 
 class BufferManager:
@@ -93,6 +100,161 @@ class BufferManager:
         self._snapshot_managers: dict[str, SnapshotManager] = {}
     
     # ------------------------------------------------------------------
+    # Directory hash helpers (session persistence)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _compute_dir_hash(path: str | Path, pattern: str = "*.py") -> str:
+        """Recursively hash all files in a directory (or single file).
+
+        Computes a stable SHA256 hash from sorted file paths combined with
+        each file's mtime and size. This is used to detect if a codebase
+        has changed since the last embed.
+
+        Args:
+            path: Directory or single file to hash.
+            pattern: Glob pattern for recursive file matching when path is
+                a directory. Ignored when path is a single file.
+
+        Returns:
+            A stable hex digest string.
+        """
+        root = Path(path)
+        files = [root] if root.is_file() else sorted(root.rglob(pattern))
+        hasher = hashlib.sha256()
+        for f in files:
+            if not f.is_file():
+                continue
+            stat = f.stat()
+            entry = f"{f.as_posix()}::{stat.st_mtime}::{stat.st_size}"
+            hasher.update(entry.encode("utf-8"))
+        return hasher.hexdigest()
+
+    def check_existing_buffer(
+        self,
+        path: str | Path,
+        pattern: str = "*.py",
+    ) -> dict[str, Any]:
+        """Check if a buffer already exists for the given codebase.
+
+        Computes the directory hash for ``path`` and scans the registry
+        for a buffer whose ``source_hash`` matches.  If found and the
+        hash matches, returns a resume response; otherwise returns a
+        not-found response.
+
+        Args:
+            path: Directory or single file that was previously embedded.
+            pattern: Glob pattern used when the buffer was created.
+
+        Returns:
+            ``{"status": "resumed", "buffer_id": ..., "num_chunks": ...}``
+            if a matching buffer exists, or
+            ``{"status": "not_found"}`` otherwise.
+        """
+        source_hash = self._compute_dir_hash(path, pattern)
+        for buffer_id, info in self._registry.items():
+            if info.get("source_hash") == source_hash:
+                return {
+                    "status": "resumed",
+                    "buffer_id": buffer_id,
+                    "num_chunks": info.get("chunk_count", 0),
+                }
+        return {"status": "not_found"}
+
+    # ------------------------------------------------------------------
+    # Session persistence
+    # ------------------------------------------------------------------
+    def save_session(
+        self,
+        alias: str,
+        buffer_ids: list[str],
+    ) -> dict[str, Any]:
+        """Save a named session to disk.
+
+        Writes a JSON session file in ``work_dir / ".sessions"`` so that
+        the set of buffers can be restored later via :meth:`load_session`.
+
+        Args:
+            alias: Human-readable name for the session.
+            buffer_ids: List of buffer IDs to include in the session.
+
+        Returns:
+            ``{"status": "ok", "alias": ..., "session_path": ...}``
+        """
+        sessions_dir = self.work_dir / ".sessions"
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+        session_path = sessions_dir / f"{alias}.json"
+        payload = {
+            "alias": alias,
+            "buffer_ids": buffer_ids,
+            "saved_at": datetime.now(timezone.utc).isoformat(),
+            "bookmarks": {},
+        }
+        session_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return {"status": "ok", "alias": alias, "session_path": str(session_path)}
+
+    def load_session(self, alias: str) -> dict[str, Any]:
+        """Load a previously saved session.
+
+        Args:
+            alias: Session name (the ``.json`` file under
+                ``work_dir / ".sessions"`` without the extension).
+
+        Returns:
+            ``{"status": "ok", "buffer_ids": [...], "bookmarks": {}}``
+            on success.  If the session file does not exist, returns
+            ``{"status": "error", "message": "..."}``.  If any
+            buffer IDs are no longer present in the registry, they are
+            listed under the ``missing_buffer_ids`` key.
+        """
+        session_path = self.work_dir / ".sessions" / f"{alias}.json"
+        if not session_path.exists():
+            return {
+                "status": "error",
+                "message": f"Session '{alias}' not found at {session_path}",
+            }
+        try:
+            payload = json.loads(session_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return {
+                "status": "error",
+                "message": f"Failed to read session '{alias}': {exc}",
+            }
+        buffer_ids = payload.get("buffer_ids", [])
+        missing = [bid for bid in buffer_ids if bid not in self._registry]
+        result: dict[str, Any] = {
+            "status": "ok",
+            "buffer_ids": buffer_ids,
+            "bookmarks": payload.get("bookmarks", {}),
+        }
+        if missing:
+            result["missing_buffer_ids"] = missing
+        return result
+
+    def list_sessions(self) -> dict[str, Any]:
+        """List all saved sessions.
+
+        Returns:
+            ``{"sessions": [{"alias": ..., "saved_at": ..., "buffer_count": ...}, ...]}``
+        """
+        sessions_dir = self.work_dir / ".sessions"
+        sessions: list[dict[str, Any]] = []
+        if sessions_dir.exists():
+            for fp in sorted(sessions_dir.glob("*.json")):
+                try:
+                    payload = json.loads(fp.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    continue
+                sessions.append({
+                    "alias": payload.get("alias", fp.stem),
+                    "saved_at": payload.get("saved_at"),
+                    "buffer_count": len(payload.get("buffer_ids", [])),
+                })
+        return {"sessions": sessions}
+
+    # ------------------------------------------------------------------
     # Audit logging
     # ------------------------------------------------------------------
     def _audit_log(
@@ -137,7 +299,7 @@ class BufferManager:
                     buffer_id=buffer_id,
                     details=details or {},
                 )
-        except Exception as exc:
+        except (OSError, ValueError, AttributeError) as exc:
             json_logger.warning(
                 operation='audit_log',
                 status='error',
@@ -178,7 +340,7 @@ class BufferManager:
                 encoding="utf-8"
             )
             temp_path.replace(self._registry_path)
-        except Exception as exc:
+        except (OSError, ValueError, TypeError) as exc:
             logger.error(f"Failed to save registry: {exc}")
             raise
     
@@ -265,7 +427,7 @@ class BufferManager:
         
         try:
             return json.loads(snapshot_path.read_text(encoding="utf-8"))
-        except Exception as exc:
+        except (OSError, json.JSONDecodeError, TypeError) as exc:
             logger.error(f"Failed to load source snapshot: {exc}")
             return None
     
@@ -285,7 +447,7 @@ class BufferManager:
                 json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")),
                 encoding="utf-8"
             )
-        except Exception as exc:
+        except (OSError, ValueError, TypeError) as exc:
             logger.error(f"Failed to save source snapshot: {exc}")
     
     # ------------------------------------------------------------------
@@ -331,7 +493,7 @@ class BufferManager:
                     language_hint=language_hint,
                     sliding_window_size=sliding_window_size
                 )
-            except Exception as exc:
+            except (OSError, ValueError, TypeError) as exc:
                 json_logger.warning(
                     operation='chunk_file',
                     message=f'Failed to chunk {f}: {exc}',
@@ -384,6 +546,9 @@ class BufferManager:
             for rel_path, meta in manifest.files.items()
         }
         
+        # Compute source hash for change-detection
+        source_hash = self._compute_dir_hash(root, pattern)
+
         # Register buffer
         self._registry[buffer_id] = {
             "root": str(root),
@@ -398,6 +563,7 @@ class BufferManager:
             "dirty_files": {},
             "state": BufferState.READY.value,
             "state_changed_at": time.time(),
+            "source_hash": source_hash,
         }
         
         self._snapshot_managers[buffer_id] = snapshot_mgr
@@ -738,7 +904,7 @@ class BufferManager:
                 "transaction_id": transaction_id,
             }
         
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             if transaction_id:
                 json_logger.error(
                     operation='commit',
@@ -1031,7 +1197,7 @@ class BufferManager:
         if not supports_streaming(file_size, threshold_mb=streaming_threshold_mb):
             try:
                 return chunk_file(file_path, language_hint=language_hint)
-            except Exception as e:
+            except (OSError, ValueError, TypeError) as e:
                 json_logger.warning(
                     operation='embed_file_with_streaming',
                     message=f'Failed to chunk {file_path}: {e}',
@@ -1063,7 +1229,7 @@ class BufferManager:
                 )
                 for chunk in chunks:
                     all_chunks.append(chunk)
-            except Exception as e:
+            except (OSError, ValueError, TypeError) as e:
                 json_logger.warning(
                     operation='embed_file_with_streaming',
                     message=f'Failed to chunk text block {start_line}-{end_line}: {e}',
@@ -1071,7 +1237,7 @@ class BufferManager:
         
         try:
             chunker.stream_chunks(str(file_path), process_chunk)
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             json_logger.error(
                 operation='embed_file_with_streaming',
                 message=f'Streaming failed for {file_path}: {e}',
@@ -1079,7 +1245,7 @@ class BufferManager:
             # Fall back to standard chunking
             try:
                 return chunk_file(file_path, language_hint=language_hint)
-            except Exception:
+            except (OSError, ValueError, TypeError):
                 return []
         
         return all_chunks

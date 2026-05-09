@@ -238,6 +238,150 @@ class TestCheckCodebase:
         assert result["status"] == "ok"
         assert result["file_count"] == 0
         assert result["estimated_mb"] == 0.0
+
+
+class TestDirHash:
+    """Tests for _compute_dir_hash static method."""
+
+    def test_compute_dir_hash_file(self, temp_work_dir):
+        """Hashing a single file should be stable."""
+        f = temp_work_dir / "a.py"
+        f.write_text("hello")
+
+        h1 = BufferManager._compute_dir_hash(f)
+        h2 = BufferManager._compute_dir_hash(f)
+
+        assert h1 == h2
+        assert len(h1) == 64  # SHA256 hex digest length
+
+    def test_compute_dir_hash_directory(self, temp_work_dir):
+        """Hashing a directory should be stable and change when files change."""
+        (temp_work_dir / "sub").mkdir()
+        (temp_work_dir / "sub" / "a.py").write_text("x")
+        (temp_work_dir / "sub" / "b.py").write_text("y")
+
+        h1 = BufferManager._compute_dir_hash(temp_work_dir / "sub")
+        h2 = BufferManager._compute_dir_hash(temp_work_dir / "sub")
+
+        assert h1 == h2
+
+        # Modify a file -> hash should change
+        (temp_work_dir / "sub" / "a.py").write_text("xx")
+        h3 = BufferManager._compute_dir_hash(temp_work_dir / "sub")
+        assert h3 != h1
+
+    def test_compute_dir_hash_respects_pattern(self, temp_work_dir):
+        """Only files matching pattern should contribute to hash."""
+        (temp_work_dir / "foo.py").write_text("x")
+        (temp_work_dir / "bar.txt").write_text("y")
+
+        h_py = BufferManager._compute_dir_hash(temp_work_dir, "*.py")
+        h_all = BufferManager._compute_dir_hash(temp_work_dir, "*")
+
+        assert h_py != h_all
+
+
+class TestCheckExistingBuffer:
+    """Tests for check_existing_buffer method."""
+
+    def test_not_found_when_registry_empty(self, buffer_manager, temp_work_dir):
+        """Empty registry should always return not_found."""
+        f = temp_work_dir / "a.py"
+        f.write_text("x")
+        result = buffer_manager.check_existing_buffer(f)
+        assert result == {"status": "not_found"}
+
+    def test_found_when_source_hash_matches(self, buffer_manager, temp_work_dir):
+        """Matching source_hash in registry should resume."""
+        f = temp_work_dir / "a.py"
+        f.write_text("x")
+        source_hash = BufferManager._compute_dir_hash(f)
+        buffer_manager._registry["buf-1"] = {
+            "root": str(f),
+            "buffer_dir": str(temp_work_dir / "buf-1.gcbuff"),
+            "chunk_count": 42,
+            "source_hash": source_hash,
+        }
+        result = buffer_manager.check_existing_buffer(f)
+        assert result["status"] == "resumed"
+        assert result["buffer_id"] == "buf-1"
+        assert result["num_chunks"] == 42
+
+    def test_not_found_when_source_hash_differs(self, buffer_manager, temp_work_dir):
+        """Mismatching source_hash should return not_found."""
+        f = temp_work_dir / "a.py"
+        f.write_text("x")
+        buffer_manager._registry["buf-1"] = {
+            "root": str(f),
+            "buffer_dir": str(temp_work_dir / "buf-1.gcbuff"),
+            "chunk_count": 42,
+            "source_hash": "different-hash",
+        }
+        result = buffer_manager.check_existing_buffer(f)
+        assert result == {"status": "not_found"}
+
+
+class TestSessionPersistence:
+    """Tests for save_session, load_session, and list_sessions."""
+
+    def test_save_session_creates_file(self, buffer_manager, temp_work_dir):
+        """save_session should write a JSON file under .sessions/."""
+        result = buffer_manager.save_session("my-session", ["buf-a", "buf-b"])
+        assert result["status"] == "ok"
+        assert result["alias"] == "my-session"
+
+        session_path = temp_work_dir / ".sessions" / "my-session.json"
+        assert session_path.exists()
+        payload = json.loads(session_path.read_text())
+        assert payload["alias"] == "my-session"
+        assert payload["buffer_ids"] == ["buf-a", "buf-b"]
+        assert "saved_at" in payload
+        assert payload["bookmarks"] == {}
+
+    def test_load_session_ok(self, buffer_manager, temp_work_dir):
+        """load_session should restore a previously saved session."""
+        buffer_manager.save_session("sess", ["b1", "b2"])
+        result = buffer_manager.load_session("sess")
+        assert result["status"] == "ok"
+        assert result["buffer_ids"] == ["b1", "b2"]
+        assert result["bookmarks"] == {}
+
+    def test_load_session_missing(self, buffer_manager):
+        """load_session for nonexistent alias should return error."""
+        result = buffer_manager.load_session("no-such-session")
+        assert result["status"] == "error"
+        assert "not found" in result["message"].lower()
+
+    def test_load_session_reports_missing_buffer_ids(self, buffer_manager, temp_work_dir):
+        """load_session should note buffer_ids absent from registry."""
+        buffer_manager.save_session("sess", ["missing-buf"])
+        result = buffer_manager.load_session("sess")
+        assert result["status"] == "ok"
+        assert result["buffer_ids"] == ["missing-buf"]
+        assert result["missing_buffer_ids"] == ["missing-buf"]
+
+    def test_list_sessions_empty(self, buffer_manager):
+        """list_sessions should return empty list when no sessions saved."""
+        result = buffer_manager.list_sessions()
+        assert result == {"sessions": []}
+
+    def test_list_sessions_returns_metadata(self, buffer_manager):
+        """list_sessions should reflect saved sessions with metadata."""
+        buffer_manager.save_session("alpha", ["b1"])
+        buffer_manager.save_session("beta", ["b2", "b3"])
+
+        result = buffer_manager.list_sessions()
+        assert len(result["sessions"]) == 2
+
+        aliases = {s["alias"] for s in result["sessions"]}
+        assert aliases == {"alpha", "beta"}
+
+        for s in result["sessions"]:
+            if s["alias"] == "alpha":
+                assert s["buffer_count"] == 1
+            else:
+                assert s["buffer_count"] == 2
+            assert "saved_at" in s
     
     def test_check_codebase_small_dir_returns_ok(self, temp_work_dir):
         """Test check_codebase returns ok for small codebase."""

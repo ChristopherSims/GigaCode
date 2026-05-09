@@ -6,6 +6,12 @@ import hashlib
 from typing import Sequence
 
 
+__all__ = [
+    "hash_lines",
+    "compute_diff",
+]
+
+
 def _hash_one(text: str) -> str:
     """Hash a single line with SHA-256."""
     data = text.encode("utf-8", errors="replace")

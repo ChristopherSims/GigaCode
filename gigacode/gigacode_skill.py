@@ -95,7 +95,7 @@ class GigacodeEditAgent:
                             "[GigaCode] semantic context: %s",
                             json.dumps(search["matches"]),
                         )
-        except Exception as exc:
+        except (OSError, ValueError, TypeError) as exc:
             logger.warning("[GigaCode] embedding skipped (%s). Proceeding with rules.", exc)
 
         # Step 2: apply language-agnostic editing rules
@@ -227,7 +227,7 @@ class GigacodeEditAgent:
                 try:
                     result = self.edit_file(f, language_hint=language_hint)
                     results.append(result)
-                except Exception as exc:
+                except (OSError, ValueError, TypeError) as exc:
                     logger.error("Failed to edit %s: %s", f, exc)
                     results.append(
                         {

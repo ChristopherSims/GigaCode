@@ -27,6 +27,13 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "PrometheusMetricsExporter",
+    "get_prometheus_exporter",
+    "configure_prometheus",
+]
+
+
 class PrometheusMetricsExporter:
     """Exports metrics to Prometheus via HTTP endpoint.
     
@@ -176,7 +183,7 @@ class PrometheusMetricsExporter:
                         self.send_header("Content-Length", len(metrics_output))
                         self.end_headers()
                         self.wfile.write(metrics_output)
-                    except Exception as e:
+                    except (OSError, ConnectionError, RuntimeError) as e:
                         logger.error("Error generating metrics: %s", e)
                         self.send_response(500)
                         self.send_header("Content-Type", "text/plain")

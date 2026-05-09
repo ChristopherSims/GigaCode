@@ -7,6 +7,13 @@ from pathlib import Path
 from typing import List, Union, Optional
 
 
+__all__ = [
+    "validate_buffer_path",
+    "validate_buffer_paths",
+    "is_valid_buffer_path",
+]
+
+
 def validate_buffer_path(user_path: Union[str, Path], allowed_root: Union[str, Path]) -> Path:
     """Resolve and verify path is under allowed_root.
     

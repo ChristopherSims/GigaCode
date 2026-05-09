@@ -26,6 +26,11 @@ logger = logging.getLogger(__name__)
 _DEBOUNCE_SECONDS = 1.0
 
 
+__all__ = [
+    "BufferWatcher",
+]
+
+
 try:
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
@@ -82,7 +87,7 @@ class _PollingWatcher:
                 raw = f.read_text(encoding="utf-8", errors="replace")
                 normalized = "\n".join(raw.splitlines())
                 current[rel] = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
-            except Exception:
+            except (OSError, PermissionError):
                 continue
         old = self._watches.get(buffer_id, {})
         changed = [rel for rel in current if old.get(rel) != current[rel]]
@@ -158,7 +163,7 @@ class BufferWatcher:
         logger.info("Auto-rebuilding buffer %s", buffer_id)
         try:
             self._tool.reload_codebase(buffer_id)
-        except Exception as exc:
+        except (OSError, PermissionError) as exc:
             logger.error("Auto-rebuild failed for %s: %s", buffer_id, exc)
 
     def _watchdog_start(self, buffer_id: str, root: Path, pattern: str) -> None:

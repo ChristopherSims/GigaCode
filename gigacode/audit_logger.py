@@ -33,10 +33,18 @@ complete JSON record, making it easy to parse and analyze.
 
 import json
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Optional, List, Dict, Any
 from enum import Enum
+
+
+__all__ = [
+    "AuditStatus",
+    "AuditLogEntry",
+    "AuditLogger",
+]
 
 
 class AuditStatus(Enum):
@@ -322,6 +330,71 @@ class AuditLogger:
         """Get operation history for buffer."""
         return self.query_logs(buffer_id=buffer_id, limit=limit)
     
+    def query(
+        self,
+        since: str | None = None,
+        operations: list[str] | None = None,
+        buffer_id: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Query audit log entries.
+
+        Args:
+            since: ISO timestamp string (e.g., "2026-05-01T00:00:00").
+            operations: Filter by operation types (e.g., ["write_code", "commit"]).
+            buffer_id: Filter by buffer ID.
+            limit: Maximum entries to return.
+
+        Returns:
+            List of audit log entries as dicts (newest first).
+        """
+        if not self.log_file.exists():
+            return []
+
+        # Parse since timestamp if provided
+        since_timestamp: float | None = None
+        if since is not None:
+            try:
+                since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+                since_timestamp = since_dt.timestamp()
+            except ValueError:
+                since_timestamp = None
+
+        results: list[dict[str, Any]] = []
+
+        with self.log_file.open("r") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                # Filter by since (compare timestamp)
+                if since_timestamp is not None:
+                    entry_ts = entry.get("timestamp")
+                    if entry_ts is None or entry_ts < since_timestamp:
+                        continue
+
+                # Filter by operations (check if operation in list)
+                if operations is not None:
+                    op = entry.get("operation")
+                    if op not in operations:
+                        continue
+
+                # Filter by buffer_id
+                if buffer_id is not None:
+                    entry_buffer_id = entry.get("buffer_id")
+                    if entry_buffer_id != buffer_id:
+                        continue
+
+                results.append(entry)
+
+        # Return most recent limit entries (newest first)
+        results.reverse()
+        return results[:limit]
+
     def stats(self) -> Dict[str, Any]:
         """Get audit log statistics."""
         if not self.log_file.exists():

@@ -9,6 +9,13 @@ from typing import Any, Generator, Iterable
 logger = logging.getLogger(__name__)
 
 
+__all__ = [
+    "cleanup_on_error",
+    "ensure_closed",
+    "ResourceTracker",
+]
+
+
 @contextmanager
 def cleanup_on_error(
     cleanup_funcs: Iterable[tuple[str, callable]] | None = None,
@@ -32,13 +39,13 @@ def cleanup_on_error(
 
     try:
         yield
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         # Run cleanups in reverse order (LIFO)
         for name, cleanup_func in reversed(cleanup_list):
             try:
                 cleanup_func()
                 logger.debug("Cleanup completed: %s", name)
-            except Exception as cleanup_exc:
+            except (OSError, RuntimeError) as cleanup_exc:
                 logger.error("Cleanup failed for %s: %s", name, cleanup_exc)
         raise
 
@@ -63,7 +70,7 @@ def ensure_closed(file_handle: Any) -> Generator[None, None, None]:
         try:
             file_handle.close()
             logger.debug("File handle closed: %s", getattr(file_handle, "name", "unknown"))
-        except Exception as exc:
+        except (OSError, AttributeError) as exc:
             logger.error("Failed to close file handle: %s", exc)
 
 
@@ -90,7 +97,7 @@ class ResourceTracker:
             try:
                 cleanup_func()
                 logger.debug("Cleanup completed: %s", name)
-            except Exception as exc:
+            except (OSError, RuntimeError, AttributeError) as exc:
                 logger.error("Cleanup failed for %s: %s", name, exc)
         self._resources.clear()
 

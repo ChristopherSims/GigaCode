@@ -15,6 +15,32 @@ from __future__ import annotations
 from typing import Any
 
 
+__all__ = [
+    "EMBED_CODEBASE_SCHEMA",
+    "SEMANTIC_SEARCH_SCHEMA",
+    "CLUSTER_CODE_SCHEMA",
+    "SEARCH_FOR_SCHEMA",
+    "SEARCH_SYMBOLS_SCHEMA",
+    "RELOAD_CODEBASE_SCHEMA",
+    "CHECK_CODEBASE_SCHEMA",
+    "LIST_BUFFERS_SCHEMA",
+    "DELETE_BUFFER_SCHEMA",
+    "READ_CODE_SCHEMA",
+    "LOOK_FOR_FILE_SCHEMA",
+    "WRITE_CODE_SCHEMA",
+    "DIFF_SCHEMA",
+    "DISCARD_SCHEMA",
+    "COMMIT_SCHEMA",
+    "HYBRID_SEARCH_SCHEMA",
+    "FIND_DUPLICATES_SCHEMA",
+    "PACK_CONTEXT_SCHEMA",
+    "ALL_SCHEMAS",
+    "get_schema",
+    "get_all_schemas",
+    "to_openai_functions",
+    "to_mcp_tools",
+]
+
 # ---------------------------------------------------------------------------
 # Shared schema fragments
 # ---------------------------------------------------------------------------
