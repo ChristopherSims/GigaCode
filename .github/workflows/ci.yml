@@ -37,7 +37,7 @@ jobs:
         run: ruff check --output-format=github gigacode/ tests/
 
       - name: Check formatting with Black
-        run: black --check --diff gigacode/ tests/
+        run: black --check --diff --verbose gigacode/ tests/
 
   # ------------------------------------------------------------------
   # Type Check
