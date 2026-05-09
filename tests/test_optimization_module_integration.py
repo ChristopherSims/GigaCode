@@ -1,10 +1,19 @@
-"""Integration tests for Future 4.3 Phase 3b - Module Integration.
+﻿"""Integration tests for Future 4.3 Phase 3b - Module Integration.
 
 Tests cover:
 - Incremental indexer integration into IndexManager
 - Semantic cache integration into SearchService
 - FAISS optimizer integration into GPUIndex
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import sys
 from pathlib import Path
@@ -369,3 +378,4 @@ if __name__ == "__main__":
     print("=" * 80)
 
     exit(0 if failed == 0 else 1)
+

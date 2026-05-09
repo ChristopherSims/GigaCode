@@ -6,7 +6,14 @@ back to all-MiniLM-L6-v2 if unavailable.
 
 from __future__ import annotations
 
+# CRITICAL: Disable torch._dynamo before importing to prevent sklearn.__spec__ errors
+import os
+
+os.environ["TORCH_COMPILE"] = "0"
+os.environ["TORCH_COMPILE_DEBUG"] = "0"
+
 import logging
+import types
 from typing import Any
 
 import numpy as np

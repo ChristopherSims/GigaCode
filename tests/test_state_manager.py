@@ -1,4 +1,13 @@
-"""Tests for state management with file locking and transactions."""
+﻿"""Tests for state management with file locking and transactions."""
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import tempfile
 from pathlib import Path
@@ -257,3 +266,4 @@ class TestStateManagerEdgeCases:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

@@ -1,4 +1,13 @@
-"""Tests for src.lexical_index."""
+﻿"""Tests for src.lexical_index."""
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 from gigacode.lexical_index import LexicalIndex
 
@@ -20,3 +29,4 @@ def test_remove_and_search():
     idx.remove(0)
     results = idx.search("hello")
     assert results == []
+

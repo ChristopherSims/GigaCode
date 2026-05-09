@@ -1,10 +1,19 @@
-"""Buffer and Index Manager Delegation Tests.
+﻿"""Buffer and Index Manager Delegation Tests.
 
 Tests the delegation pattern for list_buffers, delete_buffer, get_cache_stats,
 and health_check methods from managers.
 
 Note: SearchService import is skipped due to pre-existing sklearn/Windows incompatibility.
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import tempfile
 from pathlib import Path
@@ -217,3 +226,110 @@ class TestPhase5cIntegration:
 
         result4 = cet_with_managers.health_check()
         assert "status" in result4
+
+
+class TestDiffDelegation:
+    """Test diff delegation to BufferManager."""
+
+    def test_diff_delegates_when_available(self, cet_with_managers):
+        """Test that diff delegates to BufferManager."""
+        mock_response = {
+            "status": "ok",
+            "diffs": {
+                "main.py": {
+                    "has_conflict": False,
+                    "added_lines": ["def new_func():"],
+                    "removed_lines": [],
+                    "buffer_lines": ["def new_func():"],
+                    "disk_lines": [],
+                },
+            },
+            "has_conflicts": False,
+            "elapsed_s": 0.05,
+        }
+
+        cet_with_managers._buffer_manager.diff = MagicMock(return_value=mock_response)
+        cet_with_managers._resolve_buffer_id = MagicMock(return_value="buf-1")
+
+        result = cet_with_managers.diff("buf-1")
+
+        # Verify delegation happened
+        cet_with_managers._buffer_manager.diff.assert_called_once_with("buf-1", file=None)
+
+        # Verify response format includes backward compat field
+        assert result["status"] == "ok"
+        assert "diffs" in result
+        assert "changed_files" in result  # backward compat
+        assert len(result["changed_files"]) == 1
+        assert result["changed_files"][0]["file"] == "main.py"
+        assert result["changed_files"][0]["dirty"] is True
+
+    def test_diff_with_file_parameter(self, cet_with_managers):
+        """Test that diff delegates with file parameter."""
+        mock_response = {
+            "status": "ok",
+            "diffs": {
+                "main.py": {
+                    "has_conflict": False,
+                    "added_lines": ["x = 1"],
+                    "removed_lines": [],
+                    "buffer_lines": ["x = 1"],
+                    "disk_lines": [],
+                },
+            },
+            "has_conflicts": False,
+            "elapsed_s": 0.02,
+        }
+
+        cet_with_managers._buffer_manager.diff = MagicMock(return_value=mock_response)
+        cet_with_managers._resolve_buffer_id = MagicMock(return_value="buf-1")
+
+        result = cet_with_managers.diff("buf-1", file="main.py")
+
+        # Verify delegation with file parameter
+        cet_with_managers._buffer_manager.diff.assert_called_once_with("buf-1", file="main.py")
+
+        assert result["status"] == "ok"
+        assert "main.py" in result["diffs"]
+
+    def test_diff_no_changes(self, cet_with_managers):
+        """Test diff with no changes returns empty changed_files."""
+        mock_response = {
+            "status": "ok",
+            "diffs": {
+                "main.py": {
+                    "has_conflict": False,
+                    "added_lines": [],
+                    "removed_lines": [],
+                },
+            },
+            "has_conflicts": False,
+            "elapsed_s": 0.01,
+        }
+
+        cet_with_managers._buffer_manager.diff = MagicMock(return_value=mock_response)
+        cet_with_managers._resolve_buffer_id = MagicMock(return_value="buf-1")
+
+        result = cet_with_managers.diff("buf-1")
+
+        # Files with no changes should not appear in changed_files
+        assert result["status"] == "ok"
+        assert result["changed_files"] == []
+
+    def test_diff_error_propagates(self, cet_with_managers):
+        """Test that errors from BufferManager.diff propagate."""
+        mock_response = {
+            "status": "error",
+            "message": "Unknown buffer_id: buf-1",
+        }
+
+        cet_with_managers._buffer_manager.diff = MagicMock(return_value=mock_response)
+        cet_with_managers._resolve_buffer_id = MagicMock(return_value="buf-1")
+
+        result = cet_with_managers.diff("buf-1")
+
+        assert result["status"] == "error"
+        assert "message" in result
+        # No backward compat field added on error
+        assert "changed_files" not in result
+

@@ -1,6 +1,15 @@
-"""Tests for retry logic and resource cleanup utilities."""
+﻿"""Tests for retry logic and resource cleanup utilities."""
 
 from __future__ import annotations
+
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
 
 import sys
 from pathlib import Path
@@ -139,24 +148,25 @@ def test_cleanup_on_error_context() -> None:
 if __name__ == "__main__":
     print("Testing retry utilities...")
     test_retry_on_io_error_success()
-    print("✓ test_retry_on_io_error_success")
+    print("âœ“ test_retry_on_io_error_success")
 
     test_retry_on_io_error_retries()
-    print("✓ test_retry_on_io_error_retries")
+    print("âœ“ test_retry_on_io_error_retries")
 
     test_retry_on_io_error_exhausts_attempts()
-    print("✓ test_retry_on_io_error_exhausts_attempts")
+    print("âœ“ test_retry_on_io_error_exhausts_attempts")
 
     test_retry_on_exception()
-    print("✓ test_retry_on_exception")
+    print("âœ“ test_retry_on_exception")
 
     test_resource_tracker()
-    print("✓ test_resource_tracker")
+    print("âœ“ test_resource_tracker")
 
     test_resource_tracker_on_error()
-    print("✓ test_resource_tracker_on_error")
+    print("âœ“ test_resource_tracker_on_error")
 
     test_cleanup_on_error_context()
-    print("✓ test_cleanup_on_error_context")
+    print("âœ“ test_cleanup_on_error_context")
 
-    print("✓ All retry and cleanup tests passed!")
+    print("âœ“ All retry and cleanup tests passed!")
+

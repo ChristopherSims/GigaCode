@@ -1,6 +1,15 @@
-"""Tests for src.metadata_store."""
+﻿"""Tests for src.metadata_store."""
 
 from __future__ import annotations
+
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
 
 from pathlib import Path
 
@@ -16,3 +25,4 @@ def test_round_trip(tmp_path: Path) -> None:
     save_metadata(path, data)
     loaded = load_metadata(path)
     assert loaded == data
+

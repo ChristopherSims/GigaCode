@@ -1,10 +1,19 @@
-"""Tests for FAISS optimizer and index type selection.
+﻿"""Tests for FAISS optimizer and index type selection.
 
 Tests cover:
 - Index type selection logic
 - Index creation for different types
 - Search performance comparison
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import sys
 import time
@@ -322,3 +331,4 @@ if __name__ == "__main__":
     print("=" * 80)
 
     exit(0 if failed == 0 else 1)
+

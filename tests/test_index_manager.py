@@ -1,7 +1,16 @@
-"""Tests for IndexManager class.
+﻿"""Tests for IndexManager class.
 
 Tests index caching, GPU management, and query caching operations.
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import tempfile
 from pathlib import Path
@@ -380,3 +389,4 @@ class TestMetricsIntegration:
 
         # Verify result is dict
         assert isinstance(result, dict)
+

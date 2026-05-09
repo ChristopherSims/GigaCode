@@ -1,6 +1,15 @@
-"""Tests for language detection."""
+﻿"""Tests for language detection."""
 
 from __future__ import annotations
+
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
 
 from pathlib import Path
 
@@ -51,3 +60,4 @@ def test_get_tree_sitter_package() -> None:
     assert get_tree_sitter_package("python") == "tree_sitter_python"
     assert get_tree_sitter_package("rust") == "tree_sitter_rust"
     assert get_tree_sitter_package("unknown") is None
+

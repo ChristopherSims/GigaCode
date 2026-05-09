@@ -1,4 +1,13 @@
-"""Tests for missing chunk types: lambdas, macros, nested functions (Phase 6.2)."""
+﻿"""Tests for missing chunk types: lambdas, macros, nested functions (Phase 6.2)."""
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import pytest
 
@@ -264,3 +273,4 @@ function processArray(arr, op) {
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+

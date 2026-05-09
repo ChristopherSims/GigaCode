@@ -1,8 +1,17 @@
-"""Integration tests for Phase 4 — CodeEmbeddingTool manager integration.
+﻿"""Integration tests for Phase 4 â€” CodeEmbeddingTool manager integration.
 
 Tests focus on manager initialization and delegation layer without triggering sklearn.
 Note: SearchService import is skipped due to pre-existing sklearn/Windows incompatibility.
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import tempfile
 from pathlib import Path
@@ -251,3 +260,4 @@ class TestPrometheusIntegration:
                     )
 
                     assert cet._prometheus_exporter is None
+

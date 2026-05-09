@@ -1,3 +1,12 @@
+﻿# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 #!/usr/bin/env python3
 """Test GPU ID configuration integration across modules."""
 
@@ -55,3 +64,4 @@ if __name__ == "__main__":
 
     print("\n" + "=" * 40)
     print("All GPU ID integration tests PASSED!")
+

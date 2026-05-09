@@ -43,23 +43,24 @@ def validate_buffer_path(user_path: Union[str, Path], allowed_root: Union[str, P
     user_path = Path(user_path)
     allowed_root = Path(allowed_root)
 
-    # Resolve both paths to absolute canonical form
-    try:
-        resolved = user_path.resolve()
-        allowed_root_resolved = allowed_root.resolve()
-    except (OSError, RuntimeError) as e:
-        raise ValueError(f"Cannot resolve path: {e}") from e
+    # If path is relative, resolve it relative to allowed_root
+    if not user_path.is_absolute():
+        combined = (allowed_root / user_path).resolve()
+    else:
+        combined = user_path.resolve()
+
+    allowed_root_resolved = allowed_root.resolve()
 
     # Ensure resolved path is under allowed_root
     try:
-        # This will raise ValueError if resolved is not relative to allowed_root_resolved
-        resolved.relative_to(allowed_root_resolved)
+        # This will raise ValueError if combined is not relative to allowed_root_resolved
+        combined.relative_to(allowed_root_resolved)
     except ValueError as _e:
         raise ValueError(
-            f"Path {user_path} (resolved to {resolved}) escapes allowed root {allowed_root}"
+            f"Path {user_path} (resolved to {combined}) escapes allowed root {allowed_root}"
         ) from _e
 
-    return resolved
+    return combined
 
 
 def validate_buffer_paths(

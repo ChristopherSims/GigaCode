@@ -248,8 +248,7 @@ def _apply_tree_sitter_rules(
         else:
             lang = Language(lang)
 
-        parser = Parser()
-        parser.set_language(lang)
+        parser = Parser(lang)
         tree = parser.parse(bytes(source, "utf8"))
         root = tree.root_node
     except (ValueError, TypeError) as exc:

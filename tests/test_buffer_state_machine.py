@@ -1,7 +1,16 @@
-"""Buffer State Machine Tests.
+﻿"""Buffer State Machine Tests.
 
 Verifies state transitions and lifecycle management.
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import pytest
 
@@ -28,39 +37,39 @@ class TestBufferStateTransition:
     """Test state transition validation."""
 
     def test_valid_ready_to_dirty(self):
-        """Test READY → DIRTY transition."""
+        """Test READY â†’ DIRTY transition."""
         assert BufferStateTransition.is_valid(BufferState.READY, BufferState.DIRTY)
 
     def test_valid_ready_to_rebuilding(self):
-        """Test READY → REBUILDING transition."""
+        """Test READY â†’ REBUILDING transition."""
         assert BufferStateTransition.is_valid(BufferState.READY, BufferState.REBUILDING)
 
     def test_valid_dirty_to_ready(self):
-        """Test DIRTY → READY transition."""
+        """Test DIRTY â†’ READY transition."""
         assert BufferStateTransition.is_valid(BufferState.DIRTY, BufferState.READY)
 
     def test_valid_dirty_to_rebuilding(self):
-        """Test DIRTY → REBUILDING transition."""
+        """Test DIRTY â†’ REBUILDING transition."""
         assert BufferStateTransition.is_valid(BufferState.DIRTY, BufferState.REBUILDING)
 
     def test_valid_rebuilding_to_ready(self):
-        """Test REBUILDING → READY transition."""
+        """Test REBUILDING â†’ READY transition."""
         assert BufferStateTransition.is_valid(BufferState.REBUILDING, BufferState.READY)
 
     def test_invalid_ready_to_ready(self):
-        """Test READY → READY is invalid."""
+        """Test READY â†’ READY is invalid."""
         assert not BufferStateTransition.is_valid(BufferState.READY, BufferState.READY)
 
     def test_invalid_dirty_to_dirty(self):
-        """Test DIRTY → DIRTY is invalid."""
+        """Test DIRTY â†’ DIRTY is invalid."""
         assert not BufferStateTransition.is_valid(BufferState.DIRTY, BufferState.DIRTY)
 
     def test_invalid_rebuilding_to_rebuilding(self):
-        """Test REBUILDING → REBUILDING is invalid."""
+        """Test REBUILDING â†’ REBUILDING is invalid."""
         assert not BufferStateTransition.is_valid(BufferState.REBUILDING, BufferState.REBUILDING)
 
     def test_invalid_rebuilding_to_dirty(self):
-        """Test REBUILDING → DIRTY is invalid."""
+        """Test REBUILDING â†’ DIRTY is invalid."""
         assert not BufferStateTransition.is_valid(BufferState.REBUILDING, BufferState.DIRTY)
 
     def test_validate_or_raise_valid(self):
@@ -74,32 +83,32 @@ class TestBufferStateTransition:
             BufferStateTransition.validate_or_raise(BufferState.READY, BufferState.READY)
 
         assert "Invalid state transition" in str(exc_info.value)
-        assert "ready → ready" in str(exc_info.value)
+        assert "ready \u2192 ready" in str(exc_info.value)
 
     def test_describe(self):
         """Test state machine description."""
         desc = BufferStateTransition.describe()
         assert "Buffer State Machine:" in desc
-        assert "ready →" in desc
-        assert "dirty →" in desc
-        assert "rebuilding →" in desc
+        assert "ready \u2192" in desc
+        assert "dirty \u2192" in desc
+        assert "rebuilding \u2192" in desc
 
 
 class TestBufferStateLifecycle:
     """Test typical buffer state lifecycles."""
 
     def test_normal_workflow(self):
-        """Test normal workflow: READY → DIRTY → READY."""
+        """Test normal workflow: READY â†’ DIRTY â†’ READY."""
         # Start in READY
         state = BufferState.READY
         assert state == BufferState.READY
 
-        # Write code → DIRTY
+        # Write code â†’ DIRTY
         assert BufferStateTransition.is_valid(state, BufferState.DIRTY)
         state = BufferState.DIRTY
         assert state == BufferState.DIRTY
 
-        # Commit → READY
+        # Commit â†’ READY
         assert BufferStateTransition.is_valid(state, BufferState.READY)
         state = BufferState.READY
         assert state == BufferState.READY
@@ -129,7 +138,7 @@ class TestBufferStateLifecycle:
         assert not BufferStateTransition.is_valid(state, BufferState.DIRTY)
 
     def test_discard_clears_dirty(self):
-        """Test discard transitions DIRTY → READY."""
+        """Test discard transitions DIRTY â†’ READY."""
         state = BufferState.DIRTY
 
         # Discard pending changes
@@ -145,3 +154,4 @@ class TestBufferStateLifecycle:
         # Can't stay in same state
         assert not BufferStateTransition.is_valid(BufferState.READY, BufferState.READY)
         assert not BufferStateTransition.is_valid(BufferState.DIRTY, BufferState.DIRTY)
+

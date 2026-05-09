@@ -185,20 +185,21 @@ class IndexManager:
             return None
 
         try:
-            metadata = load_metadata(chunks_path)
-            if metadata is None:
+            chunk_list = load_metadata(chunks_path)
+            if chunk_list is None:
                 return None
 
             chunks = [
                 CodeChunk(
+                    id=c.get("id", i),
                     file=c.get("file"),
                     start_line=c.get("start_line"),
                     end_line=c.get("end_line"),
                     type=c.get("type"),
                     name=c.get("name"),
-                    content=c.get("content"),
+                    text=c.get("content", c.get("text", "")),
                 )
-                for c in metadata.get("chunks", [])
+                for i, c in enumerate(chunk_list)
             ]
 
             return chunks
@@ -291,20 +292,19 @@ class IndexManager:
         try:
             # Save chunks
             chunks_path = buffer_dir / "chunks.json"
-            chunks_data = {
-                "chunks": [
-                    {
-                        "file": c.file,
-                        "start_line": c.start_line,
-                        "end_line": c.end_line,
-                        "type": c.type,
-                        "name": c.name,
-                        "content": c.content,
-                    }
-                    for c in chunks
-                ]
-            }
-            save_metadata(chunks_data, chunks_path)
+            chunks_data = [
+                {
+                    "id": c.id,
+                    "file": c.file,
+                    "start_line": c.start_line,
+                    "end_line": c.end_line,
+                    "type": c.type,
+                    "name": c.name,
+                    "content": c.text,
+                }
+                for c in chunks
+            ]
+            save_metadata(chunks_path, chunks_data)
 
             # Save embeddings as numpy file
             embeddings_path = buffer_dir / "embeddings.npy"
@@ -377,11 +377,12 @@ class IndexManager:
         try:
             # Create FAISS index
             index = GpuIndex(
-                embedding_dim=self._embedding_dim,
+                dim=self._embedding_dim,
                 use_gpu=self.use_gpu,
                 gpu_id=self.gpu_id,
             )
-            index.add(embeddings)
+            ids = np.arange(len(embeddings), dtype=np.int64)
+            index.add(ids, embeddings)
 
             # Pre-sync to GPU
             if self.use_gpu:
@@ -399,7 +400,7 @@ class IndexManager:
             # Create and cache lexical index
             lexical_index = LexicalIndex()
             for chunk in chunks:
-                lexical_index.add(chunk.doc_id or len(chunk.file), chunk.content or "")
+                lexical_index.add(chunk.id, chunk.text)
 
             lexical_path = buffer_dir / "lexical_index.json"
             lexical_path.write_text(json.dumps(lexical_index.to_dict()), encoding="utf-8")
@@ -510,11 +511,12 @@ class IndexManager:
 
             # Recreate indices
             index = GpuIndex(
-                embedding_dim=self._embedding_dim,
+                dim=self._embedding_dim,
                 use_gpu=self.use_gpu,
                 gpu_id=self.gpu_id,
             )
-            index.add(embeddings)
+            ids = np.arange(len(embeddings), dtype=np.int64)
+            index.add(ids, embeddings)
 
             if self.use_gpu:
                 index.sync_gpu()
@@ -528,7 +530,7 @@ class IndexManager:
             # Update lexical index
             lexical_index = LexicalIndex()
             for chunk in chunks:
-                lexical_index.add(chunk.doc_id or len(chunk.file), chunk.content or "")
+                lexical_index.add(chunk.id, chunk.text)
 
             lexical_path = buffer_dir / "lexical_index.json"
             lexical_path.write_text(json.dumps(lexical_index.to_dict()), encoding="utf-8")
@@ -655,6 +657,7 @@ class IndexManager:
                 "lexical_cache": cache_stats["lexical_cache"]["utilization"] * 100,
                 "query_cache": query_stats.get("utilization_percent", 0),
             },
+            "cache_utilization_percent": index_util * 100,
             "query_cache_hit_rate": hit_rate,
             "gpu_available": gpu_available,
             "gpu_memory": gpu_status if gpu_available else None,

@@ -1,8 +1,17 @@
-"""Semantic Search Service Delegation Tests.
+﻿"""Semantic Search Service Delegation Tests.
 
 Tests the delegation pattern where CodeEmbeddingTool methods call manager implementations
 while maintaining backward compatibility.
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import tempfile
 from pathlib import Path
@@ -314,3 +323,4 @@ class TestDelegationBackwardCompatibility:
         assert match_dict["end_line"] == 10
         assert match_dict["score"] == 0.95
         assert match_dict["doc_id"] == 0
+

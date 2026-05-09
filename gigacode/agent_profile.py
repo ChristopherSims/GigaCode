@@ -1,5 +1,5 @@
 """
-Phase 7: Auto-Chunking by Agent Profile
+Auto-Chunking by Agent Profile
 
 Optimizes code chunking strategy based on agent profile and task type.
 Different tasks need different chunk granularity and content focus.

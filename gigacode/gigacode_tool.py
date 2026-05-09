@@ -202,13 +202,24 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
                     "SearchService unavailable: sklearn or other optional dependency missing. Search operations will fail."
                 )
 
-        # Legacy caches (still referenced by backward-compat methods)
-        self._index_cache: dict[str, Any] = {}
-        self._lexical_cache: dict[str, Any] = {}
-        self._query_cache: Any = None
-        self._snapshot_managers: dict[str, Any] = {}
-        self._audit_logger: Any = None
-        self._registry: dict[str, Any] = {}
+        # Cache proxies — expose IndexManager caches for backward compat.
+        # These are read-only views; mutations must go through IndexManager.
+        # Guard against None managers for graceful degradation.
+        if self._index_manager is not None:
+            self._index_cache = self._index_manager._index_cache
+            self._lexical_cache = self._index_manager._lexical_cache
+            self._query_cache = self._index_manager._query_cache
+        else:
+            # Fallback empty caches when IndexManager unavailable
+            from gigacode.lru_cache import LRUDict
+            from gigacode.query_cache import QueryCache as _QueryCache
+            self._index_cache: dict[str, Any] = LRUDict(max_size=max_buffers)
+            self._lexical_cache: dict[str, Any] = LRUDict(max_size=max_buffers)
+            self._query_cache: Any = _QueryCache()
+        self._audit_log_path = self.work_dir / "audit.jsonl"
+
+        # Audit logger reference (shared with security layer)
+        self._audit_logger = self._security._audit_logger if self._security is not None else None
 
         # Multi-buffer orchestration manager (aliases and virtual buffers)
         self._multi_buffer_manager = MultiBufferManager(self.work_dir)
@@ -239,6 +250,44 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
                     "Prometheus metrics disabled: prometheus-client not installed. "
                     "Install with: pip install prometheus-client"
                 )
+
+        # Fallback storage when BufferManager unavailable (for tests / degraded mode)
+        self._fallback_registry: dict[str, Any] = {}
+        self._fallback_snapshot_managers: dict[str, Any] = {}
+
+    # ------------------------------------------------------------------
+    # Backward-compat properties for direct _registry / _snapshot_managers access
+    # Tests and legacy code may access these directly.
+    # ------------------------------------------------------------------
+    @property
+    def _registry(self) -> dict[str, Any]:
+        """Backward-compat: proxy to BufferManager._registry or fallback."""
+        if self._buffer_manager is not None:
+            return self._buffer_manager._registry
+        return self._fallback_registry
+
+    @_registry.setter
+    def _registry(self, value: dict[str, Any]) -> None:
+        """Backward-compat: set BufferManager._registry or fallback."""
+        if self._buffer_manager is not None:
+            self._buffer_manager._registry = value
+        else:
+            self._fallback_registry = value
+
+    @property
+    def _snapshot_managers(self) -> dict[str, Any]:
+        """Backward-compat: proxy to BufferManager._snapshot_managers or fallback."""
+        if self._buffer_manager is not None:
+            return self._buffer_manager._snapshot_managers
+        return self._fallback_snapshot_managers
+
+    @_snapshot_managers.setter
+    def _snapshot_managers(self, value: dict[str, Any]) -> None:
+        """Backward-compat: set BufferManager._snapshot_managers or fallback."""
+        if self._buffer_manager is not None:
+            self._buffer_manager._snapshot_managers = value
+        else:
+            self._fallback_snapshot_managers = value
 
     # ------------------------------------------------------------------
     # Schema exposure
@@ -396,17 +445,9 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
         """
         t0 = time.perf_counter()
         try:
-            # Validate path to prevent traversal attacks
-            try:
-                validated_path = validate_buffer_path(path, self._work_dir)
-            except ValueError as e:
-                return self._make_error_response(
-                    f"Invalid path: {e}", operation="embed_codebase", context={"path": str(path)}
-                )
-
             # Delegate to BufferManager: handle chunking, validation, registration
             buffer_id, chunks, files = self._buffer_manager.embed_codebase(
-                path=validated_path,
+                path=Path(path).resolve(),
                 language_hint=language_hint,
                 pattern=pattern,
                 sliding_window_size=sliding_window_size,
@@ -2035,133 +2076,83 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
         start_line: int = 1,
         end_line: int | None = None,
     ) -> dict[str, Any]:
+        """Read file contents from buffer (delegates to BufferManager)."""
         t0 = time.perf_counter()
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="read_code"
-            )
 
-        snapshot_mgr = self._get_snapshot_manager(buffer_id)
-        if snapshot_mgr is None:
-            return self._make_error_response(
-                "Snapshot not available",
-                buffer_id=buffer_id,
-                operation="read_code",
-                context={"reason": "snapshot_load_failed"},
-            )
+        # Delegate core operation to BufferManager
+        result = self._buffer_manager.read_code(
+            buffer_id=buffer_id,
+            file=file,
+            start_line=start_line,
+            end_line=end_line,
+        )
 
+        # Check if read was successful
+        if result.get("status") != "ok":
+            # BufferManager already logged the error via audit_log
+            return result
+
+        # Orchestration: Security audit logging
         if file is not None:
-            if file not in snapshot_mgr.manifest.files:
-                return self._make_error_response(
-                    f"File not in buffer: {file}",
-                    buffer_id=buffer_id,
-                    operation="read_code",
-                    context={"requested_file": file},
-                )
-
-            # Validate file path to prevent traversal attacks
-            try:
-                buffer_root = Path(info.get("buffer_dir", self._work_dir))
-                validate_buffer_path(file, buffer_root)
-            except ValueError as e:
-                return self._make_error_response(
-                    f"Invalid file path: {e}",
-                    buffer_id=buffer_id,
-                    operation="read_code",
-                    context={"requested_file": file},
-                )
-
-            # Read file on-demand from disk
-            lines = snapshot_mgr.read_lines(file)
-            if lines is None:
-                return self._make_error_response(
-                    f"Failed to read file: {file}",
-                    buffer_id=buffer_id,
-                    operation="read_code",
-                    context={"requested_file": file},
-                )
-
-            end = end_line if end_line is not None else len(lines) + 1
-            selected = lines[start_line - 1 : end - 1]
-            result = {
-                "status": "ok",
-                "file": file,
-                "start_line": start_line,
-                "end_line": end,
-                "lines": selected,
-            }
-
-            # Audit log successful file read
             self._security.log_success(
                 operation="read_code",
                 buffer_id=buffer_id,
                 details={
                     "file": file,
                     "start_line": start_line,
-                    "end_line": end,
-                    "lines_count": len(selected),
+                    "end_line": result.get("end_line"),
+                    "lines_count": len(result.get("lines", [])),
                 },
             )
-
-            # Phase 7: Record operation metrics
+            # Orchestration: Prometheus metrics
             elapsed = time.perf_counter() - t0
             if self._prometheus_exporter:
                 self._prometheus_exporter.record_operation(
                     operation="read_code",
                     duration_s=elapsed,
                     status="ok",
-                    chunk_count=len(selected),
+                    chunk_count=len(result.get("lines", [])),
                 )
-
-            return result
-
-        # Read all files on-demand
-        result: dict[str, list[str]] = {}
-        for fname in snapshot_mgr.manifest.files.keys():
-            lines = snapshot_mgr.read_lines(fname)
-            if lines is None:
-                json_logger.warning(
-                    operation="read_code",
-                    message=f"Failed to read file {fname}",
-                )
-                continue
-            end = end_line if end_line is not None else len(lines) + 1
-            result[fname] = lines[start_line - 1 : end - 1]
-
-        final_result = {"status": "ok", "files": result}
-
-        # Audit log successful read-all operation
-        self._security.log_success(
-            operation="read_code",
-            buffer_id=buffer_id,
-            details={
-                "files_count": len(result),
-                "start_line": start_line,
-                "end_line": end_line,
-            },
-        )
-
-        # Phase 7: Record operation metrics for read-all
-        elapsed = time.perf_counter() - t0
-        if self._prometheus_exporter:
-            self._prometheus_exporter.record_operation(
+        else:
+            # Read-all operation
+            files_dict = result.get("files", {})
+            self._security.log_success(
                 operation="read_code",
-                duration_s=elapsed,
-                status="ok",
-                chunk_count=sum(len(lines) for lines in result.values()),
+                buffer_id=buffer_id,
+                details={
+                    "files_count": len(files_dict),
+                    "start_line": start_line,
+                    "end_line": end_line,
+                },
             )
+            # Orchestration: Prometheus metrics for read-all
+            elapsed = time.perf_counter() - t0
+            if self._prometheus_exporter:
+                self._prometheus_exporter.record_operation(
+                    operation="read_code",
+                    duration_s=elapsed,
+                    status="ok",
+                    chunk_count=sum(len(ls) for ls in files_dict.values()),
+                )
 
-        return final_result
+        return result
 
     def write_code(
         self,
         buffer_id: str,
         file: str,
-        start_line: int,
-        new_lines: list[str],
+        start_line: int | str,
+        new_lines: list[str] | None = None,
         end_line: int | None = None,
     ) -> dict[str, Any]:
+        # Backward compat: accept (buffer_id, file, content_string) call convention
+        if isinstance(start_line, str):
+            new_lines = start_line.splitlines(keepends=False)
+            start_line = 1
+            end_line = None
+        elif new_lines is None:
+            return {"status": "error", "message": "new_lines is required"}
+
         t0 = time.perf_counter()
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -2187,7 +2178,7 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
 
         # Validate file path to prevent traversal attacks
         try:
-            buffer_root = Path(info.get("buffer_dir", self._work_dir))
+            buffer_root = Path(info.get("buffer_dir", self.work_dir))
             validate_buffer_path(file, buffer_root)
         except ValueError as e:
             return {"status": "error", "message": f"Invalid file path: {e}"}
@@ -2273,35 +2264,46 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
 
         return result
 
-    def diff(self, buffer_id: str) -> dict[str, Any]:
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+    def diff(self, buffer_id: str, file: str | None = None) -> dict[str, Any]:
+        """Show diff between buffer and disk versions.
 
-        root = Path(info["root"])
-        snapshot = self._load_source_snapshot(buffer_id)
-        if snapshot is None:
-            return {"status": "error", "message": "Source snapshot missing."}
+        Delegates to BufferManager.diff for actual diff computation, then
+        adapts the response for backward compatibility.
 
-        old_hashes = info.get("file_hashes", {})
-        changed: list[dict[str, Any]] = []
-        for rel_path, lines in snapshot.items():
-            current_text = "\n".join(lines)
-            current_hash = hashlib.sha256(current_text.encode("utf-8")).hexdigest()
-            if old_hashes.get(rel_path) != current_hash:
-                disk_path = root / rel_path
-                disk_lines = (
-                    disk_path.read_text(encoding="utf-8").splitlines() if disk_path.exists() else []
-                )
-                changed.append(
-                    {
-                        "file": rel_path,
-                        "buffer_lines": len(lines),
-                        "disk_lines": len(disk_lines),
-                        "dirty": info.get("dirty_files", {}).get(rel_path, False),
-                    }
-                )
-        return {"status": "ok", "changed_files": changed}
+        Args:
+            buffer_id: Buffer handle.
+            file: Optional specific file to diff. If None, diffs all files.
+
+        Returns:
+            Dict with status, diffs (per-file diff details), and has_conflicts flag.
+            For backward compatibility, also includes changed_files list.
+        """
+        result = self._buffer_manager.diff(buffer_id, file=file)
+
+        # Adapt to expected format for backward compatibility
+        if result.get("status") not in ("ok", "conflict"):
+            return result
+
+        # Transform diffs dict to changed_files list for backward compat
+        diffs = result.get("diffs", {})
+        changed_files: list[dict[str, Any]] = []
+        for fname, diff_info in diffs.items():
+            # Include files that have actual changes
+            has_changes = (
+                diff_info.get("has_conflict", False)
+                or len(diff_info.get("added_lines", [])) > 0
+                or len(diff_info.get("removed_lines", [])) > 0
+            )
+            if has_changes:
+                changed_files.append({
+                    "file": fname,
+                    "buffer_lines": len(diff_info.get("buffer_lines", [])),
+                    "disk_lines": len(diff_info.get("disk_lines", [])),
+                    "dirty": True,
+                })
+
+        result["changed_files"] = changed_files
+        return result
 
     def discard(
         self,
@@ -2690,7 +2692,7 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
             }
 
         language = info.get("language_hint", "python")
-        root = Path(info.get("root", self._work_dir))
+        root = Path(info.get("root", self.work_dir))
 
         # Extract modified symbols from dirty file diffs
         snapshot = self._load_source_snapshot(buffer_id)
@@ -2803,7 +2805,7 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
             snapshot = self._load_source_snapshot(buffer_id)
             snapshot_mgr = self._get_snapshot_manager(buffer_id)
             if snapshot is not None and snapshot_mgr is not None:
-                runner = TestRunner(chunks, Path(info.get("root", self._work_dir)))
+                runner = TestRunner(chunks, Path(info.get("root", self.work_dir)))
                 for rel_path in dirty:
                     disk_lines = snapshot_mgr.read_lines(rel_path)
                     new_lines = snapshot.get(rel_path, [])
@@ -2867,7 +2869,7 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
                 operation="execute_in_context",
             )
 
-        root = Path(info.get("root", self._work_dir))
+        root = Path(info.get("root", self.work_dir))
         try:
             executor = SandboxExecutor(root, language=language)
             result = executor.execute(code, timeout=timeout)
@@ -3298,6 +3300,10 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
         if not chunks_path.exists():
             return None
         data = load_metadata(chunks_path)
+        # Handle backward compat: 'content' field was renamed to 'text'
+        for rec in data:
+            if "content" in rec and "text" not in rec:
+                rec["text"] = rec.pop("content")
         return [CodeChunk(**rec) for rec in data]
 
     def _get_index(self, buffer_id: str) -> GpuIndex:
@@ -3385,7 +3391,10 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
         return lexical
 
     def _get_buffer_info(self, buffer_id: str) -> dict[str, Any] | None:
-        return self._registry.get(buffer_id)
+        """Get buffer metadata from BufferManager's registry or fallback."""
+        if self._buffer_manager is not None:
+            return self._buffer_manager._get_buffer_info(buffer_id)
+        return self._fallback_registry.get(buffer_id)
 
     def _get_buffer_state(self, buffer_id: str) -> BufferState:
         """Get current buffer state from registry.
@@ -3442,58 +3451,16 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
         )
 
     def _get_snapshot_manager(self, buffer_id: str) -> SnapshotManager | None:
-        """Get or load SnapshotManager for buffer.
-
-        Caches instances to avoid repeated loads from disk.
-
-        Args:
-            buffer_id: Buffer identifier
-
-        Returns:
-            SnapshotManager instance or None if buffer not found or snapshot invalid
-        """
-        if buffer_id in self._snapshot_managers:
-            return self._snapshot_managers[buffer_id]
-
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return None
-
-        buffer_dir = Path(info["buffer_dir"])
-        try:
-            snapshot_mgr = SnapshotManager(buffer_dir)
-            if snapshot_mgr.manifest is None:
-                json_logger.warning(
-                    operation="_get_snapshot_manager",
-                    buffer_id=buffer_id,
-                    message="Manifest is None",
-                )
-                return None
-
-            self._snapshot_managers[buffer_id] = snapshot_mgr
-            return snapshot_mgr
-        except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
-            json_logger.error(
-                operation="_get_snapshot_manager",
-                buffer_id=buffer_id,
-                message=f"Failed to load snapshot: {e}",
-            )
-            return None
+        """Get or load SnapshotManager for buffer (delegates to BufferManager)."""
+        if self._buffer_manager is not None:
+            return self._buffer_manager._get_snapshot_manager(buffer_id)
+        return None
 
     @retry_on_io_error(max_attempts=3, delay_s=0.5)
     def _save_registry(self) -> None:
-        """Save registry to disk with retry on transient I/O errors."""
-        # Delegate to StateManager which handles atomicity, locking, and recovery
-        if self._state_manager is not None:
-            self._state_manager.save_registry()
-        else:
-            # Fallback for cases where StateManager is not available
-            with self._registry_path.open("wb") as fh:
-                fh.write(
-                    json.dumps(self._registry, ensure_ascii=False, separators=(",", ":")).encode(
-                        "utf-8"
-                    )
-                )
+        """Save registry to disk (delegates to BufferManager)."""
+        if self._buffer_manager is not None:
+            self._buffer_manager._save_registry()
 
     # ------------------------------------------------------------------
     # Resource budgeting and confidence scoring

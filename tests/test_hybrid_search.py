@@ -1,4 +1,13 @@
-"""Tests for src.hybrid_search."""
+﻿"""Tests for src.hybrid_search."""
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 from gigacode.hybrid_search import reciprocal_rank_fusion
 
@@ -11,3 +20,4 @@ def test_rrf_merge():
     # doc 1 appears in both lists, doc 0 also appears in both
     assert 1 in doc_ids
     assert 0 in doc_ids
+

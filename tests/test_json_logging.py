@@ -1,8 +1,17 @@
-"""Tests for structured JSON logging (Phase 6.3).
+﻿"""Tests for structured JSON logging (Phase 6.3).
 
 Validates that JSON logging produces well-formatted, consistent output
 with all required fields and proper serialization.
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import json
 import logging
@@ -321,3 +330,4 @@ class TestJsonLoggingRealWorldScenarios:
         assert data["status"] == "conflict"
         assert len(data["details"]["conflict_files"]) == 2
         assert data["operation"] == "commit"
+

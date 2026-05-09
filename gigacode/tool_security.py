@@ -215,7 +215,7 @@ class ToolSecurityLayer:
             operation=operation,
             user_id=self._current_user_id,
             role=self.get_current_user_role_name(),
-            message=message,
+            error_message=message,
             buffer_id=buffer_id,
             details=audit_details,
         )

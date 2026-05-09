@@ -87,11 +87,13 @@ class BufferManager:
 
         # Registry of embedded codebases: buffer_id -> metadata dict
         self._registry_path = self.work_dir / "registry.json"
-        self._registry: dict[str, dict[str, Any]] = (
-            json.loads(self._registry_path.read_text(encoding="utf-8"))
-            if self._registry_path.exists()
-            else {}
-        )
+        self._registry: dict[str, dict[str, Any]] = {}
+        if self._registry_path.exists():
+            try:
+                self._registry = json.loads(self._registry_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, ValueError):
+                logger.warning("Corrupted registry.json — starting with empty registry")
+                self._registry = {}
 
         # Snapshot managers: buffer_id -> SnapshotManager (one per buffer)
         self._snapshot_managers: dict[str, SnapshotManager] = {}
@@ -331,8 +333,10 @@ class BufferManager:
 
     def _save_registry(self) -> None:
         """Atomically save registry to disk."""
+        import os as _os
+        import threading as _threading
         try:
-            temp_path = self._registry_path.parent / f"{self._registry_path.name}.tmp"
+            temp_path = self._registry_path.parent / f".{self._registry_path.name}.tmp.{_os.getpid()}.{_threading.get_ident()}"
             temp_path.write_text(
                 json.dumps(self._registry, ensure_ascii=False, indent=2), encoding="utf-8"
             )
@@ -1037,31 +1041,39 @@ class BufferManager:
         # Check for external changes
         diffs: dict[str, Any] = {}
         merge_results: list[dict[str, Any]] = []
+        dirty = info.get("dirty_files", {})
 
         for fname in snapshot_mgr.manifest.files.keys():
             diff_result = snapshot_mgr.compute_diff(fname, snapshot.get(fname, []))
             diffs[fname] = diff_result
 
-            if diff_result.get("has_conflict", False):
-                merge_results.append(
-                    {
-                        "file": fname,
-                        "status": "conflict",
-                        "message": "3-way merge conflict between disk and buffer changes",
-                    }
-                )
-            elif diff_result.get("external_changes"):
-                # Load disk version
-                disk_lines = snapshot_mgr.read_lines(fname)
-                if disk_lines is not None:
-                    snapshot[fname] = disk_lines
+            # Determine if disk changed vs snapshot (by line count or content)
+            disk_lines = diff_result.get("disk_lines")
+            snap_line_count = diff_result.get("snapshot_line_count")
+            disk_changed = (disk_lines is not None and snap_line_count is not None
+                           and len(disk_lines) != snap_line_count)
+
+            if disk_changed:
+                if dirty.get(fname, False):
+                    # Both disk AND buffer were modified → true 3-way conflict
                     merge_results.append(
                         {
                             "file": fname,
-                            "status": "merged",
-                            "message": "Loaded disk version",
+                            "status": "conflict",
+                            "message": "3-way merge conflict between disk and buffer changes",
                         }
                     )
+                else:
+                    # Only disk changed, buffer clean → reload from disk
+                    if disk_lines is not None:
+                        snapshot[fname] = disk_lines
+                        merge_results.append(
+                            {
+                                "file": fname,
+                                "status": "merged",
+                                "message": "Loaded disk version",
+                            }
+                        )
 
         # Save merged snapshot
         self._save_source_snapshot(buffer_id, snapshot)
@@ -1082,7 +1094,14 @@ class BufferManager:
                 index_manager._rebuild_files(buffer_id, rebuilt_files)
 
         has_conflicts = any(r["status"] == "conflict" for r in merge_results)
+        merged_count = sum(1 for r in merge_results if r["status"] == "merged")
         status = "conflict" if has_conflicts else "ok"
+        if merged_count == 0 and not has_conflicts:
+            message = "Hashes match; reloaded without re-embedding."
+        elif merged_count > 0:
+            message = f"Reloaded {merged_count} file(s) from disk."
+        else:
+            message = "Conflict detected; manual resolution required."
 
         self._audit_log(
             operation="reload_codebase",
@@ -1105,6 +1124,8 @@ class BufferManager:
 
         return {
             "status": status,
+            "buffer_id": buffer_id,
+            "message": message,
             "merge_results": merge_results,
             "elapsed_s": time.perf_counter() - t0,
         }

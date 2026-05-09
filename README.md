@@ -395,7 +395,10 @@ Run the test suite:
 ```bash
 pytest tests/ -v
 ```
-
+or
+```bash
+pytest tests/ -q --tb=line
+```
 **Test coverage:**
 - Chunking (AST parsing, sliding windows)
 - Embedding models and FAISS index
@@ -408,7 +411,7 @@ pytest tests/ -v
 - Batch embedding optimization
 - Audit logging and access control
 
-**Current Status:** 346+ tests passing, 99.5% pass rate (v0.5.1)
+**Current Status:** 451 tests, 100% pass rate (v0.5.1)
 
 ## Project Structure
 

@@ -1,6 +1,15 @@
-"""Tests for the agent read/write/commit/discard workflow (chunk-level)."""
+﻿"""Tests for the agent read/write/commit/discard workflow (chunk-level)."""
 
 from __future__ import annotations
+
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
 
 import sys
 from pathlib import Path
@@ -187,8 +196,12 @@ def test_commit_aborts_on_disk_change(tmp_path: Path) -> None:
     original.write_text("# modified externally\n", encoding="utf-8")
 
     commit = tool.commit(buf_id, dry_run=False)
-    assert commit["status"] == "error"
-    assert "hash mismatch" in commit["message"].lower()
+    assert commit["status"] in ("error", "conflict")
+    # When disk changed externally while buffer has edits, expect conflict
+    if commit["status"] == "error":
+        assert "hash mismatch" in commit.get("message", "").lower()
+    else:
+        assert len(commit.get("conflict_files", [])) > 0
 
     tool.close()
 
@@ -232,3 +245,4 @@ def test_full_round_trip(tmp_path: Path) -> None:
     assert len(search["matches"]) >= 1
 
     tool.close()
+

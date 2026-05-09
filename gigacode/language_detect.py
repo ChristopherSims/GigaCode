@@ -153,7 +153,7 @@ def detect_language(path: str | Path, hint: str | None = None) -> str | None:
             for key, lang in _SHEBANG_MAP.items():
                 if key in interpreter:
                     return lang
-    except (ImportError, ValueError, TypeError):
+    except (ImportError, ValueError, TypeError, OSError):
         pass
 
     return None

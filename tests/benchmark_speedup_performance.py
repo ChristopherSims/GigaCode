@@ -1,10 +1,19 @@
-"""Performance benchmarking for Future 4.3 Phase 3 optimizations.
+﻿"""Performance benchmarking for
 
 Measures:
 - Embedding speed improvements (batch + incremental)
 - Query cache hit rates and speedup
 - Index type performance characteristics
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import sys
 import time
@@ -298,3 +307,4 @@ if __name__ == "__main__":
 
         traceback.print_exc()
         exit(1)
+

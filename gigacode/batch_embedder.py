@@ -146,10 +146,10 @@ class BatchEmbeddingProcessor:
             )
 
             # Store in cache and collect results
-            for text, embedding in zip(batch_texts, batch_embeddings, strict=False):
+            for i, (text, embedding) in enumerate(zip(batch_texts, batch_embeddings, strict=False)):
                 if self.cache:
                     self.cache.put(text, embedding)
-                embeddings.append((uncached_indices[batch_start + len(embeddings)], embedding))
+                embeddings.append((uncached_indices[batch_start + i], embedding))
 
         # Combine cached and newly embedded results, preserving order
         all_embeddings = cached_embeddings + embeddings

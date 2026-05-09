@@ -1,8 +1,17 @@
-"""Integration tests for GigaCode critical workflows.
+﻿"""Integration tests for GigaCode critical workflows.
 
 Tests validate write_code + commit integration, concurrent operations, cache behavior,
 resource cleanup, and GPU/CPU fallback under various conditions.
 """
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+import types
+try:
+    import sklearn
+    if getattr(sklearn, "__spec__", None) is None:
+        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
+except Exception:
+    pass
+
 
 import sys
 import tempfile
@@ -139,8 +148,8 @@ class TestConcurrentOperations:
             assert len(results) > 0, f"Errors: {errors}"
             assert len(errors) == 0, f"Errors occurred: {errors}"
 
-            # Registry should be consistent
-            assert len(tool._registry) >= 1
+            # Registry should be consistent (buffers stored in _buffer_manager._registry)
+            assert len(tool._buffer_manager._registry) >= 1
 
             tool.close()
 
@@ -473,3 +482,4 @@ class TestHealthCheckAndMetrics:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
+

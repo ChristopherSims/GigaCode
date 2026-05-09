@@ -8,29 +8,31 @@ security camera that records all activity for compliance and debugging.
 Key Concepts:
     - AuditStatus: Whether an action succeeded, failed, or was denied
     - AuditLogEntry: A single record of one action
-    - AuditLogger: The system that records all actions to a log file
-
-Why This Matters:
-    - Compliance: Prove who accessed what and when (for security audits)
-    - Debugging: Understand what happened when something breaks
-    - Security: Detect suspicious activity patterns
-    - Accountability: Track which user did which action
-
-Example:
-    >>> logger = AuditLogger()
-    >>> logger.log_success(
-    ...     operation="write_code",
-    ...     user_id="alice",
-    ...     role="analyst",
-    ...     buffer_id="buf-123",
-    ...     details={"lines_written": 50},
-    ... )
-    >>> # Action is recorded to audit.jsonl file
-
-The audit log is stored as JSONL (JSON Lines) format - each line is one
-complete JSON record, making it easy to parse and analyze.
 """
+from __future__ import annotations
 
+# Additional documentation:
+#     - AuditLogger: The system that records all actions to a log file
+#
+# Why This Matters:
+#     - Compliance: Prove who accessed what and when (for security audits)
+#     - Debugging: Understand what happened when something breaks
+#     - Security: Detect suspicious activity patterns
+#     - Accountability: Track which user did which action
+#
+# Example:
+#     >>> logger = AuditLogger()
+#     >>> logger.log_success(
+#     ...     operation="write_code",
+#     ...     user_id="alice",
+#     ...     role="analyst",
+#     ...     buffer_id="buf-123",
+#     ...     details={"lines_written": 50},
+#     ... )
+#     >>> # Action is recorded to audit.jsonl file
+#
+# The audit log is stored as JSONL (JSON Lines) format - each line is one
+# complete JSON record, making it easy to parse and analyze.
 import json
 import time
 from dataclasses import asdict, dataclass
@@ -155,6 +157,10 @@ class AuditLogger:
         self.log_file = Path(log_file)
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
         self.log_file.touch(exist_ok=True)
+
+    def close(self) -> None:
+        """Close the audit logger (no-op; file handles are opened per-write)."""
+        pass
 
     def log_operation(
         self,
