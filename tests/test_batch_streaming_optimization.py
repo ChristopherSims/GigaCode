@@ -8,6 +8,7 @@ Tests verify:
 
 import sys
 import tempfile
+import textwrap
 from pathlib import Path
 
 # Add parent to path for imports
@@ -93,17 +94,19 @@ def test_streaming_support():
             # Create a test file
             test_file = work_dir / "test.py"
             test_file.write_text(
-                """
-                def function1():
-                    return 42
+                textwrap.dedent(
+                    """
+                    def function1():
+                        return 42
 
-                def function2():
-                    return "hello"
+                    def function2():
+                        return "hello"
 
-                class MyClass:
-                    def method(self):
-                        pass
-                """
+                    class MyClass:
+                        def method(self):
+                            pass
+                    """
+                )
             )
 
             # Test streaming-aware chunking
