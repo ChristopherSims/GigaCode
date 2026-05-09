@@ -57,8 +57,8 @@ _BANNED_IMPORTS: set[str] = {
     "__builtin__",
 }
 
-# Banned AST node types
-_BANNED_AST_NODES: tuple[type[ast.AST], ...] = (ast.Exec,)  # Python 2 only, but kept for safety
+# Banned AST node types (all removed in Python 3; kept as a hook for future bans)
+_BANNED_AST_NODES: tuple[type[ast.AST], ...] = ()
 
 # Banned attribute chains (e.g., os.system, subprocess.run)
 _BANNED_ATTRIBUTE_PREFIXES: tuple[str, ...] = (

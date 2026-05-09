@@ -9,15 +9,15 @@ Integration patterns:
 3. Incremental indexing: Update index chunk-by-chunk without full re-embedding
 """
 
-from typing import Dict, List, Optional, Callable
 import logging
+from typing import Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class StreamingIntegrationGuide:
     """Reference implementation for streaming integration."""
-    
+
     @staticmethod
     def integrate_streaming_into_buffer_manager() -> str:
         """Show how to integrate streaming into BufferManager.embed_file()."""
@@ -75,7 +75,7 @@ def _embed_file_streaming(self, file_path: str, language: str = None) -> Dict:
         "total_chunks": len(all_chunks)
     }
 """
-    
+
     @staticmethod
     def integrate_streaming_into_search_service() -> str:
         """Show how to integrate streaming into SearchService index building."""
@@ -151,7 +151,7 @@ def _index_file_streaming(self, file_path: str) -> Dict:
         "metadata": all_metadata
     }
 """
-    
+
     @staticmethod
     def implement_incremental_indexing() -> str:
         """Show how to implement incremental indexing with streaming."""
@@ -213,7 +213,7 @@ class IncrementalIndexer:
             "metadata": new_metadata
         }
 """
-    
+
     @staticmethod
     def add_streaming_detection() -> str:
         """Show how to add automatic streaming detection."""
@@ -258,7 +258,7 @@ async def embed_codebase_auto_streaming(
     
     return EmbeddingResponse(results=results)
 """
-    
+
     @staticmethod
     def memory_monitoring() -> str:
         """Show how to monitor memory during streaming."""
@@ -310,31 +310,31 @@ def embed_with_memory_monitoring(file_path: str) -> Dict:
 def print_integration_guide():
     """Print all integration patterns."""
     guide = StreamingIntegrationGuide()
-    
+
     print("=" * 80)
     print("STREAMING INTEGRATION GUIDE")
     print("=" * 80)
-    
+
     print("\n" + "=" * 80)
     print("Pattern 1: BufferManager Integration")
     print("=" * 80)
     print(guide.integrate_streaming_into_buffer_manager())
-    
+
     print("\n" + "=" * 80)
     print("Pattern 2: SearchService Integration")
     print("=" * 80)
     print(guide.integrate_streaming_into_search_service())
-    
+
     print("\n" + "=" * 80)
     print("Pattern 3: Incremental Indexing")
     print("=" * 80)
     print(guide.implement_incremental_indexing())
-    
+
     print("\n" + "=" * 80)
     print("Pattern 4: Automatic Streaming Detection")
     print("=" * 80)
     print(guide.add_streaming_detection())
-    
+
     print("\n" + "=" * 80)
     print("Pattern 5: Memory Monitoring")
     print("=" * 80)

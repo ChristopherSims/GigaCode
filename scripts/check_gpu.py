@@ -11,14 +11,15 @@ Usage:
     python scripts/check_gpu.py
 """
 
-import sys
 import subprocess
+import sys
 
 
 def check_cuda():
     """Check if CUDA is available and get version."""
     try:
         import torch
+
         if torch.cuda.is_available():
             return True, torch.version.cuda
         return False, None
@@ -30,6 +31,7 @@ def check_cudnn():
     """Check if cuDNN is available."""
     try:
         import torch
+
         if torch.backends.cudnn.enabled:
             return True, torch.backends.cudnn.version()
         return False, None
@@ -41,8 +43,9 @@ def check_faiss_gpu():
     """Check if faiss-gpu is installed."""
     try:
         import faiss
+
         # faiss-gpu defines this attribute
-        has_gpu = hasattr(faiss, 'IndexGPU')
+        has_gpu = hasattr(faiss, "IndexGPU")
         return has_gpu
     except ImportError:
         return False
@@ -52,6 +55,7 @@ def get_cuda_capability():
     """Get GPU capability version if available."""
     try:
         import torch
+
         if torch.cuda.is_available():
             return torch.cuda.get_device_capability(0)
         return None
@@ -64,38 +68,38 @@ def main():
     print("GigaCode GPU Configuration Check")
     print("=" * 60)
     print()
-    
+
     # Check CUDA
     cuda_available, cuda_version = check_cuda()
     print(f"CUDA Available: {'✓ Yes' if cuda_available else '✗ No'}")
     if cuda_version:
         print(f"  CUDA Version: {cuda_version}")
     print()
-    
+
     # Check cuDNN
     cudnn_available, cudnn_version = check_cudnn()
     print(f"cuDNN Available: {'✓ Yes' if cudnn_available else '✗ No'}")
     if cudnn_version:
         print(f"  cuDNN Version: {cudnn_version}")
     print()
-    
+
     # Check GPU capability
     capability = get_cuda_capability()
     if capability:
         print(f"GPU Compute Capability: {capability[0]}.{capability[1]}")
         print()
-    
+
     # Check FAISS
     faiss_gpu = check_faiss_gpu()
     print(f"FAISS GPU Support: {'✓ Installed' if faiss_gpu else '✗ Not installed'}")
     print()
-    
+
     # Recommendations
     print("=" * 60)
     print("Recommendations")
     print("=" * 60)
     print()
-    
+
     if cuda_available and cudnn_available and not faiss_gpu:
         print("✓ GPU is available and properly configured!")
         print()
@@ -106,14 +110,14 @@ def main():
         print("Or install with GPU support from the start:")
         print("  pip install '.[gpu]'")
         return 0
-    
+
     elif cuda_available and cudnn_available and faiss_gpu:
         print("✓ GPU acceleration is fully enabled!")
         print()
         print("FAISS will use GPU for fast similarity search.")
         print("Expected: sub-millisecond search on GPU")
         return 0
-    
+
     elif cuda_available and not cudnn_available:
         print("⚠ CUDA is available but cuDNN is not installed.")
         print()
@@ -123,7 +127,7 @@ def main():
         print("For conda users:")
         print("  conda install -c conda-forge cudnn")
         return 1
-    
+
     else:
         print("ℹ GPU is not available on this system.")
         print()
