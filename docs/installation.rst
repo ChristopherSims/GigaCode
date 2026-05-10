@@ -6,7 +6,7 @@ This guide covers installing GigaCode on Windows, macOS, and Linux.
 Prerequisites
 ~~~~~~~~~~~~~
 
-- Python 3.9 or higher
+- Python 3.10 or higher
 - pip package manager
 - Optional: CUDA 11.8+ (for GPU acceleration)
 - Optional: Git (for development installation)
@@ -45,7 +45,7 @@ Development mode (editable install):
 
 .. code-block:: bash
 
-    python -c "from gigacode import CodeEmbeddingTool; print('✓ GigaCode installed')"
+    python -c "from gigacode import CodeEmbeddingTool; print('GigaCode installed')"
 
 GPU Setup (Optional)
 ~~~~~~~~~~~~~~~~~~~~
@@ -119,7 +119,7 @@ Verify Installation
     import torch
     import faiss
     import sentence_transformers
-    print('✓ All dependencies OK')
+    print(' All dependencies OK')
     print(f'  Python: {__import__('sys').version}')
     print(f'  PyTorch: {torch.__version__}')
     print(f'  FAISS: {faiss.__version__}')
@@ -133,7 +133,7 @@ Verify Installation
     python -c "
     from gigacode import CodeEmbeddingTool
     tool = CodeEmbeddingTool(work_dir='/tmp/gigacode_test')
-    print('✓ CodeEmbeddingTool initialized')
+    print(' CodeEmbeddingTool initialized')
     print(f'  Version: {tool.__class__.__module__}')
     "
 

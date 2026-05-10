@@ -5,16 +5,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>gigacode.faiss_optimizer &mdash; GigaCode 1.0.0 documentation</title>
+  <title>gigacode.faiss_optimizer &mdash; GigaCode 0.5.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../_static/documentation_options.js?v=8d563738"></script>
-      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
-      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/documentation_options.js?v=b9afe91b"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" /> 
@@ -107,8 +107,8 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 
@@ -122,6 +122,7 @@
 
 <span class="k">class</span><span class="w"> </span><span class="nc">IndexType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;FAISS index type enumeration.&quot;&quot;&quot;</span>
+
     <span class="n">FLAT</span> <span class="o">=</span> <span class="s2">&quot;flat&quot;</span>  <span class="c1"># Exact search, best for small sets</span>
     <span class="n">IVF</span> <span class="o">=</span> <span class="s2">&quot;ivf&quot;</span>  <span class="c1"># Inverted file, balanced for medium sets</span>
     <span class="n">HNSW</span> <span class="o">=</span> <span class="s2">&quot;hnsw&quot;</span>  <span class="c1"># Hierarchical NSW, best for large sets</span>
@@ -133,41 +134,41 @@
 <a class="viewcode-back" href="../../api/faiss_optimizer.html#gigacode.faiss_optimizer.FAISSIndexOptimizer">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">FAISSIndexOptimizer</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Optimizer for selecting and creating FAISS indexes.</span>
-<span class="sd">    </span>
+
 <span class="sd">    Auto-selects index type based on vector count:</span>
 <span class="sd">    - &lt;10k: Flat (exact, fast)</span>
 <span class="sd">    - 10k-100k: IVF (balanced)</span>
 <span class="sd">    - &gt;100k: HNSW (approximate, very fast)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    
+
 <div class="viewcode-block" id="FAISSIndexOptimizer.__init__">
 <a class="viewcode-back" href="../../api/faiss_optimizer.html#gigacode.faiss_optimizer.FAISSIndexOptimizer.__init__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enable_gpu</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize FAISS optimizer.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            enable_gpu: Whether to use GPU acceleration if available</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_enable_gpu</span> <span class="o">=</span> <span class="n">enable_gpu</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_available_on_gpu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_gpu_availability</span><span class="p">()</span></div>
 
-    
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_check_gpu_availability</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if FAISS GPU support is available.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_gpu</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
-        
+
         <span class="k">if</span> <span class="n">faiss</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">False</span>
-        
+
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># Try to get GPU resources</span>
             <span class="n">res</span> <span class="o">=</span> <span class="n">faiss</span><span class="o">.</span><span class="n">StandardGpuResources</span><span class="p">()</span>
             <span class="k">return</span> <span class="kc">True</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">):</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;FAISS GPU not available, using CPU&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">False</span>
-    
+
 <div class="viewcode-block" id="FAISSIndexOptimizer.select_index_type">
 <a class="viewcode-back" href="../../api/faiss_optimizer.html#gigacode.faiss_optimizer.FAISSIndexOptimizer.select_index_type">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">select_index_type</span><span class="p">(</span>
@@ -177,18 +178,18 @@
         <span class="n">force_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Select best index type for vector count.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            vector_count: Number of vectors to index</span>
 <span class="sd">            embedding_dim: Embedding dimension</span>
 <span class="sd">            force_type: Force specific index type (&quot;flat&quot;, &quot;ivf&quot;, &quot;hnsw&quot;)</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            Selected index type as string</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">force_type</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">force_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-        
+
         <span class="c1"># Auto-select based on vector count</span>
         <span class="k">if</span> <span class="n">vector_count</span> <span class="o">&lt;</span> <span class="mi">10000</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">FLAT</span><span class="o">.</span><span class="n">value</span>
@@ -197,7 +198,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">HNSW</span><span class="o">.</span><span class="n">value</span></div>
 
-    
+
 <div class="viewcode-block" id="FAISSIndexOptimizer.get_index_params">
 <a class="viewcode-back" href="../../api/faiss_optimizer.html#gigacode.faiss_optimizer.FAISSIndexOptimizer.get_index_params">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_index_params</span><span class="p">(</span>
@@ -207,47 +208,47 @@
         <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">384</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get parameters for creating index.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            index_type: Type of index (&quot;flat&quot;, &quot;ivf&quot;, &quot;hnsw&quot;)</span>
 <span class="sd">            vector_count: Number of vectors</span>
 <span class="sd">            embedding_dim: Embedding dimension</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            Dictionary of index parameters</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">index_type_lower</span> <span class="o">=</span> <span class="n">index_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-        
+
         <span class="k">if</span> <span class="n">index_type_lower</span> <span class="ow">in</span> <span class="p">(</span><span class="n">IndexType</span><span class="o">.</span><span class="n">FLAT</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">FLAT_GPU</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
             <span class="k">return</span> <span class="p">{</span>
                 <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;L2&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;flat&quot;</span><span class="p">,</span>
             <span class="p">}</span>
-        
+
         <span class="k">elif</span> <span class="n">index_type_lower</span> <span class="ow">in</span> <span class="p">(</span><span class="n">IndexType</span><span class="o">.</span><span class="n">IVF</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">IVF_GPU</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
             <span class="c1"># IVF parameters</span>
             <span class="n">nlist</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vector_count</span><span class="p">)))</span>  <span class="c1"># Number of partitions</span>
             <span class="n">nprobe</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nlist</span> <span class="o">//</span> <span class="mi">10</span><span class="p">)</span>  <span class="c1"># Probes per search</span>
-            
+
             <span class="k">return</span> <span class="p">{</span>
                 <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;L2&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;ivf&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;nlist&quot;</span><span class="p">:</span> <span class="n">nlist</span><span class="p">,</span>
                 <span class="s2">&quot;nprobe&quot;</span><span class="p">:</span> <span class="n">nprobe</span><span class="p">,</span>
             <span class="p">}</span>
-        
+
         <span class="k">elif</span> <span class="n">index_type_lower</span> <span class="o">==</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">HNSW</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
             <span class="c1"># HNSW parameters</span>
             <span class="n">nlinks</span> <span class="o">=</span> <span class="mi">16</span>  <span class="c1"># Links per node (balance between quality and speed)</span>
             <span class="n">efConstruction</span> <span class="o">=</span> <span class="mi">200</span>  <span class="c1"># Effort during construction</span>
-            
+
             <span class="k">return</span> <span class="p">{</span>
                 <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;L2&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;hnsw&quot;</span><span class="p">,</span>
                 <span class="s2">&quot;nlinks&quot;</span><span class="p">:</span> <span class="n">nlinks</span><span class="p">,</span>
                 <span class="s2">&quot;efConstruction&quot;</span><span class="p">:</span> <span class="n">efConstruction</span><span class="p">,</span>
             <span class="p">}</span>
-        
+
         <span class="k">else</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown index type: </span><span class="si">{</span><span class="n">index_type</span><span class="si">}</span><span class="s2">, defaulting to flat&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="p">{</span>
@@ -255,7 +256,7 @@
                 <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;flat&quot;</span><span class="p">,</span>
             <span class="p">}</span></div>
 
-    
+
 <div class="viewcode-block" id="FAISSIndexOptimizer.create_optimized_index">
 <a class="viewcode-back" href="../../api/faiss_optimizer.html#gigacode.faiss_optimizer.FAISSIndexOptimizer.create_optimized_index">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">create_optimized_index</span><span class="p">(</span>
@@ -266,64 +267,64 @@
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create optimized FAISS index.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            vectors: Embedding vectors (N, embedding_dim)</span>
 <span class="sd">            index_type: Index type to create (auto-selected if None)</span>
 <span class="sd">            embedding_dim: Embedding dimension (inferred if None)</span>
 <span class="sd">            **kwargs: Additional parameters (nlist, nprobe, etc.)</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            FAISS index or None if creation fails</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">faiss</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;FAISS not installed&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
-        
+
         <span class="n">vector_count</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">embedding_dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">embedding_dim</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        
+
         <span class="c1"># Auto-select index type</span>
         <span class="k">if</span> <span class="n">index_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">index_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select_index_type</span><span class="p">(</span><span class="n">vector_count</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">)</span>
-        
+
         <span class="n">index_type_lower</span> <span class="o">=</span> <span class="n">index_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-        
+
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># Get parameters</span>
             <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_index_params</span><span class="p">(</span><span class="n">index_type</span><span class="p">,</span> <span class="n">vector_count</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">)</span>
             <span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
-            
+
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Creating </span><span class="si">{</span><span class="n">index_type</span><span class="si">}</span><span class="s2"> index for </span><span class="si">{</span><span class="n">vector_count</span><span class="si">}</span><span class="s2"> vectors &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">vector_count</span><span class="o">*</span><span class="n">embedding_dim</span><span class="o">*</span><span class="mi">4</span><span class="o">/</span><span class="mi">1024</span><span class="o">/</span><span class="mi">1024</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">MB)&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">vector_count</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">embedding_dim</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">MB)&quot;</span>
             <span class="p">)</span>
-            
+
             <span class="c1"># Create index</span>
             <span class="k">if</span> <span class="n">index_type_lower</span> <span class="ow">in</span> <span class="p">(</span><span class="n">IndexType</span><span class="o">.</span><span class="n">FLAT</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">FLAT_GPU</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
                 <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_flat_index</span><span class="p">(</span><span class="n">vectors</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
-            
+
             <span class="k">elif</span> <span class="n">index_type_lower</span> <span class="ow">in</span> <span class="p">(</span><span class="n">IndexType</span><span class="o">.</span><span class="n">IVF</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">IVF_GPU</span><span class="o">.</span><span class="n">value</span><span class="p">):</span>
                 <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_ivf_index</span><span class="p">(</span><span class="n">vectors</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
-            
+
             <span class="k">elif</span> <span class="n">index_type_lower</span> <span class="o">==</span> <span class="n">IndexType</span><span class="o">.</span><span class="n">HNSW</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
                 <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_hnsw_index</span><span class="p">(</span><span class="n">vectors</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
-            
+
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown index type: </span><span class="si">{</span><span class="n">index_type</span><span class="si">}</span><span class="s2">, creating flat&quot;</span><span class="p">)</span>
                 <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_flat_index</span><span class="p">(</span><span class="n">vectors</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
-            
+
             <span class="k">if</span> <span class="n">index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Index created successfully&quot;</span><span class="p">)</span>
-            
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Index created successfully&quot;</span><span class="p">)</span>
+
             <span class="k">return</span> <span class="n">index</span>
-        
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+
+        <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to create index: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span></div>
 
-    
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_create_flat_index</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">vectors</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
@@ -331,12 +332,12 @@
         <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create flat (exact) index.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            vectors: Embedding vectors</span>
 <span class="sd">            embedding_dim: Dimension</span>
 <span class="sd">            params: Index parameters</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            FAISS index</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -345,10 +346,10 @@
             <span class="n">vectors_f32</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
             <span class="n">index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">vectors_f32</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">index</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to create flat index: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
-    
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_create_ivf_index</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">vectors</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
@@ -356,40 +357,40 @@
         <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create IVF (inverted file) index.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            vectors: Embedding vectors</span>
 <span class="sd">            embedding_dim: Dimension</span>
 <span class="sd">            params: Index parameters</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            FAISS index</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">nlist</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nlist&quot;</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vectors</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))))</span>
             <span class="n">nprobe</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nprobe&quot;</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nlist</span> <span class="o">//</span> <span class="mi">10</span><span class="p">))</span>
-            
+
             <span class="c1"># Create quantizer</span>
             <span class="n">quantizer</span> <span class="o">=</span> <span class="n">faiss</span><span class="o">.</span><span class="n">IndexFlatL2</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">)</span>
-            
+
             <span class="c1"># Create IVF index</span>
             <span class="n">index</span> <span class="o">=</span> <span class="n">faiss</span><span class="o">.</span><span class="n">IndexIVFFlat</span><span class="p">(</span><span class="n">quantizer</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">nlist</span><span class="p">)</span>
-            
+
             <span class="c1"># Train and add vectors</span>
             <span class="n">vectors_f32</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
             <span class="n">index</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">vectors_f32</span><span class="p">)</span>
             <span class="n">index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">vectors_f32</span><span class="p">)</span>
-            
+
             <span class="c1"># Set nprobe</span>
             <span class="n">index</span><span class="o">.</span><span class="n">nprobe</span> <span class="o">=</span> <span class="n">nprobe</span>
-            
+
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;IVF index: nlist=</span><span class="si">{</span><span class="n">nlist</span><span class="si">}</span><span class="s2">, nprobe=</span><span class="si">{</span><span class="n">nprobe</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            
+
             <span class="k">return</span> <span class="n">index</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to create IVF index: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
-    
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_create_hnsw_index</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">vectors</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
@@ -397,35 +398,35 @@
         <span class="n">params</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Create HNSW (Hierarchical NSW) index.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            vectors: Embedding vectors</span>
 <span class="sd">            embedding_dim: Dimension</span>
 <span class="sd">            params: Index parameters</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            FAISS index</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">nlinks</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nlinks&quot;</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span>
             <span class="n">efConstruction</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;efConstruction&quot;</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>
-            
+
             <span class="c1"># Create HNSW index</span>
             <span class="n">index</span> <span class="o">=</span> <span class="n">faiss</span><span class="o">.</span><span class="n">IndexHNSWFlat</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">nlinks</span><span class="p">)</span>
             <span class="n">index</span><span class="o">.</span><span class="n">hnsw</span><span class="o">.</span><span class="n">efConstruction</span> <span class="o">=</span> <span class="n">efConstruction</span>
             <span class="n">index</span><span class="o">.</span><span class="n">hnsw</span><span class="o">.</span><span class="n">efSearch</span> <span class="o">=</span> <span class="mi">16</span>  <span class="c1"># For search</span>
-            
+
             <span class="c1"># Add vectors</span>
             <span class="n">vectors_f32</span> <span class="o">=</span> <span class="n">vectors</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
             <span class="n">index</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">vectors_f32</span><span class="p">)</span>
-            
+
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;HNSW index: nlinks=</span><span class="si">{</span><span class="n">nlinks</span><span class="si">}</span><span class="s2">, efConstruction=</span><span class="si">{</span><span class="n">efConstruction</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            
+
             <span class="k">return</span> <span class="n">index</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to create HNSW index: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
-    
+
 <div class="viewcode-block" id="FAISSIndexOptimizer.search_index">
 <a class="viewcode-back" href="../../api/faiss_optimizer.html#gigacode.faiss_optimizer.FAISSIndexOptimizer.search_index">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">search_index</span><span class="p">(</span>
@@ -435,12 +436,12 @@
         <span class="n">k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Search in index.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            index: FAISS index</span>
 <span class="sd">            query_vector: Query embedding (1, embedding_dim) or (embedding_dim,)</span>
 <span class="sd">            k: Number of results</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple of (distances, indices)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -448,24 +449,24 @@
             <span class="c1"># Ensure query is (1, dim)</span>
             <span class="k">if</span> <span class="n">query_vector</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">query_vector</span> <span class="o">=</span> <span class="n">query_vector</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-            
+
             <span class="n">query_f32</span> <span class="o">=</span> <span class="n">query_vector</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
             <span class="n">distances</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">query_f32</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
-            
+
             <span class="k">return</span> <span class="n">distances</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Search failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([]),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span></div>
 
-    
+
 <div class="viewcode-block" id="FAISSIndexOptimizer.get_index_info">
 <a class="viewcode-back" href="../../api/faiss_optimizer.html#gigacode.faiss_optimizer.FAISSIndexOptimizer.get_index_info">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_index_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get information about index.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            index: FAISS index</span>
-<span class="sd">        </span>
+
 <span class="sd">        Returns:</span>
 <span class="sd">            Dictionary with index information</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -474,7 +475,7 @@
                 <span class="s2">&quot;ntotal&quot;</span><span class="p">:</span> <span class="n">index</span><span class="o">.</span><span class="n">ntotal</span><span class="p">,</span>
                 <span class="s2">&quot;index_factory_type&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">index</span><span class="p">)),</span>
             <span class="p">}</span>
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to get index info: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="p">{}</span></div>
 </div>
@@ -487,31 +488,31 @@
     <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper to create optimized index for buffer.</span>
-<span class="sd">    </span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        embeddings: Embedding matrix (N, embedding_dim)</span>
 <span class="sd">        buffer_id: Buffer identifier (for logging)</span>
 <span class="sd">        config: Configuration dictionary with optional &quot;index_type&quot;</span>
-<span class="sd">    </span>
+
 <span class="sd">    Returns:</span>
 <span class="sd">        FAISS index or None</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">config</span> <span class="o">=</span> <span class="n">config</span> <span class="ow">or</span> <span class="p">{}</span>
-    
+
     <span class="n">optimizer</span> <span class="o">=</span> <span class="n">FAISSIndexOptimizer</span><span class="p">(</span><span class="n">enable_gpu</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;enable_gpu&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
-    
+
     <span class="n">index_type</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">select_index_type</span><span class="p">(</span>
         <span class="n">vector_count</span><span class="o">=</span><span class="n">embeddings</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
         <span class="n">embedding_dim</span><span class="o">=</span><span class="n">embeddings</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
         <span class="n">force_type</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;index_type&quot;</span><span class="p">),</span>
     <span class="p">)</span>
-    
+
     <span class="n">index</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">create_optimized_index</span><span class="p">(</span>
         <span class="n">vectors</span><span class="o">=</span><span class="n">embeddings</span><span class="p">,</span>
         <span class="n">index_type</span><span class="o">=</span><span class="n">index_type</span><span class="p">,</span>
         <span class="o">**</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;faiss_params&quot;</span><span class="p">,</span> <span class="p">{}),</span>
     <span class="p">)</span>
-    
+
     <span class="k">return</span> <span class="n">index</span>
 </pre></div>
 

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath('..'))
 project = 'GigaCode'
 copyright = '2025, GigaCode Contributors'
 author = 'GigaCode Contributors'
-release = '1.0.0'
+release = '0.5.1'
 
 # -- General configuration
 extensions = [
