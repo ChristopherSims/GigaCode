@@ -1,3 +1,9 @@
+# Known Issue<br>
+**missing tools schemas for autodetection**<br>
+I know tools are missing schemas and agents arent picking up the usage unless you specify it explicitly<br> 
+Adding tool detection now (maybe expect a release on thursday/friday 5/15)
+
+# Foreword
 Noticed AI is slow at searching/parsing code so I made this.
 AI agents searching for code snippits is blazingly fast now with this tool/skill.
 
