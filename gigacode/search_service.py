@@ -296,7 +296,7 @@ class SearchService:
                             type=chunk.type,
                             name=chunk.name,
                             score=float(score),
-                            text=chunk.text[:200] if chunk.text else None,
+                            text=chunk.text,
                         )
                     )
 
@@ -436,7 +436,7 @@ class SearchService:
                         type=chunk.type,
                         name=chunk.name,
                         score=float(score) * semantic_weight,
-                        text=chunk.text[:200] if chunk.text else None,
+                        text=chunk.text,
                     )
                 )
 

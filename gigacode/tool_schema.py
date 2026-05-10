@@ -126,8 +126,8 @@ EMBED_CODEBASE_SCHEMA: dict[str, Any] = {
 SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
     "name": "semantic_search",
     "description": (
-        "Find the top-K code lines most similar to a natural-language query. "
-        "Returns only file paths, line numbers, and scores — never raw source text."
+        "Find the top-K code blocks most similar to a natural-language query. "
+        "Returns complete source code, file paths, line ranges, and relevance scores."
     ),
     "input_schema": {
         "type": "object",
@@ -157,11 +157,16 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
                 "items": {
                     "type": "object",
                     "properties": {
-                        "file": {"type": "string"},
-                        "line": {"type": "integer"},
-                        "score": {"type": "number"},
+                        "file": {"type": "string", "description": "Source file path"},
+                        "start_line": {"type": "integer", "description": "First line of match"},
+                        "end_line": {"type": "integer", "description": "Last line of match"},
+                        "line": {"type": "integer", "description": "Alias for start_line (backward compatibility)"},
+                        "score": {"type": "number", "description": "Relevance score (0.0-1.0)"},
+                        "type": {"type": "string", "description": "Symbol type (function, class, etc.)"},
+                        "name": {"type": "string", "description": "Symbol name if applicable"},
+                        "text": {"type": "string", "description": "Complete source code for the match"},
                     },
-                    "required": ["file", "line", "score"],
+                    "required": ["file", "start_line", "end_line", "score"],
                 },
             },
             "message": {"type": "string"},

@@ -373,7 +373,7 @@ class FacetedSearcher:
                 confidence=confidence,
                 score_breakdown=breakdown,
                 why=why,
-                text=chunk.text[:200] if chunk.text else None,
+                text=chunk.text,
             )
 
             # Classify as confident or uncertain
