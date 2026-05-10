@@ -6,15 +6,16 @@ import sys
 # Ensure sklearn.__spec__ is set using spec_from_file_location (real loader, no broken None-loader spec)
 try:
     import sklearn as _sk
+
     if _sk.__spec__ is None:
         _spec = importlib.util.spec_from_file_location(
-            'sklearn',
+            "sklearn",
             _sk.__file__,
             submodule_search_locations=list(_sk.__path__),
         )
         if _spec is not None:
             _sk.__spec__ = _spec
-            sys.modules['sklearn'].__spec__ = _spec
+            sys.modules["sklearn"].__spec__ = _spec
     del _sk
 except Exception:
     pass

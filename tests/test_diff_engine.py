@@ -1,11 +1,13 @@
-﻿"""Tests for src.diff_engine."""
+"""Tests for src.diff_engine."""
 
 from __future__ import annotations
 
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -31,4 +33,3 @@ def test_compute_diff_no_change() -> None:
     old = hash_lines(["a", "b"])
     new = hash_lines(["a", "b"])
     assert compute_diff(old, new) == []
-

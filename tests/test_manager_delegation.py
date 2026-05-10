@@ -1,14 +1,17 @@
-﻿"""Buffer and Index Manager Delegation Tests.
+"""Buffer and Index Manager Delegation Tests.
 
 Tests the delegation pattern for list_buffers, delete_buffer, get_cache_stats,
 and health_check methods from managers.
 
 Note: SearchService import is skipped due to pre-existing sklearn/Windows incompatibility.
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -332,4 +335,3 @@ class TestDiffDelegation:
         assert "message" in result
         # No backward compat field added on error
         assert "changed_files" not in result
-

@@ -1,8 +1,11 @@
-﻿"""Tests for State Guards and Operation Configuration."""
+"""Tests for State Guards and Operation Configuration."""
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -591,4 +594,3 @@ class TestStateGuardsIntegration:
             # Should allow queries again
             allowed, _ = cet._check_state_for_query(buffer_id)
             assert allowed is True
-

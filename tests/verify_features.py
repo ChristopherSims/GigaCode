@@ -1,16 +1,19 @@
-﻿# CRITICAL: Initialize sklearn FIRST before any gigacode imports
+# CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
     pass
 
+from gigacode.chunker import chunk_text
+
 #!/usr/bin/env python3
 """Verify all recent feature implementations."""
 
-from gigacode.chunker import chunk_text
 
 # Verify all recent features
 print("Response types (SearchResponse, SearchMatch)")
@@ -38,4 +41,3 @@ print("All recent implementations verified!")
 print("   - Chunk size control (Issue 8) ")
 print("   - API consistency (Issue 4) ")
 print("   - Health check endpoint (Issue 13)")
-

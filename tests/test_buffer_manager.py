@@ -1,11 +1,14 @@
-﻿"""Tests for BufferManager class.
+"""Tests for BufferManager class.
 
 Tests buffer registry, lifecycle, and file I/O operations.
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -480,4 +483,3 @@ class TestCommit:
         assert result["status"] == "ok"
         assert result["written_files"] == []
         assert result["conflict_files"] == []
-

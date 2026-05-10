@@ -233,7 +233,7 @@ class StateManager:
             locker = FileLocker(self.registry_path)
             if not locker.acquire(timeout=1.0):
                 if attempt < max_retries - 1:
-                    logger.debug(f"Lock acquisition attempt {attempt+1} failed, retrying...")
+                    logger.debug(f"Lock acquisition attempt {attempt + 1} failed, retrying...")
                     time.sleep(0.1 * (2**attempt))
                 continue
 

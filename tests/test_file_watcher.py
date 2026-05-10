@@ -1,8 +1,11 @@
-﻿"""Tests for src.file_watcher."""
+"""Tests for src.file_watcher."""
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -41,4 +44,3 @@ def test_polling_watcher():
         time.sleep(3)
         watcher.stop_all()
         assert "buf1" in tool.calls
-

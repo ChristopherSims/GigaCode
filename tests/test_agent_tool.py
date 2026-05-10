@@ -1,4 +1,4 @@
-﻿"""End-to-end tests for the agent tool (chunk-level, FAISS backend)."""
+"""End-to-end tests for the agent tool (chunk-level, FAISS backend)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import types
 
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -777,4 +778,3 @@ def test_edge_case_empty_file_edit(tmp_path: Path) -> None:
     assert commit_result["status"] == "ok"
 
     tool.close()
-

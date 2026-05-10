@@ -182,7 +182,7 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
 def main(argv: list[str] | None = None) -> int:
     if not _HAS_MCP:
         print(
-            "ERROR: MCP SDK not installed. Install with:\n" "  pip install mcp>=1.1.0\n",
+            "ERROR: MCP SDK not installed. Install with:\n  pip install mcp>=1.1.0\n",
             file=sys.stderr,
         )
         return 1

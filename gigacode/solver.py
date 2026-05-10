@@ -175,7 +175,7 @@ class SolveExecutor:
                     # Check token budget
                     if result.tokens_used >= result.tokens_budget * 0.9:
                         result.summary = (
-                            f"Completed in {iteration + 1} iterations " f"(approaching token limit)"
+                            f"Completed in {iteration + 1} iterations (approaching token limit)"
                         )
                         result.next_step = "Approve changes with tool.commit(task_id='{}')".format(
                             task_id
@@ -201,7 +201,7 @@ class SolveExecutor:
                             f"using {result.tokens_used} tokens"
                         )
                         result.next_step = (
-                            "Review changes, then approve with " f"tool.commit(task_id='{task_id}')"
+                            f"Review changes, then approve with tool.commit(task_id='{task_id}')"
                         )
                         break
 

@@ -1,12 +1,15 @@
-﻿"""Search Operations Delegation Tests.
+"""Search Operations Delegation Tests.
 
 Tests the delegation pattern for search_for, look_for_file, search_symbols,
 cluster_code, and find_duplicates.
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -331,4 +334,3 @@ class TestPhase5bIntegration:
         cet_with_service.search_symbols("test", "symbol")
         cet_with_service.cluster_code("test")
         cet_with_service.find_duplicates("test")
-

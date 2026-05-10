@@ -635,9 +635,9 @@ class IndexManager:
         index_util = cache_stats["index_cache"]["utilization"]
         if index_util > 0.9:
             status = "degraded"
-            warnings.append(f"Index cache at {index_util*100:.0f}% utilization")
+            warnings.append(f"Index cache at {index_util * 100:.0f}% utilization")
         elif index_util > 0.75:
-            warnings.append(f"Index cache at {index_util*100:.0f}% utilization")
+            warnings.append(f"Index cache at {index_util * 100:.0f}% utilization")
 
         # Check GPU availability
         gpu_status = self._check_gpu_memory()

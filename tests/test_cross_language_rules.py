@@ -1,11 +1,13 @@
-﻿"""Tests for language-agnostic editing rules."""
+"""Tests for language-agnostic editing rules."""
 
 from __future__ import annotations
 
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -87,4 +89,3 @@ def test_no_change_for_clean_file(tmp_path: Path) -> None:
     # but bare except and resource rules should not fire.
     assert not any(c["rule"] == "fix_bare_except" for c in result.changes)
     assert not any(c["rule"] == "fix_resource_open" for c in result.changes)
-

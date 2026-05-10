@@ -1,11 +1,13 @@
-﻿"""Tests for formal tool schemas (Phase 6.1)."""
+"""Tests for formal tool schemas (Phase 6.1)."""
 
 from __future__ import annotations
 
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -67,4 +69,3 @@ def test_output_schemas_never_contain_source_text() -> None:
                 assert (
                     "source_text" not in item_props
                 ), f"{schema['name']} leaks source_text in array items"
-

@@ -1,11 +1,14 @@
-﻿"""Buffer State Machine Integration Tests.
+"""Buffer State Machine Integration Tests.
 
 Focuses on state machine functionality independent of full write_code workflow.
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -175,7 +178,7 @@ class TestWriteCodeStateValidation:
         """Test that write_code allows DIRTY state (for multi-file edits)."""
         cet = setup["cet"]
         buffer_id = setup["buffer_id"]
-        
+
         # If BufferManager not initialized, skip test
         if cet._buffer_manager is None:
             pytest.skip("BufferManager not initialized in test setup")
@@ -277,4 +280,3 @@ class TestDiscardStateTransition:
 
         # Check transitioned to READY
         assert cet._get_buffer_state(buffer_id) == BufferState.READY
-

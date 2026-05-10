@@ -1,11 +1,14 @@
-﻿"""Tests for Prometheus metrics exporter (Phase 7).
+"""Tests for Prometheus metrics exporter (Phase 7).
 
 Validates HTTP endpoint, Prometheus format, and metric collection.
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -378,4 +381,3 @@ class TestMetricsExporterErrorHandling:
         exporter = PrometheusMetricsExporter(port=19110)
         exporter.stop()  # Should not crash
         assert True
-

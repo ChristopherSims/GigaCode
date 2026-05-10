@@ -266,7 +266,11 @@ class SearchService:
 
             # Embed query
             query_embedding_arr = self._embedder.encode([normalized_query], batch_size=1)
-            query_embedding = query_embedding_arr[0] if query_embedding_arr is not None and len(query_embedding_arr) > 0 else None
+            query_embedding = (
+                query_embedding_arr[0]
+                if query_embedding_arr is not None and len(query_embedding_arr) > 0
+                else None
+            )
             if query_embedding is None:
                 return {
                     "status": "error",
@@ -707,7 +711,7 @@ class SearchService:
             # Sort by score and take top_k name matches
             scored_symbols.sort(key=lambda x: x[0], reverse=True)
             name_matches = [m for _, m in scored_symbols[:top_k]]
-            
+
             # If fewer than top_k name matches, add semantic matches
             if len(name_matches) < top_k:
                 # Try semantic search for symbols
@@ -715,11 +719,19 @@ class SearchService:
                     index = self._index_manager._get_index(buffer_id)
                     if index is not None:
                         # Embed query
-                        query_embedding_arr = self._embedder.encode([normalized_query], batch_size=1)
-                        query_embedding = query_embedding_arr[0] if query_embedding_arr is not None and len(query_embedding_arr) > 0 else None
+                        query_embedding_arr = self._embedder.encode(
+                            [normalized_query], batch_size=1
+                        )
+                        query_embedding = (
+                            query_embedding_arr[0]
+                            if query_embedding_arr is not None and len(query_embedding_arr) > 0
+                            else None
+                        )
                         if query_embedding is not None:
                             # Search in index
-                            scores, indices = index.search(np.array([query_embedding], dtype=np.float32), k=top_k * 2)
+                            scores, indices = index.search(
+                                np.array([query_embedding], dtype=np.float32), k=top_k * 2
+                            )
                             # Add semantic matches
                             for score, idx in zip(scores[0], indices[0], strict=False):
                                 if idx >= 0 and idx < len(chunks):

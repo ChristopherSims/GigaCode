@@ -126,7 +126,7 @@ class ConfidenceScorer:
                 return f"Very strong match (score={score:.3f}). High confidence."
             if len(sorted_scores) >= 2:
                 gap = sorted_scores[0] - sorted_scores[1]
-                return f"Top result stands out from rest " f"(gap={gap:.3f}, score={score:.3f})."
+                return f"Top result stands out from rest (gap={gap:.3f}, score={score:.3f})."
             return f"Strong signal (score={score:.3f})."
 
         if confidence == "low":

@@ -335,8 +335,12 @@ class BufferManager:
         """Atomically save registry to disk."""
         import os as _os
         import threading as _threading
+
         try:
-            temp_path = self._registry_path.parent / f".{self._registry_path.name}.tmp.{_os.getpid()}.{_threading.get_ident()}"
+            temp_path = (
+                self._registry_path.parent
+                / f".{self._registry_path.name}.tmp.{_os.getpid()}.{_threading.get_ident()}"
+            )
             temp_path.write_text(
                 json.dumps(self._registry, ensure_ascii=False, indent=2), encoding="utf-8"
             )
@@ -1050,8 +1054,11 @@ class BufferManager:
             # Determine if disk changed vs snapshot (by line count or content)
             disk_lines = diff_result.get("disk_lines")
             snap_line_count = diff_result.get("snapshot_line_count")
-            disk_changed = (disk_lines is not None and snap_line_count is not None
-                           and len(disk_lines) != snap_line_count)
+            disk_changed = (
+                disk_lines is not None
+                and snap_line_count is not None
+                and len(disk_lines) != snap_line_count
+            )
 
             if disk_changed:
                 if dirty.get(fname, False):

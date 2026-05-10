@@ -1,8 +1,11 @@
-﻿"""Tests for semantic similarity matching in QueryCache."""
+"""Tests for semantic similarity matching in QueryCache."""
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -280,4 +283,3 @@ def test_query_cache_embedding_failure_graceful():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

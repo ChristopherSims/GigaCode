@@ -1,14 +1,17 @@
-﻿"""Tests for streaming support module.
+"""Tests for streaming support module.
 
 Tests cover:
 - File streaming with various sizes
 - Chunk boundary preservation
 - Integration with existing code
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -297,4 +300,3 @@ function multiply(a, b) {
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

@@ -241,7 +241,7 @@ class IncrementalIndexManager:
 
         # Embed only changed chunks
         logger.info(
-            "Computing incremental embeddings for %s: " "%d changed, %d kept, %d removed",
+            "Computing incremental embeddings for %s: %d changed, %d kept, %d removed",
             file_path,
             len(changed_chunks),
             len(kept_chunk_ids),

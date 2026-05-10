@@ -9,6 +9,7 @@ Key Concepts:
     - AuditStatus: Whether an action succeeded, failed, or was denied
     - AuditLogEntry: A single record of one action
 """
+
 from __future__ import annotations
 
 # Additional documentation:

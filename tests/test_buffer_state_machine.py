@@ -1,11 +1,14 @@
-﻿"""Buffer State Machine Tests.
+"""Buffer State Machine Tests.
 
 Verifies state transitions and lifecycle management.
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -154,4 +157,3 @@ class TestBufferStateLifecycle:
         # Can't stay in same state
         assert not BufferStateTransition.is_valid(BufferState.READY, BufferState.READY)
         assert not BufferStateTransition.is_valid(BufferState.DIRTY, BufferState.DIRTY)
-

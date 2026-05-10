@@ -545,7 +545,7 @@ def _add_visibility_modifiers(
         match = member_re.match(line)
         if match:
             indent = match.group(1)
-            out.append(f"{indent}private {match.group(2)} {match.group(3)}{line[match.end(3):]}")
+            out.append(f"{indent}private {match.group(2)} {match.group(3)}{line[match.end(3) :]}")
             changes.append(
                 {
                     "rule": "add_visibility",

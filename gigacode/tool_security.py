@@ -133,7 +133,7 @@ class ToolSecurityLayer:
             raise QueryLimitExceeded("query must be a non-empty string")
         if len(query) > max_length:
             raise QueryLimitExceeded(
-                f"query exceeds maximum length of {max_length} characters " f"(got {len(query)}"
+                f"query exceeds maximum length of {max_length} characters (got {len(query)}"
             )
 
     def validate_buffer_id(self, buffer_id: str) -> None:

@@ -57,13 +57,12 @@ class OptimizedEmbedder:
                     cache_enabled=True,
                 )
                 logger.info(
-                    "OptimizedEmbedder initialized with batch optimization "
-                    "(threshold: %d texts)",
+                    "OptimizedEmbedder initialized with batch optimization (threshold: %d texts)",
                     batch_threshold,
                 )
             except (RuntimeError, OSError, ImportError, ValueError) as e:
                 logger.warning(
-                    "Failed to initialize BatchEmbedder: %s. " "Will use standard embedder.", e
+                    "Failed to initialize BatchEmbedder: %s. Will use standard embedder.", e
                 )
                 self._batch_processor = None
 

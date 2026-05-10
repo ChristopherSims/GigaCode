@@ -1,8 +1,11 @@
-﻿"""Tests for src.duplicate_detector."""
+"""Tests for src.duplicate_detector."""
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -46,4 +49,3 @@ def test_exact_duplicate():
     dups = find_duplicates(chunks, threshold=0.9)
     assert len(dups) >= 1
     assert dups[0]["similarity"] >= 0.9
-

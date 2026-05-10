@@ -1,11 +1,14 @@
-﻿"""Tests for SearchService class.
+"""Tests for SearchService class.
 
 Tests semantic search, hybrid search, literal search, clustering, and deduplication.
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -427,7 +430,7 @@ class TestCaching:
         # This test verifies that semantic_search is callable without errors
         # Full integration testing of result recording is covered by integration tests
         result = search_service.semantic_search("test_buf", "test")
-        
+
         # Should return a result dict (may be error or success depending on fixtures)
         assert isinstance(result, dict)
         assert "status" in result or "matches" in result
@@ -509,4 +512,3 @@ class TestResponseTypes:
                 assert hasattr(match, "file")
                 assert hasattr(match, "score")
                 assert 0.0 <= match.score <= 1.0
-

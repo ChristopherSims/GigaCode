@@ -1,8 +1,11 @@
-﻿"""Tests for Access Control, Audit Logging, and Rate Limiting."""
+"""Tests for Access Control, Audit Logging, and Rate Limiting."""
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -467,4 +470,3 @@ class TestAccessControlIntegration:
             entries = logger.query_logs(user_id="user1")
             assert len(entries) == 1
             assert entries[0].status == "failure"
-

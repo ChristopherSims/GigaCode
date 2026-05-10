@@ -1,14 +1,17 @@
-﻿"""Performance benchmarking for
+"""Performance benchmarking for
 
 Measures:
 - Embedding speed improvements (batch + incremental)
 - Query cache hit rates and speedup
 - Index type performance characteristics
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -90,7 +93,7 @@ def benchmark_incremental_indexing():
 
     print(f"  Full re-embed:      {full_reembed_time:.1f}ms")
     print(f"  Incremental update: {incremental_time:.1f}ms")
-    print(f"  Speedup:            {full_reembed_time/incremental_time:.1f}x")
+    print(f"  Speedup:            {full_reembed_time / incremental_time:.1f}x")
 
     # Scenario 2: Medium change (10% modification)
     print("\nScenario 2: Medium change (10% modification)")
@@ -108,7 +111,7 @@ def benchmark_incremental_indexing():
 
     print(f"  Full re-embed:      {full_reembed_time:.1f}ms")
     print(f"  Incremental update: {incremental_time:.1f}ms")
-    print(f"  Speedup:            {full_reembed_time/incremental_time:.1f}x")
+    print(f"  Speedup:            {full_reembed_time / incremental_time:.1f}x")
 
     # Scenario 3: Large change (50% modification)
     print("\nScenario 3: Large change (50% modification)")
@@ -126,7 +129,7 @@ def benchmark_incremental_indexing():
 
     print(f"  Full re-embed:      {full_reembed_time:.1f}ms")
     print(f"  Incremental update: {incremental_time:.1f}ms")
-    print(f"  Speedup:            {full_reembed_time/incremental_time:.1f}x")
+    print(f"  Speedup:            {full_reembed_time / incremental_time:.1f}x")
 
     print("\n[OK] Incremental indexing provides 5-50x speedup depending on change size")
 
@@ -170,11 +173,11 @@ def benchmark_semantic_cache():
             cache_misses += 1
             mock_results = {"matches": [{"name": f"match_{i}", "score": 0.9}]}
             cache.put(query, mock_results)
-            print(f"  {i+1}. MISS: '{query[:40]:40s}' ({lookup_time:.2f}ms)")
+            print(f"  {i + 1}. MISS: '{query[:40]:40s}' ({lookup_time:.2f}ms)")
         else:
             cache_hits += 1
             match_type = "exact" if result[1] else "semantic"
-            print(f"  {i+1}. HIT ({match_type:8s}): '{query[:40]:40s}' ({lookup_time:.2f}ms)")
+            print(f"  {i + 1}. HIT ({match_type:8s}): '{query[:40]:40s}' ({lookup_time:.2f}ms)")
 
     stats = cache.get_stats()
     print("\nCache Statistics:")
@@ -241,7 +244,7 @@ def benchmark_batch_embedding():
 
     print(f"  Sequential (1 at a time): {sequential_time:.1f}ms")
     print(f"  Batch (all at once):      {batch_time:.1f}ms")
-    print(f"  Speedup:                  {sequential_time/batch_time:.1f}x")
+    print(f"  Speedup:                  {sequential_time / batch_time:.1f}x")
 
     print("\n[OK] Batch processing provides 2-5x speedup")
 
@@ -307,4 +310,3 @@ if __name__ == "__main__":
 
         traceback.print_exc()
         exit(1)
-

@@ -1,8 +1,11 @@
-﻿"""Tests for metadata-only snapshot management."""
+"""Tests for metadata-only snapshot management."""
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -391,7 +394,7 @@ class TestSnapshotMemoryEfficiency:
             logger.info(
                 f"Source: {len(large_content)} bytes, "
                 f"Manifest: {manifest_size} bytes "
-                f"({100*manifest_size/len(large_content):.1f}%)"
+                f"({100 * manifest_size / len(large_content):.1f}%)"
             )
 
 
@@ -402,4 +405,3 @@ logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

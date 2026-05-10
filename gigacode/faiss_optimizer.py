@@ -183,7 +183,7 @@ class FAISSIndexOptimizer:
 
             logger.info(
                 f"Creating {index_type} index for {vector_count} vectors "
-                f"({vector_count*embedding_dim*4/1024/1024:.1f}MB)"
+                f"({vector_count * embedding_dim * 4 / 1024 / 1024:.1f}MB)"
             )
 
             # Create index

@@ -213,6 +213,7 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
             # Fallback empty caches when IndexManager unavailable
             from gigacode.lru_cache import LRUDict
             from gigacode.query_cache import QueryCache as _QueryCache
+
             self._index_cache: dict[str, Any] = LRUDict(max_size=max_buffers)
             self._lexical_cache: dict[str, Any] = LRUDict(max_size=max_buffers)
             self._query_cache: Any = _QueryCache()
@@ -2295,12 +2296,14 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
                 or len(diff_info.get("removed_lines", [])) > 0
             )
             if has_changes:
-                changed_files.append({
-                    "file": fname,
-                    "buffer_lines": len(diff_info.get("buffer_lines", [])),
-                    "disk_lines": len(diff_info.get("disk_lines", [])),
-                    "dirty": True,
-                })
+                changed_files.append(
+                    {
+                        "file": fname,
+                        "buffer_lines": len(diff_info.get("buffer_lines", [])),
+                        "disk_lines": len(diff_info.get("disk_lines", [])),
+                        "dirty": True,
+                    }
+                )
 
         result["changed_files"] = changed_files
         return result

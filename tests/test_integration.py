@@ -1,12 +1,15 @@
-﻿"""Integration tests for GigaCode critical workflows.
+"""Integration tests for GigaCode critical workflows.
 
 Tests validate write_code + commit integration, concurrent operations, cache behavior,
 resource cleanup, and GPU/CPU fallback under various conditions.
 """
+
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
+
 try:
     import sklearn
+
     if getattr(sklearn, "__spec__", None) is None:
         sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
 except Exception:
@@ -482,4 +485,3 @@ class TestHealthCheckAndMetrics:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
-
