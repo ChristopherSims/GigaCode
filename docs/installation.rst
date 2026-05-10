@@ -186,6 +186,41 @@ First search is slower (index loading). Subsequent searches are cached and faste
 
     pip install ".[gpu]"
 
+Build Documentation
+~~~~~~~~~~~~~~~~~~~
+
+GigaCode uses Sphinx to generate HTML documentation. Documentation is **built automatically on every push to CI/CD**, but you can also build it locally.
+
+**Build docs locally:**
+
+.. code-block:: bash
+
+    cd docs
+    sphinx-build -M html . _build
+
+**View the documentation:**
+
+.. code-block:: bash
+
+    # Open in browser
+    open _build/html/index.html  # macOS
+    start _build/html/index.html  # Windows
+    xdg-open _build/html/index.html  # Linux
+
+**Clean build (remove old builds):**
+
+.. code-block:: bash
+
+    cd docs
+    make clean
+    sphinx-build -M html . _build
+
+**CI/CD Automatic Documentation:**
+
+- Documentation is built automatically on every push to ``main`` branch
+- Built docs are available as artifacts in GitHub Actions (``docs-html-{run_id}``)
+- Future: Docs can be deployed to GitHub Pages automatically
+
 Development Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -201,12 +236,12 @@ Run tests:
 
     pytest tests/ -v
 
-Build documentation:
+Build documentation (as shown above):
 
 .. code-block:: bash
 
     cd docs
-    make html
+    sphinx-build -M html . _build
 
 System-Specific Notes
 ~~~~~~~~~~~~~~~~~~~~~
