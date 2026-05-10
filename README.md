@@ -1,4 +1,4 @@
-#Know Issue<br>
+# Known Issue<br>
 **missing tools schemas for autodetection**<br>
 I know tools are missing schemas and agents arent picking up the usage unless you specify it explicitly adding tool detection now (maybe expect a release on thursday/friday 5/15)
 
