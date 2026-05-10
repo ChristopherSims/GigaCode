@@ -237,7 +237,7 @@ def test_search_symbols(tmp_path: Path) -> None:
 
 
 def test_write_code_conflict_detection(tmp_path: Path) -> None:
-    """Phase 2: Detect 3-way merge conflicts in write_code()."""
+    """Detect 3-way merge conflicts in write_code()."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "config.py").write_text(
@@ -271,7 +271,7 @@ def test_write_code_conflict_detection(tmp_path: Path) -> None:
 
 
 def test_write_code_no_conflict_disk_unchanged(tmp_path: Path) -> None:
-    """Phase 2: Single write succeeds when disk hasn't changed externally."""
+    """Single write succeeds when disk hasn't changed externally."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "simple.py").write_text(
@@ -294,7 +294,7 @@ def test_write_code_no_conflict_disk_unchanged(tmp_path: Path) -> None:
 
 
 def test_commit_no_conflicts(tmp_path: Path) -> None:
-    """Phase 3: Commit writes files to disk when no conflicts."""
+    """Commit writes files to disk when no conflicts."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "script.py").write_text(
@@ -333,7 +333,7 @@ def test_commit_no_conflicts(tmp_path: Path) -> None:
 
 
 def test_commit_with_3way_merge_conflict(tmp_path: Path) -> None:
-    """Phase 3: Commit detects conflicts when both disk and buffer modified."""
+    """Commit detects conflicts when both disk and buffer modified."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "data.py").write_text(
@@ -381,7 +381,7 @@ def test_commit_with_3way_merge_conflict(tmp_path: Path) -> None:
 
 
 def test_commit_dry_run(tmp_path: Path) -> None:
-    """Phase 3: Dry run checks what would be written without modifying."""
+    """Dry run checks what would be written without modifying."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "test.py").write_text(
@@ -429,7 +429,7 @@ def test_commit_dry_run(tmp_path: Path) -> None:
 
 
 def test_commit_with_transaction_logging(tmp_path: Path) -> None:
-    """Phase 4: Commit operations are wrapped in transactions for crash recovery."""
+    """Commit operations are wrapped in transactions for crash recovery."""
     import json
 
     code_dir = tmp_path / "code"
@@ -472,7 +472,7 @@ def test_commit_with_transaction_logging(tmp_path: Path) -> None:
 
 
 def test_commit_transaction_contains_file_info(tmp_path: Path) -> None:
-    """Phase 4: Transaction logs include file information for recovery."""
+    """Transaction logs include file information for recovery."""
     import json
 
     code_dir = tmp_path / "code"
@@ -520,7 +520,7 @@ def test_commit_transaction_contains_file_info(tmp_path: Path) -> None:
 
 
 def test_commit_with_state_manager_recovery(tmp_path: Path) -> None:
-    """Phase 4: StateManager recovers from incomplete transactions on restart."""
+    """StateManager recovers from incomplete transactions on restart."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "util.py").write_text(
@@ -568,12 +568,12 @@ def test_commit_with_state_manager_recovery(tmp_path: Path) -> None:
 
 
 # ============================================================================
-# Phase 5: Integration Testing and Validation
+# Integration Testing and Validation
 # ============================================================================
 
 
 def test_multi_file_concurrent_edits(tmp_path: Path) -> None:
-    """Phase 5: Edit multiple files in one buffer and verify writes succeed."""
+    """Edit multiple files in one buffer and verify writes succeed."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "file1.py").write_text("x = 1\n", encoding="utf-8")
@@ -599,7 +599,7 @@ def test_multi_file_concurrent_edits(tmp_path: Path) -> None:
 
 
 def test_complex_conflict_3way_merge(tmp_path: Path) -> None:
-    """Phase 5: Test real 3-way merge scenario (snapshot, disk, buffer all different)."""
+    """Test real 3-way merge scenario (snapshot, disk, buffer all different)."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     original = "line1\nline2\nline3\nline4\nline5\n"
@@ -636,7 +636,7 @@ def test_complex_conflict_3way_merge(tmp_path: Path) -> None:
 
 
 def test_search_after_multi_edit_commit(tmp_path: Path) -> None:
-    """Phase 5: Verify embeddings are updated after multi-file edits and commit."""
+    """Verify embeddings are updated after multi-file edits and commit."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "search_test.py").write_text(
@@ -673,7 +673,7 @@ def test_search_after_multi_edit_commit(tmp_path: Path) -> None:
 
 
 def test_large_file_edit_and_commit(tmp_path: Path) -> None:
-    """Phase 5: Test with larger files to verify performance and correctness."""
+    """Test with larger files to verify performance and correctness."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
 
@@ -704,7 +704,7 @@ def test_large_file_edit_and_commit(tmp_path: Path) -> None:
 
 
 def test_multiple_concurrent_buffers(tmp_path: Path) -> None:
-    """Phase 5: Test multiple buffers being edited and committed simultaneously."""
+    """Test multiple buffers being edited and committed simultaneously."""
     work_dir = tmp_path / "work"
     tool = CodeEmbeddingTool(work_dir=work_dir, device="cpu", use_gpu=False)
 
@@ -758,7 +758,7 @@ def test_multiple_concurrent_buffers(tmp_path: Path) -> None:
 
 
 def test_edge_case_empty_file_edit(tmp_path: Path) -> None:
-    """Phase 5: Test editing single-line files."""
+    """Test editing single-line files."""
     code_dir = tmp_path / "code"
     code_dir.mkdir()
     (code_dir / "single.py").write_text("x = 1\n", encoding="utf-8")

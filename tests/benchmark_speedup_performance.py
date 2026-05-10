@@ -278,7 +278,7 @@ def benchmark_combined_impact():
     print(f"  10 edits:         {baseline_edits:.1f}s")
     print(f"  Total:            {baseline_total:.1f}s")
 
-    print("\nWith Phase 3 optimizations:")
+    print("\nWith optimizations:")
     print(f"  Initial indexing: {optimized_initial:.1f}s (same)")
     print(f"  100 searches:     {optimized_searches:.1f}s (-50%)")
     print(f"  10 edits:         {optimized_edits:.1f}s (-90%)")
@@ -291,7 +291,7 @@ def benchmark_combined_impact():
 
 if __name__ == "__main__":
     print("\n" + "=" * 80)
-    print("FUTURE 4.3 PHASE 3: PERFORMANCE BENCHMARKS")
+    print("PERFORMANCE BENCHMARKS")
     print("=" * 80)
 
     try:

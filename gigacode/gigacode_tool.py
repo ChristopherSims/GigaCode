@@ -40,7 +40,6 @@ from gigacode.metrics_exporter import configure_prometheus
 from gigacode.multi_buffer import MultiBufferManager
 from gigacode.operation_config import OperationConfig, OperationType
 from gigacode.path_utils import validate_buffer_path
-from gigacode.phases_integration import PhasesIntegrationMixin
 from gigacode.progress_stream import ProgressReporter
 from gigacode.quality_scorer import QualityScorer
 from gigacode.refactor_engine import (
@@ -76,7 +75,7 @@ json_logger = StructuredJsonLogger("tool")
 _MAX_DIRTY_BEFORE_AUTO_REBUILD = 3
 
 
-class CodeEmbeddingTool(PhasesIntegrationMixin):
+class CodeEmbeddingTool:
     """Embed a codebase into GPU/CPU buffers and expose search + cluster.
 
     Args:
@@ -132,20 +131,20 @@ class CodeEmbeddingTool(PhasesIntegrationMixin):
         )
         self._embedding_dim = self._embedder.embedding_dim
 
-        # Phase 4: State manager for crash recovery and transaction safety
+        # State manager for crash recovery and transaction safety
         # Enables write-ahead logging (WAL) for commit operations
         self._state_manager = StateManager(self.work_dir)
 
-        # Phase 6: Health status tracker for state-based access control
+        # Health status tracker for state-based access control
         self._health_tracker = HealthStatusTracker()
 
-        # Phase 7: Security layer (RBAC, audit logging, and rate limiting)
+        # Security layer (RBAC, audit logging, and rate limiting)
         self._security = ToolSecurityLayer(self.work_dir)
 
-        # Phase 10: Multi-turn conversation memory
+        # Multi-turn conversation memory
         self._conversation_memory = ConversationMemory(self.work_dir / "memories.json")
 
-        # Phase 4 Integration: Initialize the three manager layers
+        # Initialize the three manager layers
         # These provide separation of concerns for buffer mgmt, indexing, and search
         # Note: SearchService may fail on import if optional deps (sklearn) are missing
         self._buffer_manager = None

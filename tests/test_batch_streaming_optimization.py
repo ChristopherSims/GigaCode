@@ -1,4 +1,5 @@
-"""Integration tests for Future 4.3 Phase 2 optimizations.
+"""Integration tests for batch streaming and optimization.
+
 
 Tests verify:
 1. Batch embedder integration into CodeEmbeddingTool
@@ -157,7 +158,7 @@ def test_large_file_detection():
 
 if __name__ == "__main__":
     print("\n" + "=" * 80)
-    print("FUTURE 4.3 PHASE 2: INTEGRATION TESTS")
+    print("BATCH STREAMING & OPTIMIZATION: INTEGRATION TESTS")
     print("=" * 80)
 
     tests = [

@@ -1,5 +1,5 @@
 """
-Phase 8: Conflict Prediction
+Conflict Prediction
 
 Predicts potential merge conflicts by analyzing commits since embed time,
 warning users before they attempt to commit.
