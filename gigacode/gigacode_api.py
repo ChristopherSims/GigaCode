@@ -25,6 +25,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from typing import Optional, List
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ logger = logging.getLogger(__name__)
 class EmbedRequest(BaseModel):
     path: str
     pattern: str = "*.py"
-    language_hint: str | None = None
+    language_hint: Optional[str] = None
 
 
 class SearchRequest(BaseModel):
@@ -44,6 +45,8 @@ class SearchRequest(BaseModel):
     query: str
     top_k: int = 5
     offset: int = 0
+    include_types: bool = False
+    type_inference_method: str = "llm"
 
 
 class HybridSearchRequest(BaseModel):
@@ -70,9 +73,9 @@ class SymbolSearchRequest(BaseModel):
 
 class ReadRequest(BaseModel):
     buffer_id: str
-    file: str | None = None
+    file: Optional[str] = None
     start_line: int = 1
-    end_line: int | None = None
+    end_line: Optional[int] = None
 
 
 class LookForFileRequest(BaseModel):
@@ -84,8 +87,8 @@ class WriteRequest(BaseModel):
     buffer_id: str
     file: str
     start_line: int
-    new_lines: list[str]
-    end_line: int | None = None
+    new_lines: List[str]
+    end_line: Optional[int] = None
 
 
 class CommitRequest(BaseModel):
@@ -95,7 +98,7 @@ class CommitRequest(BaseModel):
 
 class DiscardRequest(BaseModel):
     buffer_id: str
-    file: str | None = None
+    file: Optional[str] = None
 
 
 class DeleteBufferRequest(BaseModel):
@@ -105,6 +108,58 @@ class DeleteBufferRequest(BaseModel):
 class CallRequest(BaseModel):
     tool: str
     args: dict[str, Any] = Field(default_factory=dict)
+
+
+class BatchSearchRequest(BaseModel):
+    buffer_id: str
+    queries: List[str]
+    top_k: int = 5
+    include_types: bool = False
+    type_inference_method: str = "llm"
+
+
+class InferTypesRequest(BaseModel):
+    buffer_id: str
+    symbol: str
+    method: str = "llm"
+
+
+class SymbolMetadataRequest(BaseModel):
+    buffer_id: str
+    symbol: str
+    include_types: bool = True
+    type_inference_method: str = "ast"
+
+
+class AutoFormatRequest(BaseModel):
+    buffer_id: str
+    files: Optional[List[str]] = None
+    formatter: str = "black"
+    line_length: int = 88
+    skip_magic_trailing_comma: bool = False
+    dry_run: bool = True
+    exclude_patterns: Optional[List[str]] = None
+
+
+class AutoLintRequest(BaseModel):
+    buffer_id: str
+    files: Optional[List[str]] = None
+    select: Optional[List[str]] = None
+    ignore: Optional[List[str]] = None
+    auto_fix: bool = False
+    dry_run: bool = True
+    exclude_patterns: Optional[List[str]] = None
+
+
+class AutoPolishRequest(BaseModel):
+    buffer_id: str
+    files: Optional[List[str]] = None
+    format_with: str = "black"
+    auto_fix_lints: bool = True
+    line_length: int = 88
+    ruff_select: Optional[List[str]] = None
+    exclude_patterns: Optional[List[str]] = None
+    dry_run: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +223,10 @@ def create_app(tool: Any) -> FastAPI:
     # ------------------------------------------------------------------
     @app.post("/search/semantic")
     async def semantic_search(req: SearchRequest) -> dict[str, Any]:
-        result = tool.semantic_search(req.buffer_id, req.query, top_k=req.top_k, offset=req.offset)
+        result = tool.semantic_search(
+            req.buffer_id, req.query, top_k=req.top_k, offset=req.offset,
+            include_types=req.include_types, type_inference_method=req.type_inference_method,
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
@@ -262,6 +320,69 @@ def create_app(tool: Any) -> FastAPI:
     @app.post("/discard")
     async def discard(req: DiscardRequest) -> dict[str, Any]:
         result = tool.discard(req.buffer_id, file=req.file)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    # ------------------------------------------------------------------
+    # New Feature Endpoints (Phase 1)
+    # ------------------------------------------------------------------
+    @app.post("/search/batch")
+    async def batch_search(req: BatchSearchRequest) -> dict[str, Any]:
+        result = tool.search_batch(
+            req.buffer_id, req.queries, top_k=req.top_k,
+            include_types=req.include_types, type_inference_method=req.type_inference_method,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/types/infer")
+    async def infer_types(req: InferTypesRequest) -> dict[str, Any]:
+        result = tool.infer_types(req.buffer_id, req.symbol, method=req.method)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/symbols/metadata")
+    async def symbol_metadata(req: SymbolMetadataRequest) -> dict[str, Any]:
+        result = tool.get_symbol_metadata(
+            req.buffer_id, req.symbol, include_types=req.include_types,
+            type_inference_method=req.type_inference_method,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/quality/format")
+    async def auto_format_endpoint(req: AutoFormatRequest) -> dict[str, Any]:
+        result = tool.auto_format(
+            req.buffer_id, files=req.files, formatter=req.formatter,
+            line_length=req.line_length, skip_magic_trailing_comma=req.skip_magic_trailing_comma,
+            dry_run=req.dry_run, exclude_patterns=req.exclude_patterns,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/quality/lint")
+    async def auto_lint_endpoint(req: AutoLintRequest) -> dict[str, Any]:
+        result = tool.auto_lint(
+            req.buffer_id, files=req.files, select=req.select, ignore=req.ignore,
+            auto_fix=req.auto_fix, dry_run=req.dry_run, exclude_patterns=req.exclude_patterns,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/quality/polish")
+    async def auto_polish_endpoint(req: AutoPolishRequest) -> dict[str, Any]:
+        result = tool.auto_polish(
+            req.buffer_id, files=req.files, format_with=req.format_with,
+            auto_fix_lints=req.auto_fix_lints, line_length=req.line_length,
+            ruff_select=req.ruff_select, exclude_patterns=req.exclude_patterns,
+            dry_run=req.dry_run,
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result

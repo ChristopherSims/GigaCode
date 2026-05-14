@@ -4874,3 +4874,137 @@ class CodeEmbeddingTool:
 
     def __exit__(self, *args: Any) -> None:
         self.close()
+
+    # ------------------------------------------------------------------
+    # Async variants (Phase 1)
+    # ------------------------------------------------------------------
+    async def semantic_search_async(
+        self,
+        buffer_id: str,
+        query: str,
+        top_k: int = 5,
+        offset: int = 0,
+        include_types: bool = False,
+        type_inference_method: str = "llm",
+    ) -> dict[str, Any]:
+        """Async semantic search via embeddings.
+
+        Delegates to the synchronous semantic_search in a thread pool.
+        """
+        import asyncio
+        return await asyncio.to_thread(
+            self.semantic_search,
+            buffer_id=buffer_id,
+            query=query,
+            top_k=top_k,
+            offset=offset,
+            include_types=include_types,
+            type_inference_method=type_inference_method,
+        )
+
+    async def write_code_async(
+        self,
+        buffer_id: str,
+        file: str,
+        start_line: int | str,
+        new_lines: list[str] | None = None,
+        end_line: int | None = None,
+    ) -> dict[str, Any]:
+        """Async write_code. Delegates to sync write_code in a thread pool."""
+        import asyncio
+        return await asyncio.to_thread(
+            self.write_code,
+            buffer_id=buffer_id,
+            file=file,
+            start_line=start_line,
+            new_lines=new_lines,
+            end_line=end_line,
+        )
+
+    async def search_batch_async(
+        self,
+        buffer_id: str,
+        queries: list[str],
+        top_k: int = 5,
+        include_types: bool = False,
+        type_inference_method: str = "llm",
+    ) -> dict[str, Any]:
+        """Async batch search. Delegates to sync search_batch in a thread pool."""
+        import asyncio
+        return await asyncio.to_thread(
+            self.search_batch,
+            buffer_id=buffer_id,
+            queries=queries,
+            top_k=top_k,
+            include_types=include_types,
+            type_inference_method=type_inference_method,
+        )
+
+    async def auto_format_async(
+        self,
+        buffer_id: str,
+        files: list[str] | None = None,
+        formatter: str = "black",
+        line_length: int = 88,
+        dry_run: bool = True,
+        exclude_patterns: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Async auto_format. Delegates to sync auto_format in a thread pool."""
+        import asyncio
+        return await asyncio.to_thread(
+            self.auto_format,
+            buffer_id=buffer_id,
+            files=files,
+            formatter=formatter,
+            line_length=line_length,
+            dry_run=dry_run,
+            exclude_patterns=exclude_patterns,
+        )
+
+    async def auto_lint_async(
+        self,
+        buffer_id: str,
+        files: list[str] | None = None,
+        select: list[str] | None = None,
+        ignore: list[str] | None = None,
+        auto_fix: bool = False,
+        dry_run: bool = True,
+        exclude_patterns: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Async auto_lint. Delegates to sync auto_lint in a thread pool."""
+        import asyncio
+        return await asyncio.to_thread(
+            self.auto_lint,
+            buffer_id=buffer_id,
+            files=files,
+            select=select,
+            ignore=ignore,
+            auto_fix=auto_fix,
+            dry_run=dry_run,
+            exclude_patterns=exclude_patterns,
+        )
+
+    async def auto_polish_async(
+        self,
+        buffer_id: str,
+        files: list[str] | None = None,
+        format_with: str = "black",
+        auto_fix_lints: bool = True,
+        line_length: int = 88,
+        ruff_select: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+        dry_run: bool = True,
+    ) -> dict[str, Any]:
+        """Async auto_polish. Delegates to sync auto_polish in a thread pool."""
+        import asyncio
+        return await asyncio.to_thread(
+            self.auto_polish,
+            buffer_id=buffer_id,
+            files=files,
+            format_with=format_with,
+            auto_fix_lints=auto_fix_lints,
+            line_length=line_length,
+            ruff_select=ruff_select,
+            exclude_patterns=exclude_patterns,
+            dry_run=dry_run,
+        )
