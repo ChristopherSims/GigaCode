@@ -1387,6 +1387,200 @@ class CodeEmbeddingTool:
                 operation="list_file_symbols",
             )
 
+    def get_symbol_metadata(
+        self,
+        buffer_id: str,
+        symbol: str,
+        include_types: bool = True,
+        type_inference_method: str = "ast",
+    ) -> dict[str, Any]:
+        """Get comprehensive metadata for a symbol.
+
+        Args:
+            buffer_id: Buffer handle.
+            symbol: Symbol name (may be qualified: "ClassName.method_name").
+            include_types: Include inferred type hints (default: True).
+            type_inference_method: "ast" for fast extraction or "llm" for accurate inference.
+
+        Returns:
+            Dict with file, line, type, parameters, return_type, lines_of_code,
+            cyclomatic_complexity, called_by_count, calls_count, docstring,
+            and optionally type_confidence.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_symbol_metadata"
+            )
+
+        if type_inference_method not in ("llm", "ast"):
+            return self._make_error_response(
+                f"type_inference_method must be 'llm' or 'ast', got '{type_inference_method}'",
+                buffer_id=buffer_id,
+                operation="get_symbol_metadata",
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_symbol_metadata"
+            )
+
+        try:
+            index = SymbolIndex(chunks)
+            definitions = index.get_definition(symbol)
+            if not definitions:
+                return self._make_error_response(
+                    f"Symbol '{symbol}' not found",
+                    buffer_id=buffer_id,
+                    operation="get_symbol_metadata",
+                )
+
+            entry = definitions[0]
+
+            # Find the chunk for this symbol
+            matching_chunks = [
+                c for c in chunks
+                if hasattr(c, "name") and c.name == entry.name
+                and c.file == entry.file
+                and c.start_line == entry.start_line
+            ]
+            if not matching_chunks:
+                # Fallback: any chunk in same file covering same lines
+                matching_chunks = [
+                    c for c in chunks
+                    if c.file == entry.file
+                    and c.start_line <= entry.start_line <= c.end_line
+                ]
+
+            chunk = matching_chunks[0] if matching_chunks else None
+
+            # Basic metadata from SymbolEntry
+            result: dict[str, Any] = {
+                "name": entry.name,
+                "file": entry.file,
+                "line": entry.start_line,
+                "end_line": entry.end_line,
+                "type": entry.type,
+                "lines_of_code": (entry.end_line - entry.start_line + 1) if chunk else 0,
+                "parent": entry.parent,
+            }
+
+            if chunk and chunk.text:
+                # Extract docstring
+                result["docstring"] = self._extract_docstring_from_text(chunk.text)
+
+                # Compute cyclomatic complexity
+                result["cyclomatic_complexity"] = self._compute_cyclomatic_complexity(chunk.text)
+
+                # Count references
+                references = index.get_references(symbol)
+                result["called_by_count"] = len([
+                    r for r in references if r.confidence == "high"
+                ])
+
+                # Count outgoing calls (symbols_called)
+                calls_count = 0
+                if hasattr(chunk, "symbols_called") and chunk.symbols_called:
+                    calls_count = len(chunk.symbols_called)
+                result["calls_count"] = calls_count
+
+                # Type inference
+                if include_types:
+                    if type_inference_method == "llm":
+                        cached = self._type_inference_cache.get(buffer_id, symbol)
+                        if cached is not None:
+                            result["parameters"] = cached.parameters
+                            result["return_type"] = cached.return_type
+                            result["type_confidence"] = cached.confidence
+                            result["inference_method"] = "llm"
+                        else:
+                            type_info = self._get_type_info_from_chunk(chunk, "llm")
+                            result.update(type_info)
+                    else:
+                        type_info = self._get_type_info_from_chunk(chunk, "ast")
+                        result.update(type_info)
+
+            return {"status": "ok", **result}
+
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Get symbol metadata failed: {e}",
+                buffer_id=buffer_id,
+                operation="get_symbol_metadata",
+            )
+
+    @staticmethod
+    def _extract_docstring_from_text(text: str) -> str | None:
+        """Extract docstring from code text."""
+        import re
+        # Match triple-quoted docstring after def/class
+        match = re.search(
+            r'(?:^|\n)\s+(?P<doc>("""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'))',
+            text,
+        )
+        if match:
+            doc = match.group("doc")
+            # Strip quotes and surrounding whitespace
+            return doc[3:-3].strip()
+        return None
+
+    @staticmethod
+    def _compute_cyclomatic_complexity(text: str) -> int:
+        """Compute McCabe cyclomatic complexity from code text.
+
+        Simplified: counts if/elif/else/for/while/except/and/or/assert.
+        Base complexity is 1.
+        """
+        import re
+        complexity = 1
+        patterns = [
+            r'\bif\b', r'\belif\b', r'\bfor\b', r'\bwhile\b',
+            r'\bexcept\b', r'\band\b', r'\bor\b', r'\bassert\b',
+        ]
+        for pattern in patterns:
+            complexity += len(re.findall(pattern, text))
+        return complexity
+
+    def _get_type_info_from_chunk(self, chunk: Any, method: str) -> dict[str, Any]:
+        """Extract type info from a chunk, optionally using cache."""
+        from gigacode.type_search import _extract_python_types
+        from gigacode.type_inference_cache import InferredType
+
+        result: dict[str, Any] = {}
+        sigs = _extract_python_types(chunk.text) if chunk.text else []
+        if sigs:
+            sig = sigs[0]
+            result["parameters"] = sig.parameters
+            result["return_type"] = sig.return_type
+            result["inference_method"] = method
+
+            if method == "llm" and self._search_service:
+                try:
+                    type_info = self._search_service._infer_type_for_chunk(chunk, method="llm")
+                    result["type_confidence"] = type_info.get("type_confidence") if type_info else None
+                except (RuntimeError, ValueError, TypeError):
+                    result["type_confidence"] = None
+                # Cache
+                inferred = InferredType(
+                    symbol_name=chunk.name if hasattr(chunk, "name") else "",
+                    file=chunk.file,
+                    parameters=sig.parameters,
+                    return_type=sig.return_type,
+                    confidence=result.get("type_confidence", 0.0) or 0.0,
+                    method="llm",
+                )
+                self._type_inference_cache.put("", inferred)
+            else:
+                result["type_confidence"] = None
+        else:
+            result["parameters"] = []
+            result["return_type"] = None
+            result["inference_method"] = method
+            result["type_confidence"] = None
+
+        return result
+
     # ------------------------------------------------------------------
     # Clustering
     # ------------------------------------------------------------------
