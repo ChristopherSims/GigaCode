@@ -154,6 +154,14 @@ class AnalyzeChangeRequest(BaseModel):
     max_depth: int = 6
 
 
+class PolishBeforeCommitRequest(BaseModel):
+    buffer_id: str
+    files_to_commit: Optional[List[str]] = None
+    format_with: str = "black"
+    lint_with: str = "ruff"
+    check_only: bool = False
+
+
 class AutoFormatRequest(BaseModel):
     buffer_id: str
     files: Optional[List[str]] = None
@@ -410,6 +418,17 @@ def create_app(tool: Any) -> FastAPI:
     @app.post("/tests/coverage")
     async def get_test_coverage(req: DeleteBufferRequest) -> dict[str, Any]:
         result = tool.get_test_coverage(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/quality/polish-before-commit")
+    async def polish_before_commit(req: PolishBeforeCommitRequest) -> dict[str, Any]:
+        result = tool.polish_before_commit(
+            req.buffer_id, files_to_commit=req.files_to_commit,
+            format_with=req.format_with, lint_with=req.lint_with,
+            check_only=req.check_only,
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result

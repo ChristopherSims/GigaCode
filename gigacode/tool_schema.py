@@ -43,6 +43,7 @@ __all__ = [
     "GET_FULL_CONTEXT_SCHEMA",
     "ANALYZE_CHANGE_SCHEMA",
     "GET_TEST_COVERAGE_SCHEMA",
+    "POLISH_BEFORE_COMMIT_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -1398,6 +1399,47 @@ GET_TEST_COVERAGE_SCHEMA: dict[str, Any] = {
     },
 }
 
+POLISH_BEFORE_COMMIT_SCHEMA: dict[str, Any] = {
+    "name": "polish_before_commit",
+    "description": (
+        "Format, lint, and validate before committing. Convenience wrapper "
+        "that chains auto_polish + commit-readiness checks (test coverage, "
+        "impact analysis warnings)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle."},
+            "files_to_commit": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Specific files. If null, all dirty files.",
+            },
+            "format_with": {
+                "type": "string",
+                "enum": ["black", "ruff.format"],
+                "description": "Formatter. Default: 'black'.",
+                "default": "black",
+            },
+            "lint_with": {"type": "string", "description": "Linter. Default: 'ruff'.", "default": "ruff"},
+            "check_only": {"type": "boolean", "description": "Only validate, don't modify. Default: false.", "default": False},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "formatting": {"type": "object"},
+            "linting": {"type": "object"},
+            "ready_to_commit": {"type": "boolean"},
+            "pre_commit_warnings": {"type": "array", "items": {"type": "string"}},
+            "summary": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -1427,6 +1469,7 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     GET_FULL_CONTEXT_SCHEMA,
     ANALYZE_CHANGE_SCHEMA,
     GET_TEST_COVERAGE_SCHEMA,
+    POLISH_BEFORE_COMMIT_SCHEMA,
 ]
 
 def get_schema(name: str) -> dict[str, Any] | None:

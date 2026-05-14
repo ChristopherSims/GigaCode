@@ -5270,6 +5270,84 @@ class CodeEmbeddingTool:
             dry_run=dry_run,
         )
 
+    def polish_before_commit(
+        self,
+        buffer_id: str,
+        files_to_commit: list[str] | None = None,
+        format_with: str = "black",
+        lint_with: str = "ruff",
+        check_only: bool = False,
+    ) -> dict[str, Any]:
+        """Format, lint, and validate before committing.
+
+        Feature 43: Workflow: Write -> Format -> Lint -> Commit readiness check.
+        Delegates to auto_polish + adds commit-readiness warnings.
+
+        Args:
+            buffer_id: Buffer handle.
+            files_to_commit: Specific files. If None, all dirty files.
+            format_with: Formatter ("black" or "ruff.format").
+            lint_with: Linter (currently only "ruff").
+            check_only: If True, only validate (don't modify).
+
+        Returns:
+            Dict with formatting, linting, ready_to_commit, and pre_commit_warnings.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="polish_before_commit"
+            )
+
+        # Run auto_polish (format + lint)
+        polish_result = self.auto_polish(
+            buffer_id=buffer_id,
+            files=files_to_commit,
+            format_with=format_with,
+            lint_with=lint_with,
+            dry_run=check_only,
+        )
+
+        # Gather pre-commit warnings
+        warnings: list[str] = []
+
+        # Check for large diffs
+        dirty = info.get("dirty_files", {})
+        if len(dirty) > 10:
+            warnings.append(f"Large diff detected ({len(dirty)} files modified)")
+
+        # Check for untested changes
+        if dirty:
+            try:
+                coverage = self.get_test_coverage(buffer_id)
+                if coverage.get("status") == "ok":
+                    for f in dirty:
+                        file_coverage = coverage.get("coverage", {}).get(f, {})
+                        if not file_coverage:
+                            warnings.append(f"No test coverage for {f}")
+            except (ValueError, RuntimeError):
+                pass
+
+        # Check for impact risks
+        if dirty:
+            try:
+                impact = self.analyze_impact(buffer_id)
+                if impact.get("risk_level") == "high":
+                    warnings.append(f"High impact change: {impact.get('total_impacted_files', 0)} files affected")
+            except (ValueError, RuntimeError):
+                pass
+
+        ready = polish_result.get("ready_to_commit", True) and len(warnings) == 0
+
+        return {
+            "status": "ok",
+            "formatting": polish_result.get("formatting", {}),
+            "linting": polish_result.get("linting", {}),
+            "ready_to_commit": ready,
+            "pre_commit_warnings": warnings,
+            "summary": polish_result.get("summary", ""),
+        }
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
