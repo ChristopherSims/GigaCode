@@ -4,7 +4,7 @@ Replaces the synchronous stdlib HTTPServer with an ASGI app for concurrency,
 middleware, and WebSocket support.
 
 Usage:
-    uvicorn src.gigacode_api:app --host 0.0.0.0 --port 8765
+    uvicorn gigacode.gigacode_api:app --host 0.0.0.0 --port 8765
 
 Or import and embed your own codebase first:
 
@@ -14,6 +14,14 @@ Or import and embed your own codebase first:
     tool = CodeEmbeddingTool(work_dir='./buffers', device='cpu', use_gpu=False)
     res = tool.embed_codebase('./my_project', pattern='*.py')
     app = create_app(tool)
+
+FastAPI dependency injection:
+    from gigacode.gigacode_api import get_tool
+    from fastapi import Depends
+
+    @app.post("/my-endpoint")
+    async def my_endpoint(tool: CodeEmbeddingTool = Depends(get_tool)):
+        ...
 """
 
 from __future__ import annotations
@@ -22,12 +30,28 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
+from gigacode.gigacode_tool import CodeEmbeddingTool
+
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Dependency injection
+# ---------------------------------------------------------------------------
+
+def get_tool(request: Request) -> CodeEmbeddingTool:
+    """FastAPI dependency that provides the CodeEmbeddingTool from app state.
+
+    Usage:
+        @app.post("/my-endpoint")
+        async def my_endpoint(tool: CodeEmbeddingTool = Depends(get_tool)):
+            return tool.semantic_search(...)
+    """
+    return request.app.state.tool
 
 # ---------------------------------------------------------------------------
 # Pydantic models
@@ -201,9 +225,10 @@ class AutoPolishRequest(BaseModel):
 def create_app(tool: Any) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        yield {"tool": tool}
+        app.state.tool = tool
+        yield
 
-    app = FastAPI(title="GigaCode API", version="1.1.0", lifespan=lifespan)
+    app = FastAPI(title="GigaCode API", version="2.0.0", lifespan=lifespan)
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):
