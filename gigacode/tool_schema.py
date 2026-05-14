@@ -42,6 +42,7 @@ __all__ = [
     "GET_REFERENCES_SCHEMA",
     "GET_FULL_CONTEXT_SCHEMA",
     "ANALYZE_CHANGE_SCHEMA",
+    "GET_TEST_COVERAGE_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -1371,6 +1372,32 @@ ANALYZE_CHANGE_SCHEMA: dict[str, Any] = {
     },
 }
 
+GET_TEST_COVERAGE_SCHEMA: dict[str, Any] = {
+    "name": "get_test_coverage",
+    "description": (
+        "Get test coverage map for the codebase. Maps each source file "
+        "to line ranges and the test functions that cover them."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "coverage": {
+                "type": "object",
+                "description": "Map of source file -> {line_range -> [test_names]}.",
+            },
+        },
+        "required": ["status"],
+    },
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -1399,6 +1426,7 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     GET_REFERENCES_SCHEMA,
     GET_FULL_CONTEXT_SCHEMA,
     ANALYZE_CHANGE_SCHEMA,
+    GET_TEST_COVERAGE_SCHEMA,
 ]
 
 def get_schema(name: str) -> dict[str, Any] | None:

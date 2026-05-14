@@ -407,6 +407,13 @@ def create_app(tool: Any) -> FastAPI:
             raise HTTPException(status_code=400, detail=result)
         return result
 
+    @app.post("/tests/coverage")
+    async def get_test_coverage(req: DeleteBufferRequest) -> dict[str, Any]:
+        result = tool.get_test_coverage(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
     @app.post("/quality/format")
     async def auto_format_endpoint(req: AutoFormatRequest) -> dict[str, Any]:
         result = tool.auto_format(

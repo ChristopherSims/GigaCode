@@ -4803,6 +4803,97 @@ class CodeEmbeddingTool:
 
         return self._audit_logger.stats()
 
+    def get_test_coverage(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Get test coverage map for the codebase.
+
+        Feature 7: Maps each source file to the test functions that cover it.
+        Coverage is determined by symbol reference analysis: a test file
+        covers a source file's symbols if it imports or calls them.
+
+        Returns:
+            Dict mapping source files to {line_range: [test_names]}.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_test_coverage"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_test_coverage"
+            )
+
+        try:
+            language = info.get("language_hint", "python")
+            index = SymbolIndex(chunks)
+
+            # Separate test and source chunks
+            test_chunks = [
+                ch for ch in chunks
+                if ch.file and self._is_test_file(ch.file, language)
+            ]
+
+            # Build coverage map
+            coverage: dict[str, dict[str, list[str]]] = {}
+
+            for test_chunk in test_chunks:
+                # What symbols does this test call?
+                symbols_called = getattr(test_chunk, "symbols_called", None) or []
+                test_name = getattr(test_chunk, "name", "")
+
+                for called_sym in symbols_called:
+                    # Find where the called symbol is defined
+                    defs = index.get_definition(called_sym)
+                    for defn in defs:
+                        if self._is_test_file(defn.file, language):
+                            continue  # Skip test-to-test references
+                        source_file = defn.file
+                        line_range = f"{defn.start_line}-{defn.end_line}"
+
+                        if source_file not in coverage:
+                            coverage[source_file] = {}
+                        if line_range not in coverage[source_file]:
+                            coverage[source_file][line_range] = []
+                        if test_name and test_name not in coverage[source_file][line_range]:
+                            coverage[source_file][line_range].append(test_name)
+
+            # Also mark files with no test coverage
+            for chunk in chunks:
+                if chunk.file and not self._is_test_file(chunk.file, language):
+                    if chunk.file not in coverage:
+                        coverage[chunk.file] = {}
+
+            return {"status": "ok", "coverage": coverage}
+
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Test coverage map failed: {e}",
+                buffer_id=buffer_id,
+                operation="get_test_coverage",
+            )
+
+    @staticmethod
+    def _is_test_file(file_path: str, language: str = "python") -> bool:
+        """Check if a file is a test file."""
+        import re
+        basename = Path(file_path).name
+        patterns = {
+            "python": [r"^test_.*\.py$", r".*_test\.py$"],
+            "javascript": [r".*\.(test|spec)\.(js|ts|jsx|tsx)$"],
+            "rust": [r".*_test\.rs$"],
+            "go": [r".*_test\.go$"],
+            "java": [r".*Test\.java$"],
+        }
+        for pattern in patterns.get(language, []):
+            if re.match(pattern, basename):
+                return True
+        return False
+
     # ------------------------------------------------------------------
     # Phase 5: Dependency Graph
     # ------------------------------------------------------------------
