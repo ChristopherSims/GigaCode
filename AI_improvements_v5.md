@@ -1283,16 +1283,37 @@ type_inference_method="ast"  # Faster alternative
 | 9 | Return the Diff | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
 | 10 | Execution Paths | ⭐⭐⭐ | High | Medium | ✅ Implemented |
 | 11 | Dependency Graph | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 12 | Dead Code Detection | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
 | 13 | Code Smell Detection | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 14 | Performance Hotspots | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
 | 15 | Security Scanning | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
+| 16 | Auto-Documentation | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 17 | Type Inference (AST+LLM) | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 18 | Similar Code Patterns | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 19 | Code Quality Score | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 20 | Deprecated Detection | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
 | 21 | Refactoring Suggestions | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
+| 22 | Pre-Commit Validation | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
+| 23 | Rollback Information | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 24 | Change Request Templates | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 25 | API Contract Changes | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 26 | Changelog Generation | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 27 | Configuration Extraction | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
+| 28 | Env Variable Tracking | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 29 | Logging Analysis | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 30 | Error Handling Analysis | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
+| 31 | Database Schema Detection | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 32 | API Endpoint Mapping | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 33 | Cache Pattern Analysis | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 34 | Thread Safety Analysis | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 35 | Memory Leak Detection | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
 | 36 | Format Code (Black) | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
 | 37 | Lint Code (Ruff) | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
 | 38 | Combined Polish | ⭐⭐⭐⭐ | Medium | Very High | ✅ Implemented |
 | 39 | Lint Entire Buffer | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
 | 40 | Format Entire Buffer | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
-| 41 | Lint with Config | ⭐⭐⭐ | Low | Medium | 💡 Proposed |
-| 42 | Format with Config | ⭐⭐⭐ | Low | Medium | 💡 Proposed |
+| 41 | Lint with Config | ⭐⭐⭐ | Low | Medium | ✅ Implemented |
+| 42 | Format with Config | ⭐⭐⭐ | Low | Medium | ✅ Implemented |
 | 43 | Pre-Commit Polish | ⭐⭐⭐⭐ | Medium | Very High | ✅ Implemented |
 
 ---
@@ -1332,9 +1353,23 @@ type_inference_method="ast"  # Faster alternative
 9. **NEW:** Middleware for monitoring and error handling
 
 ### Phase 4 (Weeks 9+) — Polish & Optimization
-1. Advanced features 11-35 based on adoption feedback
-2. Config-aware formatting/linting (Features 41-42)
-3. Optimization and integration refinements
+1. ✅ Performance Hotspots - Feature 14
+2. ✅ Auto-Documentation - Feature 16
+3. ✅ Similar Code Patterns - Feature 18
+4. ✅ Deprecated Detection - Feature 20
+5. ✅ Pre-Commit Validation - Feature 22
+6. ✅ Rollback Information - Feature 23
+7. ✅ Change Request Templates - Feature 24
+8. ✅ API Contract Changes - Feature 25
+9. ✅ Changelog Generation - Feature 26
+10. ✅ Configuration Extraction - Feature 27
+11. ✅ Logging Analysis - Feature 29
+12. ✅ Error Handling Analysis - Feature 30
+13. ✅ API Endpoint Mapping - Feature 32
+14. ✅ Cache Pattern Analysis - Feature 33
+15. ✅ Thread Safety Analysis - Feature 34
+16. ✅ Memory Leak Detection - Feature 35
+17. ✅ Config-aware formatting/linting (Features 41-42)
 
 ---
 

@@ -232,6 +232,94 @@ class FormatBufferRequest(BaseModel):
     summary_only: bool = False
 
 
+class FindPerformanceHotspotsRequest(BaseModel):
+    buffer_id: str
+
+
+class GenerateDocumentationRequest(BaseModel):
+    buffer_id: str
+    symbol: str
+    style: str = "google"
+
+
+class FindSimilarPatternsRequest(BaseModel):
+    buffer_id: str
+    code_snippet: str
+    min_similarity: float = 0.7
+    top_k: int = 10
+
+
+class FindDeprecatedRequest(BaseModel):
+    buffer_id: str
+
+
+class ValidateChangesRequest(BaseModel):
+    buffer_id: str
+    dry_run: bool = True
+
+
+class ExtractConfigurationRequest(BaseModel):
+    buffer_id: str
+
+
+class AnalyzeLoggingPatternsRequest(BaseModel):
+    buffer_id: str
+
+
+class AnalyzeErrorHandlingRequest(BaseModel):
+    buffer_id: str
+
+
+class GenerateChangelogRequest(BaseModel):
+    buffer_id: str
+    since_commit: Optional[str] = None
+
+
+class DetectApiChangesRequest(BaseModel):
+    buffer_id: str
+    since_commit: Optional[str] = None
+
+
+class GetRollbackInfoRequest(BaseModel):
+    buffer_id: str
+    file: str
+
+
+class GenerateChangeTemplateRequest(BaseModel):
+    buffer_id: str
+    request: str
+
+
+class MapApiEndpointsRequest(BaseModel):
+    buffer_id: str
+
+
+class AnalyzeCachePatternsRequest(BaseModel):
+    buffer_id: str
+
+
+class AnalyzeThreadSafetyRequest(BaseModel):
+    buffer_id: str
+
+
+class DetectMemoryIssuesRequest(BaseModel):
+    buffer_id: str
+
+
+class LintWithConfigRequest(BaseModel):
+    buffer_id: str
+    config_file: Optional[str] = None
+    files: Optional[List[str]] = None
+    auto_fix: bool = False
+
+
+class FormatWithConfigRequest(BaseModel):
+    buffer_id: str
+    config_file: Optional[str] = None
+    files: Optional[List[str]] = None
+    dry_run: bool = True
+
+
 class AutoFormatRequest(BaseModel):
     buffer_id: str
     files: Optional[List[str]] = None
@@ -605,7 +693,133 @@ def create_app(tool: Any) -> FastAPI:
         return result
 
     # ------------------------------------------------------------------
-    # Generic tool call (backward compatible with old server)
+    # Phase 4: Advanced Analysis & Configuration
+    # ------------------------------------------------------------------
+    @app.post("/performance/hotspots")
+    async def find_performance_hotspots(req: FindPerformanceHotspotsRequest) -> dict[str, Any]:
+        result = tool.find_performance_hotspots(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/docs/generate")
+    async def generate_documentation(req: GenerateDocumentationRequest) -> dict[str, Any]:
+        result = tool.generate_documentation(req.buffer_id, req.symbol, style=req.style)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/search/similar-patterns")
+    async def find_similar_patterns(req: FindSimilarPatternsRequest) -> dict[str, Any]:
+        result = tool.find_similar_patterns(req.buffer_id, req.code_snippet, min_similarity=req.min_similarity, top_k=req.top_k)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/analysis/deprecated")
+    async def find_deprecated(req: FindDeprecatedRequest) -> dict[str, Any]:
+        result = tool.find_deprecated(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/validation/changes")
+    async def validate_changes(req: ValidateChangesRequest) -> dict[str, Any]:
+        result = tool.validate_changes(req.buffer_id, dry_run=req.dry_run)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/config/extract")
+    async def extract_configuration(req: ExtractConfigurationRequest) -> dict[str, Any]:
+        result = tool.extract_configuration(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/analysis/logging")
+    async def analyze_logging_patterns(req: AnalyzeLoggingPatternsRequest) -> dict[str, Any]:
+        result = tool.analyze_logging_patterns(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/analysis/error-handling")
+    async def analyze_error_handling_patterns(req: AnalyzeErrorHandlingRequest) -> dict[str, Any]:
+        result = tool.analyze_error_handling_patterns(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/changelog/generate")
+    async def generate_changelog(req: GenerateChangelogRequest) -> dict[str, Any]:
+        result = tool.generate_changelog(req.buffer_id, since_commit=req.since_commit)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/api/detect-changes")
+    async def detect_api_changes(req: DetectApiChangesRequest) -> dict[str, Any]:
+        result = tool.detect_api_changes(req.buffer_id, since_commit=req.since_commit)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/rollback/info")
+    async def get_rollback_info(req: GetRollbackInfoRequest) -> dict[str, Any]:
+        result = tool.get_rollback_info(req.buffer_id, req.file)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/planning/change-template")
+    async def generate_change_template(req: GenerateChangeTemplateRequest) -> dict[str, Any]:
+        result = tool.generate_change_template(req.buffer_id, req.request)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/api/endpoints")
+    async def map_api_endpoints(req: MapApiEndpointsRequest) -> dict[str, Any]:
+        result = tool.map_api_endpoints(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/analysis/cache-patterns")
+    async def analyze_cache_patterns(req: AnalyzeCachePatternsRequest) -> dict[str, Any]:
+        result = tool.analyze_cache_patterns(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/analysis/thread-safety")
+    async def analyze_thread_safety(req: AnalyzeThreadSafetyRequest) -> dict[str, Any]:
+        result = tool.analyze_thread_safety(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/analysis/memory-issues")
+    async def detect_memory_issues(req: DetectMemoryIssuesRequest) -> dict[str, Any]:
+        result = tool.detect_memory_issues(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/quality/lint-with-config")
+    async def lint_with_config(req: LintWithConfigRequest) -> dict[str, Any]:
+        result = tool.lint_with_config(req.buffer_id, config_file=req.config_file, files=req.files, auto_fix=req.auto_fix)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/quality/format-with-config")
+    async def format_with_config(req: FormatWithConfigRequest) -> dict[str, Any]:
+        result = tool.format_with_config(req.buffer_id, config_file=req.config_file, files=req.files, dry_run=req.dry_run)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
     # ------------------------------------------------------------------
     @app.post("/call")
     async def call(req: CallRequest) -> dict[str, Any]:

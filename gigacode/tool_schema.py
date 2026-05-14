@@ -51,6 +51,24 @@ __all__ = [
     "SUGGEST_REFACTORINGS_SCHEMA",
     "LINT_BUFFER_SCHEMA",
     "FORMAT_BUFFER_SCHEMA",
+    "FIND_PERFORMANCE_HOTSPOTS_SCHEMA",
+    "GENERATE_DOCUMENTATION_SCHEMA",
+    "FIND_SIMILAR_PATTERNS_SCHEMA",
+    "FIND_DEPRECATED_SCHEMA",
+    "VALIDATE_CHANGES_SCHEMA",
+    "EXTRACT_CONFIGURATION_SCHEMA",
+    "ANALYZE_LOGGING_PATTERNS_SCHEMA",
+    "ANALYZE_ERROR_HANDLING_SCHEMA",
+    "GENERATE_CHANGELOG_SCHEMA",
+    "DETECT_API_CHANGES_SCHEMA",
+    "GET_ROLLBACK_INFO_SCHEMA",
+    "GENERATE_CHANGE_TEMPLATE_SCHEMA",
+    "MAP_API_ENDPOINTS_SCHEMA",
+    "ANALYZE_CACHE_PATTERNS_SCHEMA",
+    "ANALYZE_THREAD_SAFETY_SCHEMA",
+    "DETECT_MEMORY_ISSUES_SCHEMA",
+    "LINT_WITH_CONFIG_SCHEMA",
+    "FORMAT_WITH_CONFIG_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -1623,6 +1641,132 @@ FORMAT_BUFFER_SCHEMA: dict[str, Any] = {
     },
 }
 
+FIND_PERFORMANCE_HOTSPOTS_SCHEMA: dict[str, Any] = {
+    "name": "find_performance_hotspots",
+    "description": "Detect performance hotspots: N+1 queries, inefficient loops, unbounded recursion.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "hotspots": {"type": "array"}, "total": {"type": "integer"}}, "required": ["status"]},
+}
+
+GENERATE_DOCUMENTATION_SCHEMA: dict[str, Any] = {
+    "name": "generate_documentation",
+    "description": "Auto-generate documentation from code analysis.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "symbol": {"type": "string"}, "style": {"type": "string", "enum": ["google", "numpy", "sphinx"], "default": "google"}}, "required": ["buffer_id", "symbol"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "symbol": {"type": "string"}, "docstring": {"type": "string"}, "type_hints": {"type": "object"}, "examples": {"type": "array"}}, "required": ["status"]},
+}
+
+FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
+    "name": "find_similar_patterns",
+    "description": "Find similar code patterns using semantic + syntactic matching.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "code_snippet": {"type": "string"}, "min_similarity": {"type": "number", "default": 0.7}, "top_k": {"type": "integer", "default": 10}}, "required": ["buffer_id", "code_snippet"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "syntactic_matches": {"type": "array"}, "semantic_matches": {"type": "array"}}, "required": ["status"]},
+}
+
+FIND_DEPRECATED_SCHEMA: dict[str, Any] = {
+    "name": "find_deprecated",
+    "description": "Detect usage of deprecated functions and APIs.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "deprecated": {"type": "array"}, "total": {"type": "integer"}}, "required": ["status"]},
+}
+
+VALIDATE_CHANGES_SCHEMA: dict[str, Any] = {
+    "name": "validate_changes",
+    "description": "Validate changes before committing (static analysis + import resolution).",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "dry_run": {"type": "boolean", "default": True}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "type_errors": {"type": "array"}, "broken_imports": {"type": "array"}, "safe_to_commit": {"type": "boolean"}}, "required": ["status"]},
+}
+
+EXTRACT_CONFIGURATION_SCHEMA: dict[str, Any] = {
+    "name": "extract_configuration",
+    "description": "Extract configuration: env vars, config files, hardcoded secrets, defaults.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "env_vars": {"type": "array"}, "config_files": {"type": "array"}, "hardcoded_secrets": {"type": "array"}, "default_values": {"type": "object"}}, "required": ["status"]},
+}
+
+ANALYZE_LOGGING_PATTERNS_SCHEMA: dict[str, Any] = {
+    "name": "analyze_logging_patterns",
+    "description": "Analyze logging patterns: levels, consistency, gaps.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "total_logs": {"type": "integer"}, "levels": {"type": "object"}, "missing_logs_in": {"type": "array"}, "inconsistent_format": {"type": "array"}}, "required": ["status"]},
+}
+
+ANALYZE_ERROR_HANDLING_SCHEMA: dict[str, Any] = {
+    "name": "analyze_error_handling_patterns",
+    "description": "Analyze error handling patterns: broad catches, missing finally, uncaught exceptions.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "try_except_blocks": {"type": "integer"}, "broad_catches": {"type": "array"}, "missing_finally": {"type": "array"}, "suggestions": {"type": "array"}}, "required": ["status"]},
+}
+
+GENERATE_CHANGELOG_SCHEMA: dict[str, Any] = {
+    "name": "generate_changelog",
+    "description": "Generate changelog from git history + semantic analysis.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "since_commit": {"type": ["string", "null"]}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "features": {"type": "array"}, "bugfixes": {"type": "array"}, "breaking_changes": {"type": "array"}}, "required": ["status"]},
+}
+
+DETECT_API_CHANGES_SCHEMA: dict[str, Any] = {
+    "name": "detect_api_changes",
+    "description": "Detect API-breaking changes between commits.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "since_commit": {"type": ["string", "null"]}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "changes": {"type": "array"}, "current_api_surface": {"type": "integer"}}, "required": ["status"]},
+}
+
+GET_ROLLBACK_INFO_SCHEMA: dict[str, Any] = {
+    "name": "get_rollback_info",
+    "description": "Get rollback information for a file.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "file": {"type": "string"}}, "required": ["buffer_id", "file"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "last_working_commit": {"type": ["string", "null"]}, "diff_to_revert": {"type": "string"}}, "required": ["status"]},
+}
+
+GENERATE_CHANGE_TEMPLATE_SCHEMA: dict[str, Any] = {
+    "name": "generate_change_template",
+    "description": "Generate a change plan template for a request.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "request": {"type": "string"}}, "required": ["buffer_id", "request"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "files_to_modify": {"type": "array"}, "change_strategy": {"type": "string"}, "risk_assessment": {"type": "string"}}, "required": ["status"]},
+}
+
+MAP_API_ENDPOINTS_SCHEMA: dict[str, Any] = {
+    "name": "map_api_endpoints",
+    "description": "Map all API endpoints (FastAPI, Flask, Django patterns).",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "endpoints": {"type": "array"}, "total": {"type": "integer"}}, "required": ["status"]},
+}
+
+ANALYZE_CACHE_PATTERNS_SCHEMA: dict[str, Any] = {
+    "name": "analyze_cache_patterns",
+    "description": "Analyze cache usage patterns: invalidation logic, stale data risks.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "caches_used": {"type": "array"}, "invalidation_logic": {"type": "array"}, "stale_data_risks": {"type": "array"}}, "required": ["status"]},
+}
+
+ANALYZE_THREAD_SAFETY_SCHEMA: dict[str, Any] = {
+    "name": "analyze_thread_safety",
+    "description": "Analyze thread safety: shared state, race conditions, deadlock risks.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "shared_state": {"type": "array"}, "race_conditions": {"type": "array"}, "deadlock_risks": {"type": "array"}}, "required": ["status"]},
+}
+
+DETECT_MEMORY_ISSUES_SCHEMA: dict[str, Any] = {
+    "name": "detect_memory_issues",
+    "description": "Detect memory issues: circular refs, unbounded collections, resource leaks.",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "circular_refs": {"type": "array"}, "unbounded_collections": {"type": "array"}, "resource_leaks": {"type": "array"}}, "required": ["status"]},
+}
+
+LINT_WITH_CONFIG_SCHEMA: dict[str, Any] = {
+    "name": "lint_with_config",
+    "description": "Lint using project configuration (ruff.toml, pyproject.toml).",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "config_file": {"type": ["string", "null"]}, "files": {"type": "array", "items": {"type": "string"}}, "auto_fix": {"type": "boolean", "default": False}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "config_file": {"type": "string"}, "issues": {"type": "array"}}, "required": ["status"]},
+}
+
+FORMAT_WITH_CONFIG_SCHEMA: dict[str, Any] = {
+    "name": "format_with_config",
+    "description": "Format using project configuration (pyproject.toml, .black, ruff.toml).",
+    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "config_file": {"type": ["string", "null"]}, "files": {"type": "array", "items": {"type": "string"}}, "dry_run": {"type": "boolean", "default": True}}, "required": ["buffer_id"]},
+    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "config_file": {"type": "string"}, "changes": {"type": "array"}}, "required": ["status"]},
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -1660,6 +1804,24 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     SUGGEST_REFACTORINGS_SCHEMA,
     LINT_BUFFER_SCHEMA,
     FORMAT_BUFFER_SCHEMA,
+    FIND_PERFORMANCE_HOTSPOTS_SCHEMA,
+    GENERATE_DOCUMENTATION_SCHEMA,
+    FIND_SIMILAR_PATTERNS_SCHEMA,
+    FIND_DEPRECATED_SCHEMA,
+    VALIDATE_CHANGES_SCHEMA,
+    EXTRACT_CONFIGURATION_SCHEMA,
+    ANALYZE_LOGGING_PATTERNS_SCHEMA,
+    ANALYZE_ERROR_HANDLING_SCHEMA,
+    GENERATE_CHANGELOG_SCHEMA,
+    DETECT_API_CHANGES_SCHEMA,
+    GET_ROLLBACK_INFO_SCHEMA,
+    GENERATE_CHANGE_TEMPLATE_SCHEMA,
+    MAP_API_ENDPOINTS_SCHEMA,
+    ANALYZE_CACHE_PATTERNS_SCHEMA,
+    ANALYZE_THREAD_SAFETY_SCHEMA,
+    DETECT_MEMORY_ISSUES_SCHEMA,
+    LINT_WITH_CONFIG_SCHEMA,
+    FORMAT_WITH_CONFIG_SCHEMA,
 ]
 
 def get_schema(name: str) -> dict[str, Any] | None:

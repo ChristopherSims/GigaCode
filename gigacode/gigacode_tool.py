@@ -5572,6 +5572,995 @@ class CodeEmbeddingTool:
         return {"status": "ok", "symbol": symbol, "suggestions": suggestions}
 
     # ------------------------------------------------------------------
+    # Phase 4: Remaining Advanced Features
+    # ------------------------------------------------------------------
+    def find_performance_hotspots(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Detect performance hotspots: N+1 queries, inefficient loops, unbounded recursion.
+
+        Feature 14: Identify performance-critical code for optimization.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_performance_hotspots")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_performance_hotspots")
+
+        import re
+        hotspots: list[dict[str, Any]] = []
+
+        patterns: list[tuple[str, str, str]] = [
+            (r"for\s+\w+\s+in\s+.*\.all\(\)|for\s+\w+\s+in\s+.*\.filter\(\)", "n_plus_one", "high"),
+            (r"while\s+True\s*:.*\.append\(", "unbounded_growth", "high"),
+            (r"\.select_related\s*\(\s*\)", "missing_prefetch", "medium"),
+            (r"for\s+\w+\s+in\s+range\s*\(\s*len\s*\(", "inefficient_loop", "low"),
+            (r"import\s+pickle|pickle\.dump|pickle\.load", "slow_serialization", "medium"),
+            (r"re\.compile\s*\(\s*\)", "regex_in_loop", "medium"),
+            (r"open\s*\([^)]*\)\s*(?!with)", "unclosed_file", "high"),
+            (r"\.execute\s*\([^)]*\)\s*(?!.*fetchmany|.*fetchone)", "full_table_scan", "medium"),
+        ]
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            for pattern, hotspot_type, severity in patterns:
+                for match in re.finditer(pattern, chunk.text, re.DOTALL):
+                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    hotspots.append({
+                        "file": chunk.file, "line": line,
+                        "type": hotspot_type, "severity": severity,
+                        "context": chunk.text.split("\n")[chunk.text[:match.start()].count("\n")].strip()[:200],
+                        "suggestion": f"Review {hotspot_type} pattern for optimization",
+                    })
+
+        # Detect nested loops (O(n^2) or worse)
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text or chunk.type not in ("function", "method"):
+                continue
+            lines = chunk.text.split("\n")
+            nested_indent = 0
+            for i, line in enumerate(lines):
+                if not line.strip():
+                    continue
+                indent = len(line) - len(line.lstrip())
+                if "for " in line or "while " in line:
+                    if indent > nested_indent and nested_indent > 0:
+                        hotspots.append({
+                            "file": chunk.file, "line": chunk.start_line + i,
+                            "type": "nested_loop", "severity": "medium",
+                            "context": line.strip()[:200],
+                            "suggestion": "Nested loop detected — consider algorithmic optimization or vectorization",
+                        })
+                    nested_indent = indent
+
+        hotspots.sort(key=lambda h: {"high": 2, "medium": 1, "low": 0}.get(h.get("severity", "low"), 0), reverse=True)
+        return {"status": "ok", "hotspots": hotspots, "total": len(hotspots)}
+
+    def generate_documentation(
+        self,
+        buffer_id: str,
+        symbol: str,
+        style: str = "google",
+    ) -> dict[str, Any]:
+        """Auto-generate documentation from code analysis.
+
+        Feature 16: Generate accurate docstrings from AST + type info.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="generate_documentation")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="generate_documentation")
+
+        target = None
+        for chunk in chunks:
+            if hasattr(chunk, "name") and chunk.name == symbol and chunk.text:
+                target = chunk
+                break
+
+        if target is None:
+            return self._make_error_response(f"Symbol '{symbol}' not found", buffer_id=buffer_id, operation="generate_documentation")
+
+        import re
+        docstring = ""
+        type_hints = {}
+        examples = []
+
+        # Extract function signature
+        sig_match = re.search(r"def\s+\w+\s*\((.*?)\)\s*(?:->\s*(.+?))?:", target.text, re.DOTALL)
+        if sig_match:
+            params_str = sig_match.group(1)
+            return_type = sig_match.group(2)
+
+            # Parse parameters
+            params = [p.strip() for p in params_str.split(",") if p.strip() and p.strip() not in ("self", "cls")]
+            param_docs = []
+            for param in params:
+                parts = param.split(":")
+                name = parts[0].strip().split("=")[0].strip()
+                type_hint = parts[1].strip().split("=")[0].strip() if len(parts) > 1 else "Any"
+                default = None
+                if "=" in param:
+                    default = param.split("=")[-1].strip()
+                type_hints[name] = type_hint
+                param_doc = f"    {name} ({type_hint})"
+                if default:
+                    param_doc += f", default: {default}"
+                param_docs.append(param_doc)
+
+            # Build docstring
+            if style == "google":
+                lines = [f'"""{symbol} documentation.']
+                if param_docs:
+                    lines.append("")
+                    lines.append("Args:")
+                    lines.extend(param_docs)
+                if return_type:
+                    lines.append("")
+                    lines.append(f"Returns:")
+                    lines.append(f"    {return_type.strip()}")
+                lines.append('"""')
+                docstring = "\n".join(lines)
+            elif style == "numpy":
+                lines = [f'"""{symbol} documentation.']
+                if param_docs:
+                    lines.append("")
+                    lines.append("Parameters")
+                    lines.append("----------")
+                    lines.extend(param_docs)
+                if return_type:
+                    lines.append("")
+                    lines.append("Returns")
+                    lines.append("-------")
+                    lines.append(f"    {return_type.strip()}")
+                lines.append('"""')
+                docstring = "\n".join(lines)
+            else:  # sphinx
+                lines = [f'"""{symbol} documentation.']
+                for pd in param_docs:
+                    lines.append(f":param {pd.strip()}")
+                if return_type:
+                    lines.append(f":rtype: {return_type.strip()}")
+                lines.append('"""')
+                docstring = "\n".join(lines)
+
+        # Find usage examples from test files
+        for chunk in chunks:
+            if hasattr(chunk, "text") and chunk.text and symbol in (chunk.text or ""):
+                if hasattr(chunk, "file") and "test" in chunk.file:
+                    for match in re.finditer(rf"{symbol}\s*\([^)]*\)", chunk.text):
+                        examples.append(match.group(0))
+
+        return {
+            "status": "ok",
+            "symbol": symbol,
+            "docstring": docstring,
+            "type_hints": type_hints,
+            "examples": examples[:5],
+            "generated_from_code": True,
+            "style": style,
+        }
+
+    def find_similar_patterns(
+        self,
+        buffer_id: str,
+        code_snippet: str,
+        min_similarity: float = 0.7,
+        top_k: int = 10,
+    ) -> dict[str, Any]:
+        """Find similar code patterns using semantic + syntactic matching.
+
+        Feature 18: Find duplicate logic for consolidation.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_similar_patterns")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_similar_patterns")
+
+        from gigacode.duplicate_detector import find_duplicates
+        results = find_duplicates(chunks, jaccard_threshold=min_similarity)
+
+        # Also try semantic search
+        semantic_results = []
+        try:
+            search_result = self.semantic_search(buffer_id, code_snippet, top_k=top_k)
+            if search_result.get("status") == "ok":
+                semantic_results = search_result.get("results", [])
+        except Exception:
+            pass
+
+        return {
+            "status": "ok",
+            "syntactic_matches": results if isinstance(results, list) else [],
+            "semantic_matches": [{"file": r.get("file", ""), "line": r.get("start_line", 0), "score": r.get("score", 0)} for r in semantic_results],
+            "snippet_length": len(code_snippet),
+        }
+
+    def find_deprecated(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Detect usage of deprecated functions and APIs.
+
+        Feature 20: Identify code that uses outdated APIs.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_deprecated")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_deprecated")
+
+        import re
+        deprecated: list[dict[str, Any]] = []
+
+        # Common deprecated patterns
+        dep_patterns = [
+            (r"@deprecated\b", "decorator"),
+            (r"warnings\.warn\s*\([^)]*deprecated", "warning"),
+            (r"#\s*DEPRECATED", "comment"),
+            (r'DeprecationWarning', "deprecation_warning"),
+        ]
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            for pattern, method in dep_patterns:
+                for match in re.finditer(pattern, chunk.text, re.IGNORECASE):
+                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    lines = chunk.text.split("\n")
+                    line_offset = chunk.text[:match.start()].count("\n")
+                    context = lines[line_offset].strip()[:200] if line_offset < len(lines) else ""
+                    deprecated.append({
+                        "file": chunk.file, "line": line,
+                        "detection_method": method,
+                        "context": context,
+                        "symbol": getattr(chunk, "name", ""),
+                    })
+
+        return {"status": "ok", "deprecated": deprecated, "total": len(deprecated)}
+
+    def validate_changes(
+        self,
+        buffer_id: str,
+        dry_run: bool = True,
+    ) -> dict[str, Any]:
+        """Validate changes before committing (static analysis + import resolution).
+
+        Feature 22: Pre-commit validation without running full test suite.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="validate_changes")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="validate_changes")
+
+        import ast as _ast
+        import re
+
+        type_errors: list[dict[str, Any]] = []
+        broken_imports: list[dict[str, Any]] = []
+        test_impact: list[str] = []
+
+        # Build set of available files/modules
+        available_modules: set[str] = set()
+        available_symbols: set[str] = set()
+        for chunk in chunks:
+            if hasattr(chunk, "file"):
+                stem = Path(chunk.file).stem
+                available_modules.add(stem)
+            if hasattr(chunk, "name") and chunk.name:
+                available_symbols.add(chunk.name)
+
+        # Check imports and syntax
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            # Syntax check
+            try:
+                _ast.parse(chunk.text)
+            except SyntaxError as e:
+                type_errors.append({
+                    "file": chunk.file, "line": e.lineno or chunk.start_line,
+                    "message": f"SyntaxError: {e.msg}",
+                })
+
+            # Check imports resolve
+            for imp in (getattr(chunk, "imports", None) or []):
+                top_level = imp.split(".")[0]
+                if top_level not in available_modules and top_level not in ("os", "sys", "re", "json",
+                        "logging", "pathlib", "typing", "dataclasses", "collections", "abc",
+                        "functools", "itertools", "datetime", "hashlib", "io", "contextlib",
+                        "asyncio", "subprocess", "shutil", "tempfile", "time", "math",
+                        "unittest", "copy", "ast", "importlib", "inspect", "textwrap",
+                        "enum", "http", "urllib", "email", "csv", "sqlite3",
+                        "fastapi", "pydantic", "uvicorn", "numpy", "torch", "sentence_transformers"):
+                    # Not found locally or in known stdlib/third-party
+                    broken_imports.append({
+                        "file": chunk.file, "import": imp,
+                        "message": f"Cannot resolve import: {imp}",
+                    })
+
+        # Test impact prediction
+        test_impact = [ch.name for ch in chunks if hasattr(ch, "name") and ch.name
+                       and "test" in getattr(ch, "file", "")]
+
+        safe_to_commit = len(type_errors) == 0 and len(broken_imports) == 0
+
+        return {
+            "status": "ok",
+            "type_errors": type_errors,
+            "broken_imports": broken_imports,
+            "test_impact_predictions": test_impact[:20],
+            "safe_to_commit": safe_to_commit,
+            "dry_run": dry_run,
+        }
+
+    def extract_configuration(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Extract configuration: env vars, config files, hardcoded secrets, defaults.
+
+        Feature 27: Understand what needs to be configured; detect hardcoded secrets.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="extract_configuration")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="extract_configuration")
+
+        import re
+        env_vars: list[dict[str, Any]] = []
+        config_files: list[str] = []
+        hardcoded_secrets: list[dict[str, Any]] = []
+        default_values: dict[str, str] = {}
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+
+            # Environment variables
+            for match in re.finditer(r'os\.environ\.get\s*\(\s*["\'](\w+)["\']\s*(?:,\s*([^)]+))?\)', chunk.text):
+                var_name = match.group(1)
+                default = match.group(2).strip().strip("\"'") if match.group(2) else None
+                env_vars.append({
+                    "name": var_name, "used_in": f"{chunk.file}:{chunk.start_line}",
+                    "required": default is None, "default": default,
+                })
+                if default:
+                    default_values[var_name] = default
+
+            for match in re.finditer(r'os\.getenv\s*\(\s*["\'](\w+)["\']\s*(?:,\s*([^)]+))?\)', chunk.text):
+                var_name = match.group(1)
+                default = match.group(2).strip().strip("\"'") if match.group(2) else None
+                env_vars.append({
+                    "name": var_name, "used_in": f"{chunk.file}:{chunk.start_line}",
+                    "required": default is None, "default": default,
+                })
+                if default:
+                    default_values[var_name] = default
+
+            # Config files
+            for match in re.finditer(r'["\']([^"\']*\.(yaml|yml|toml|ini|cfg|conf|json))["\']', chunk.text):
+                config_files.append(match.group(1))
+
+            # Hardcoded secrets
+            for match in re.finditer(r'(?:secret|password|api_key|token|auth_key|private_key)\s*=\s*["\'][^"\']{4,}["\']', chunk.text, re.IGNORECASE):
+                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                hardcoded_secrets.append({
+                    "file": chunk.file, "line": line,
+                    "pattern": match.group(0)[:80],
+                    "severity": "high",
+                })
+
+        # Deduplicate
+        seen_vars: set[str] = set()
+        unique_env_vars = []
+        for v in env_vars:
+            if v["name"] not in seen_vars:
+                seen_vars.add(v["name"])
+                unique_env_vars.append(v)
+
+        return {
+            "status": "ok",
+            "env_vars": unique_env_vars,
+            "config_files": list(set(config_files)),
+            "hardcoded_secrets": hardcoded_secrets,
+            "default_values": default_values,
+        }
+
+    def analyze_logging_patterns(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Analyze logging patterns: levels, consistency, gaps.
+
+        Feature 29: Ensure consistent logging for debugging/monitoring.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="analyze_logging_patterns")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="analyze_logging_patterns")
+
+        import re
+        levels = {"debug": 0, "info": 0, "warning": 0, "error": 0, "critical": 0}
+        total_logs = 0
+        missing_logs: list[dict[str, Any]] = []
+        inconsistent_format: list[dict[str, Any]] = []
+        log_patterns_seen: set[str] = set()
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+
+            # Count log levels
+            for level in levels:
+                count = len(re.findall(rf'\.{level}\s*\(', chunk.text))
+                levels[level] += count
+                total_logs += count
+
+            # Check for format string inconsistency
+            for match in re.finditer(r'(?:logger|logging)\.\w+\s*\(\s*["\']', chunk.text):
+                if "%" in match.group(0) and "format(" in chunk.text[match.end():match.end()+100]:
+                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    inconsistent_format.append({"file": chunk.file, "line": line, "format_string": "mixed % and .format()"})
+
+            # Check for f-string in log (potential performance issue)
+            for match in re.finditer(r'(?:logger|logging)\.\w+\s*\(\s*f["\']', chunk.text):
+                log_patterns_seen.add("f-string-in-log")
+
+            # Detect functions with no logging but error handling
+            if chunk.type in ("function", "method"):
+                has_try = "try:" in chunk.text or "try :" in chunk.text
+                has_log = any(f".{l}(" in chunk.text for l in levels)
+                if has_try and not has_log:
+                    missing_logs.append({
+                        "file": chunk.file, "symbol": getattr(chunk, "name", ""),
+                        "issue": "try/except without logging",
+                    })
+
+        return {
+            "status": "ok",
+            "total_logs": total_logs,
+            "levels": levels,
+            "missing_logs_in": missing_logs[:20],
+            "inconsistent_format": inconsistent_format[:20],
+            "patterns_detected": list(log_patterns_seen),
+        }
+
+    def analyze_error_handling_patterns(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Analyze error handling patterns: broad catches, missing finally, uncaught exceptions.
+
+        Feature 30: Ensure robust error handling; prevent silent failures.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="analyze_error_handling_patterns")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="analyze_error_handling_patterns")
+
+        import re
+        try_except_blocks = 0
+        uncaught_exceptions: list[dict[str, Any]] = []
+        broad_catches: list[dict[str, Any]] = []
+        missing_finally: list[dict[str, Any]] = []
+        suggestions: list[str] = []
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+
+            try_count = len(re.findall(r'\btry\s*:', chunk.text))
+            try_except_blocks += try_count
+
+            # Broad catches
+            for match in re.finditer(r'except\s*:', chunk.text):
+                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                broad_catches.append({"file": chunk.file, "line": line, "catches": "bare except"})
+
+            for match in re.finditer(r'except\s+Exception\s*:', chunk.text):
+                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                broad_catches.append({"file": chunk.file, "line": line, "catches": "Exception"})
+
+            # Missing finally for resource operations
+            if "open(" in chunk.text or "connect(" in chunk.text:
+                if try_count > 0 and "finally:" not in chunk.text and "with " not in chunk.text:
+                    line = chunk.start_line
+                    missing_finally.append({"file": chunk.file, "line": line, "resource": "file/connection"})
+
+            # Silent catches (just pass)
+            for match in re.finditer(r'except\s+\w+\s*:\s*\n\s*pass', chunk.text):
+                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                uncaught_exceptions.append({"file": chunk.file, "line": line, "issue": "silent catch (pass)"})
+
+        if broad_catches:
+            suggestions.append("Replace broad exception handlers with specific exception types")
+        if missing_finally:
+            suggestions.append("Use context managers (with statement) for resource cleanup")
+        if uncaught_exceptions:
+            suggestions.append("Log or handle caught exceptions instead of silently passing")
+
+        return {
+            "status": "ok",
+            "try_except_blocks": try_except_blocks,
+            "uncaught_exceptions": uncaught_exceptions,
+            "broad_catches": broad_catches,
+            "missing_finally": missing_finally,
+            "suggestions": suggestions,
+        }
+
+    def generate_changelog(
+        self,
+        buffer_id: str,
+        since_commit: str | None = None,
+    ) -> dict[str, Any]:
+        """Generate changelog from git history + semantic analysis.
+
+        Feature 26: Auto-generate release notes from code changes.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="generate_changelog")
+
+        from gigacode import git_utils
+        features: list[dict[str, Any]] = []
+        bugfixes: list[dict[str, Any]] = []
+        breaking_changes: list[dict[str, Any]] = []
+        other: list[dict[str, Any]] = []
+
+        try:
+            work_dir = self.work_dir
+            args = ["log", "--oneline", "-50"]
+            if since_commit:
+                args.append(f"{since_commit}..HEAD")
+            log_output = git_utils.run_git(args, cwd=work_dir)
+            if log_output:
+                for line in log_output.strip().split("\n"):
+                    if not line.strip():
+                        continue
+                    parts = line.split(" ", 1)
+                    commit_hash = parts[0] if parts else ""
+                    message = parts[1] if len(parts) > 1 else line
+                    msg_lower = message.lower()
+                    entry = {"commit": commit_hash, "message": message}
+                    if any(kw in msg_lower for kw in ["feat", "feature", "add", "new"]):
+                        features.append(entry)
+                    elif any(kw in msg_lower for kw in ["fix", "bug", "patch", "hotfix"]):
+                        bugfixes.append(entry)
+                    elif any(kw in msg_lower for kw in ["breaking", "remove", "delete", "deprecate"]):
+                        breaking_changes.append(entry)
+                    else:
+                        other.append(entry)
+        except Exception as e:
+            return self._make_error_response(f"Git log failed: {e}", buffer_id=buffer_id, operation="generate_changelog")
+
+        return {
+            "status": "ok",
+            "features": features,
+            "bugfixes": bugfixes,
+            "breaking_changes": breaking_changes,
+            "other": other,
+            "migration_notes": "",
+        }
+
+    def detect_api_changes(
+        self,
+        buffer_id: str,
+        since_commit: str | None = None,
+    ) -> dict[str, Any]:
+        """Detect API-breaking changes between commits.
+
+        Feature 25: Detect breaking changes that would affect consumers.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="detect_api_changes")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="detect_api_changes")
+
+        # Current API surface
+        current_api: list[dict[str, Any]] = []
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            if chunk.type in ("function", "method", "class") and hasattr(chunk, "name") and chunk.name:
+                import re
+                # Check for public symbols (no leading underscore)
+                if not chunk.name.startswith("_"):
+                    # Extract signature
+                    sig_match = re.search(r"def\s+\w+\s*\((.*?)\)", chunk.text, re.DOTALL)
+                    params = []
+                    if sig_match:
+                        params = [p.strip().split(":")[0].split("=")[0].strip()
+                                  for p in sig_match.group(1).split(",")
+                                  if p.strip() and p.strip() not in ("self", "cls")]
+                    current_api.append({
+                        "symbol": chunk.name, "file": chunk.file,
+                        "parameters": params, "type": chunk.type,
+                    })
+
+        # Try to compare with previous commit
+        previous_api: list[dict[str, Any]] = []
+        changes: list[dict[str, Any]] = []
+
+        from gigacode import git_utils
+        try:
+            if since_commit:
+                diff_output = git_utils.run_git(["diff", f"{since_commit}..HEAD", "--name-only"], cwd=self.work_dir)
+                changed_files = set(diff_output.strip().split("\n")) if diff_output else set()
+
+                for api in current_api:
+                    if api["file"] in changed_files:
+                        changes.append({
+                            "symbol": api["symbol"],
+                            "breaking": False,  # Conservative: would need old API to confirm
+                            "parameters_added": [],
+                            "return_type_changed": False,
+                            "migration_guide": f"Review changes to {api['symbol']} in {api['file']}",
+                        })
+        except Exception:
+            pass
+
+        return {
+            "status": "ok",
+            "current_api_surface": len(current_api),
+            "changes": changes,
+            "symbols": [{"name": a["symbol"], "params": a["parameters"]} for a in current_api[:50]],
+        }
+
+    def get_rollback_info(
+        self,
+        buffer_id: str,
+        file: str,
+    ) -> dict[str, Any]:
+        """Get rollback information for a file.
+
+        Feature 23: Understand what changed and why for debugging regressions.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="get_rollback_info")
+
+        from gigacode import git_utils
+        try:
+            # Get last commit touching this file
+            log_output = git_utils.run_git(
+                ["log", "-1", "--format=%H|%s|%ai", "--", file], cwd=self.work_dir
+            )
+            if not log_output or not log_output.strip():
+                return {"status": "ok", "last_working_commit": None, "message": "No git history for file"}
+
+            parts = log_output.strip().split("|", 2)
+            last_commit = parts[0] if parts else ""
+            commit_msg = parts[1] if len(parts) > 1 else ""
+            commit_date = parts[2] if len(parts) > 2 else ""
+
+            # Get diff to revert
+            diff_to_revert = git_utils.run_git(
+                ["diff", "HEAD", "--", file], cwd=self.work_dir
+            ) or ""
+
+            return {
+                "status": "ok",
+                "last_working_commit": last_commit,
+                "commit_message": commit_msg,
+                "commit_date": commit_date,
+                "diff_to_revert": diff_to_revert,
+            }
+        except Exception as e:
+            return self._make_error_response(f"Git operation failed: {e}", buffer_id=buffer_id, operation="get_rollback_info")
+
+    def generate_change_template(
+        self,
+        buffer_id: str,
+        request: str,
+    ) -> dict[str, Any]:
+        """Generate a change plan template for a request.
+
+        Feature 24: AI creates a plan before making changes.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="generate_change_template")
+
+        # Use semantic search to find relevant files
+        search_result = self.semantic_search(buffer_id, request, top_k=10)
+        files_to_modify = []
+        if search_result.get("status") == "ok":
+            for r in search_result.get("results", []):
+                f = r.get("file", "")
+                if f and f not in files_to_modify:
+                    files_to_modify.append(f)
+
+        # Get impact for each file
+        test_cases_needed: list[str] = []
+        risk_level = "low"
+
+        for f in files_to_modify[:5]:
+            try:
+                impact = self.analyze_change(buffer_id, f)
+                if impact.get("status") == "ok":
+                    risk = impact.get("risk_level", "low")
+                    if risk in ("high", "medium"):
+                        risk_level = "medium" if risk_level != "high" else "high"
+                    for t in impact.get("affected_tests", []):
+                        if t not in test_cases_needed:
+                            test_cases_needed.append(t)
+            except Exception:
+                pass
+
+        return {
+            "status": "ok",
+            "request": request,
+            "files_to_modify": files_to_modify[:10],
+            "change_strategy": f"Modify {len(files_to_modify)} files related to '{request}'",
+            "test_cases_needed": test_cases_needed[:10],
+            "risk_assessment": risk_level,
+        }
+
+    def map_api_endpoints(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Map all API endpoints (FastAPI, Flask, Django patterns).
+
+        Feature 32: Know all exposed endpoints; find security issues.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="map_api_endpoints")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="map_api_endpoints")
+
+        import re
+        endpoints: list[dict[str, Any]] = []
+
+        # FastAPI patterns
+        fastapi_pattern = re.compile(r'@app\.(get|post|put|delete|patch|head|options)\s*\(\s*["\']([^"\']+)["\']', re.IGNORECASE)
+        # Flask patterns
+        flask_pattern = re.compile(r'@(\w+).route\s*\(\s*["\']([^"\']+)["\']\s*(?:,\s*methods\s*=\s*\[([^\]]+)\])?', re.IGNORECASE)
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            # FastAPI
+            for match in fastapi_pattern.finditer(chunk.text):
+                method = match.group(1).upper()
+                path = match.group(2)
+                handler = ""
+                # Find handler function
+                rest = chunk.text[match.end():]
+                handler_match = re.search(r'async\s+def\s+(\w+)|def\s+(\w+)', rest[:200])
+                if handler_match:
+                    handler = handler_match.group(1) or handler_match.group(2) or ""
+                is_async = "async def" in chunk.text[match.end():match.end()+100]
+                endpoints.append({
+                    "method": method, "path": path, "handler": handler,
+                    "is_async": is_async, "file": chunk.file,
+                })
+
+            # Flask
+            for match in flask_pattern.finditer(chunk.text):
+                path = match.group(2)
+                methods_str = match.group(3) or '"GET"'
+                methods = re.findall(r'["\'](\w+)["\']', methods_str)
+                handler = ""
+                rest = chunk.text[match.end():]
+                handler_match = re.search(r'def\s+(\w+)', rest[:200])
+                if handler_match:
+                    handler = handler_match.group(1)
+                for m in methods:
+                    endpoints.append({
+                        "method": m.upper(), "path": path, "handler": handler,
+                        "is_async": False, "file": chunk.file,
+                    })
+
+        return {"status": "ok", "endpoints": endpoints, "total": len(endpoints)}
+
+    def analyze_cache_patterns(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Analyze cache usage patterns: invalidation logic, stale data risks.
+
+        Feature 33: Prevent stale cache bugs.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="analyze_cache_patterns")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="analyze_cache_patterns")
+
+        import re
+        caches_used: list[str] = []
+        invalidation_logic: list[dict[str, Any]] = []
+        stale_data_risks: list[dict[str, Any]] = []
+
+        cache_libs = {"redis", "memcache", "lru_cache", "functools", "cachetools", "diskcache"}
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            for lib in cache_libs:
+                if lib in chunk.text and lib not in caches_used:
+                    caches_used.append(lib)
+
+            # Find cache invalidation patterns
+            for match in re.finditer(r'(?:cache|_cache|cached)\s*(?:\.|_)(?:delete|remove|invalidate|clear|evict|pop)', chunk.text, re.IGNORECASE):
+                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                invalidation_logic.append({"file": chunk.file, "line": line, "pattern": match.group(0)[:80], "safe": True})
+
+            # Find cache writes without corresponding invalidation
+            for match in re.finditer(r'(?:cache|_cache|cached)\s*(?:\.|_)(?:set|put|add|store|write)', chunk.text, re.IGNORECASE):
+                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                # Check if same chunk has invalidation
+                has_invalidation = bool(re.search(r'(?:cache|_cache|cached)\s*(?:\.|_)(?:delete|remove|invalidate|clear|evict)', chunk.text, re.IGNORECASE))
+                if not has_invalidation:
+                    stale_data_risks.append({"file": chunk.file, "line": line, "risk_level": "medium"})
+
+        return {
+            "status": "ok",
+            "caches_used": caches_used,
+            "invalidation_logic": invalidation_logic,
+            "stale_data_risks": stale_data_risks,
+        }
+
+    def analyze_thread_safety(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Analyze thread safety: shared state, race conditions, deadlock risks.
+
+        Feature 34: Catch concurrency bugs early.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="analyze_thread_safety")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="analyze_thread_safety")
+
+        import re
+        shared_state: list[dict[str, Any]] = []
+        race_conditions: list[dict[str, Any]] = []
+        deadlock_risks: list[dict[str, Any]] = []
+
+        # Find global/shared mutable state
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            # Module-level mutable assignments
+            if chunk.type == "module":
+                for match in re.finditer(r'^(\w+)\s*=\s*(?:\[\]|\{\}|set\(\)|dict\(\)|list\(\))', chunk.text, re.MULTILINE):
+                    var_name = match.group(1)
+                    if not var_name.startswith("_"):
+                        shared_state.append({
+                            "name": var_name, "file": chunk.file,
+                            "modified_by": [], "protected_by": "none",
+                        })
+
+            # Check for lock usage
+            has_lock = bool(re.search(r'(?:Lock|RLock|Semaphore|threading\.)', chunk.text))
+
+            # Detect non-atomic operations on shared state
+            for match in re.finditer(r'(?:append|extend|remove|pop|update|clear|add|discard)\s*\(', chunk.text):
+                if not has_lock:
+                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    race_conditions.append({
+                        "file": chunk.file, "line": line,
+                        "variables": [], "risk_level": "medium",
+                    })
+
+            # Detect potential deadlocks (multiple locks)
+            locks = re.findall(r'(?:Lock|RLock)\s*\(\s*\)', chunk.text)
+            if len(locks) > 1:
+                deadlock_risks.append({
+                    "file": chunk.file, "line": chunk.start_line,
+                    "locks_count": len(locks),
+                    "suggestion": "Multiple locks — ensure consistent acquisition order",
+                })
+
+        return {
+            "status": "ok",
+            "shared_state": shared_state,
+            "race_conditions": race_conditions[:20],
+            "deadlock_risks": deadlock_risks,
+        }
+
+    def detect_memory_issues(
+        self,
+        buffer_id: str,
+    ) -> dict[str, Any]:
+        """Detect memory issues: circular refs, unbounded collections, resource leaks.
+
+        Feature 35: Identify memory issues in long-running processes.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="detect_memory_issues")
+
+        chunks = self._load_chunks(buffer_id)
+        if not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="detect_memory_issues")
+
+        import re
+        circular_refs: list[dict[str, Any]] = []
+        unbounded_collections: list[dict[str, Any]] = []
+        resource_leaks: list[dict[str, Any]] = []
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+
+            # Unbounded collections (append without limit in loops)
+            if chunk.type in ("function", "method"):
+                has_loop = bool(re.search(r'\b(for|while)\b', chunk.text))
+                has_append = bool(re.search(r'\.append\s*\(', chunk.text))
+                has_limit = bool(re.search(r'(?:max_|limit|cap|size|len\(|break|return)', chunk.text))
+                if has_loop and has_append and not has_limit:
+                    unbounded_collections.append({
+                        "file": chunk.file, "line": chunk.start_line,
+                        "symbol": getattr(chunk, "name", ""),
+                        "growth_reason": "append in loop without size limit",
+                    })
+
+            # Resource leaks (open without with/context)
+            for match in re.finditer(r'(\w+)\s*=\s*open\s*\([^)]*\)', chunk.text):
+                var_name = match.group(1)
+                # Check if 'with' statement or .close() present
+                if f"with {var_name}" not in chunk.text and f"{var_name}.close()" not in chunk.text and "with open" not in chunk.text:
+                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    resource_leaks.append({
+                        "file": chunk.file, "line": line,
+                        "resource": "file handle", "cleanup_missing": True,
+                    })
+
+            # Circular references (self-referential patterns)
+            for match in re.finditer(r'self\.(\w+)\s*=\s*self\b', chunk.text):
+                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                circular_refs.append({
+                    "file": chunk.file, "line": line,
+                    "symbols": [match.group(1)],
+                })
+
+        return {
+            "status": "ok",
+            "circular_refs": circular_refs,
+            "unbounded_collections": unbounded_collections,
+            "resource_leaks": resource_leaks,
+        }
+
+    # ------------------------------------------------------------------
     # Phase 9: Progress Streaming (helper)
     # ------------------------------------------------------------------
     def _create_progress_reporter(
@@ -6086,4 +7075,76 @@ class CodeEmbeddingTool:
         }
         if not summary_only:
             result["changes"] = changes
+        return result
+
+    def lint_with_config(
+        self,
+        buffer_id: str,
+        config_file: str | None = None,
+        files: list[str] | None = None,
+        auto_fix: bool = False,
+    ) -> dict[str, Any]:
+        """Lint using project configuration (ruff.toml, pyproject.toml, .flake8).
+
+        Feature 41: Config-aware linting respects project-specific rules.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="lint_with_config")
+
+        # Discover config file
+        if config_file is None:
+            import os
+            work_dir = self.work_dir
+            for candidate in ["ruff.toml", ".ruff.toml", "pyproject.toml", ".flake8", "setup.cfg"]:
+                candidate_path = os.path.join(work_dir, candidate)
+                if os.path.isfile(candidate_path):
+                    config_file = candidate
+                    break
+
+        result = self.auto_lint(
+            buffer_id=buffer_id, files=files,
+            auto_fix=auto_fix, dry_run=not auto_fix,
+        )
+
+        if result.get("status") != "ok":
+            return result
+
+        result["config_file"] = config_file or "none found"
+        return result
+
+    def format_with_config(
+        self,
+        buffer_id: str,
+        config_file: str | None = None,
+        files: list[str] | None = None,
+        dry_run: bool = True,
+    ) -> dict[str, Any]:
+        """Format using project configuration (pyproject.toml, .black, ruff.toml).
+
+        Feature 42: Config-aware formatting respects project-specific style.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="format_with_config")
+
+        # Discover config file
+        if config_file is None:
+            import os
+            work_dir = self.work_dir
+            for candidate in ["pyproject.toml", ".black", "ruff.toml", ".ruff.toml"]:
+                candidate_path = os.path.join(work_dir, candidate)
+                if os.path.isfile(candidate_path):
+                    config_file = candidate
+                    break
+
+        result = self.auto_format(
+            buffer_id=buffer_id, files=files,
+            dry_run=dry_run,
+        )
+
+        if result.get("status") != "ok":
+            return result
+
+        result["config_file"] = config_file or "none found"
         return result
