@@ -39,6 +39,7 @@ __all__ = [
     "AUTO_FORMAT_SCHEMA",
     "AUTO_LINT_SCHEMA",
     "AUTO_POLISH_SCHEMA",
+    "GET_REFERENCES_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -1218,6 +1219,77 @@ AUTO_POLISH_SCHEMA: dict[str, Any] = {
     },
 }
 
+GET_REFERENCES_SCHEMA: dict[str, Any] = {
+    "name": "get_references",
+    "description": (
+        "Find all callers and callees for a symbol using an incremental "
+        "reference map. Lazy on-demand construction with caching. Optionally "
+        "expand to deeper call chains with expand_depth."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle."},
+            "symbol": {"type": "string", "description": "Symbol name to find references for."},
+            "direction": {
+                "type": "string",
+                "enum": ["both", "calls", "called_by"],
+                "description": "Direction: 'both' (default), 'calls' (callees), 'called_by' (callers).",
+                "default": "both",
+            },
+            "top_k": {"type": "integer", "description": "Max references per direction. Default: 50.", "default": 50},
+            "expand_depth": {
+                "type": ["integer", "null"],
+                "description": "If set, expand call chain to this depth (Phase 3 fill).",
+            },
+        },
+        "required": ["buffer_id", "symbol"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "symbol": {"type": "string"},
+            "file": {"type": "string"},
+            "line": {"type": "integer"},
+            "callers": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "symbol": {"type": "string"},
+                        "context": {"type": "string"},
+                        "confidence": {"type": "string", "enum": ["high", "medium"]},
+                        "via": {"type": "string", "description": "Intermediate symbol (for expanded depth > 1)"},
+                        "depth": {"type": "integer", "description": "Depth level (1 = direct)"},
+                    },
+                },
+            },
+            "callees": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "symbol": {"type": "string"},
+                        "context": {"type": "string"},
+                        "confidence": {"type": "string", "enum": ["high", "medium"]},
+                        "via": {"type": "string"},
+                        "depth": {"type": "integer"},
+                    },
+                },
+            },
+            "direction": {"type": "string"},
+            "depth": {"type": "integer"},
+            "cached": {"type": "boolean"},
+        },
+        "required": ["status"],
+    },
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -1243,6 +1315,7 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     AUTO_FORMAT_SCHEMA,
     AUTO_LINT_SCHEMA,
     AUTO_POLISH_SCHEMA,
+    GET_REFERENCES_SCHEMA,
 ]
 
 

@@ -70,6 +70,7 @@ from gigacode.tool_security import ToolSecurityLayer
 from gigacode.type_search import TypeSearcher
 from gigacode.type_inference_cache import TypeInferenceCache
 from gigacode.code_quality import auto_format, auto_lint, auto_polish
+from gigacode.reference_map import ReferenceMap
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("tool")
@@ -1357,6 +1358,68 @@ class CodeEmbeddingTool:
                 f"Get references failed: {e}",
                 buffer_id=buffer_id,
                 operation="get_symbol_references",
+            )
+
+    def get_references(
+        self,
+        buffer_id: str,
+        symbol: str,
+        direction: str = "both",
+        top_k: int = 50,
+        expand_depth: int | None = None,
+    ) -> dict[str, Any]:
+        """Find all callers/callees for a symbol using the incremental reference map.
+
+        Uses a three-phase incremental strategy:
+        1. Lazy/On-Demand: Build only the direct neighborhood on first query.
+        2. Cached: Subsequent queries return cached results instantly.
+        3. Optional expansion: Set expand_depth to trace deeper call chains.
+
+        Args:
+            buffer_id: Buffer handle.
+            symbol: Symbol name to find references for.
+            direction: "both" (default), "calls" (callees), or "called_by" (callers).
+            top_k: Maximum references per direction (default: 50).
+            expand_depth: If set, expand neighborhood to this depth (Phase 3 fill).
+
+        Returns:
+            Dict with symbol, file, line, callers, callees, direction, cached.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_references"
+            )
+
+        if direction not in ("both", "calls", "called_by"):
+            return self._make_error_response(
+                f"direction must be 'both', 'calls', or 'called_by', got '{direction}'",
+                buffer_id=buffer_id,
+                operation="get_references",
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_references"
+            )
+
+        try:
+            ref_map = ReferenceMap(chunks)
+            result = ref_map.get_references(symbol, direction=direction, top_k=top_k)
+
+            # Phase 3: Expand if requested
+            if expand_depth is not None and expand_depth > 1:
+                result = ref_map.expand_neighborhood(
+                    symbol, max_depth=expand_depth, direction=direction
+                )
+
+            return result
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Get references failed: {e}",
+                buffer_id=buffer_id,
+                operation="get_references",
             )
 
     def list_file_symbols(
