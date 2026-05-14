@@ -131,6 +131,21 @@ class SymbolMetadataRequest(BaseModel):
     type_inference_method: str = "ast"
 
 
+class GetReferencesRequest(BaseModel):
+    buffer_id: str
+    symbol: str
+    direction: str = "both"
+    top_k: int = 50
+    expand_depth: Optional[int] = None
+
+
+class FullContextRequest(BaseModel):
+    buffer_id: str
+    symbol: str
+    include: Optional[List[str]] = None
+    type_inference_method: str = "llm"
+
+
 class AutoFormatRequest(BaseModel):
     buffer_id: str
     files: Optional[List[str]] = None
@@ -348,6 +363,26 @@ def create_app(tool: Any) -> FastAPI:
     async def symbol_metadata(req: SymbolMetadataRequest) -> dict[str, Any]:
         result = tool.get_symbol_metadata(
             req.buffer_id, req.symbol, include_types=req.include_types,
+            type_inference_method=req.type_inference_method,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/references")
+    async def get_references(req: GetReferencesRequest) -> dict[str, Any]:
+        result = tool.get_references(
+            req.buffer_id, req.symbol, direction=req.direction,
+            top_k=req.top_k, expand_depth=req.expand_depth,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/context/full")
+    async def get_full_context(req: FullContextRequest) -> dict[str, Any]:
+        result = tool.get_full_context(
+            req.buffer_id, req.symbol, include=req.include,
             type_inference_method=req.type_inference_method,
         )
         if result.get("status") != "ok":

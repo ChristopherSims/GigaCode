@@ -1422,6 +1422,170 @@ class CodeEmbeddingTool:
                 operation="get_references",
             )
 
+    def get_full_context(
+        self,
+        buffer_id: str,
+        symbol: str,
+        include: list[str] | None = None,
+        type_inference_method: str = "llm",
+    ) -> dict[str, Any]:
+        """Get everything about a symbol in one call.
+
+        Combines get_symbol_definition + get_references + type inference +
+        test discovery + error handling analysis. Single roundtrip instead of 5 API calls.
+
+        Args:
+            buffer_id: Buffer handle.
+            symbol: Symbol name to get full context for.
+            include: List of sections to include. Default: all.
+                     Options: "definition", "callers", "callees", "tests",
+                     "related_code", "type_hints", "errors".
+            type_inference_method: "llm" (accurate) or "ast" (fast).
+
+        Returns:
+            Dict with definition, callers, callees, types, tests, errors.
+        """
+        if include is None:
+            include = ["definition", "callers", "callees", "tests", "related_code", "type_hints", "errors"]
+
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_full_context"
+            )
+
+        result: dict[str, Any] = {"status": "ok", "symbol": symbol}
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_full_context"
+            )
+
+        try:
+            # Definition
+            if "definition" in include:
+                index = SymbolIndex(chunks)
+                definitions = index.get_definition(symbol)
+                if definitions:
+                    entry = definitions[0]
+                    result["definition"] = entry.to_dict()
+                    # Also include the source text
+                    for chunk in chunks:
+                        if (hasattr(chunk, "name") and chunk.name == entry.name
+                                and chunk.file == entry.file
+                                and chunk.start_line == entry.start_line):
+                            result["definition"]["source"] = chunk.text
+                            break
+                else:
+                    result["definition"] = None
+
+            # Callers and callees
+            if "callers" in include or "callees" in include:
+                ref_result = self.get_references(
+                    buffer_id=buffer_id, symbol=symbol, direction="both"
+                )
+                if ref_result.get("status") == "ok":
+                    result["callers"] = ref_result.get("callers", []) if "callers" in include else []
+                    result["callees"] = ref_result.get("callees", []) if "callees" in include else []
+                else:
+                    result["callers"] = []
+                    result["callees"] = []
+
+            # Type hints
+            if "type_hints" in include:
+                type_result = self.get_symbol_metadata(
+                    buffer_id=buffer_id, symbol=symbol,
+                    include_types=True, type_inference_method=type_inference_method,
+                )
+                if type_result.get("status") == "ok":
+                    result["types"] = {
+                        "parameters": type_result.get("parameters", []),
+                        "return_type": type_result.get("return_type"),
+                        "type_confidence": type_result.get("type_confidence"),
+                        "inference_method": type_result.get("inference_method"),
+                    }
+                else:
+                    result["types"] = None
+
+            # Tests
+            if "tests" in include:
+                result["tests"] = self._find_tests_for_symbol(chunks, symbol)
+
+            # Related code (semantic search)
+            if "related_code" in include:
+                related = self.semantic_search(
+                    buffer_id=buffer_id, query=symbol, top_k=5
+                )
+                if related.get("status") == "ok":
+                    result["related_code"] = related.get("matches", [])
+                else:
+                    result["related_code"] = []
+
+            # Error handling
+            if "errors" in include:
+                result["errors"] = self._analyze_error_handling(chunks, symbol)
+
+            return result
+
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Get full context failed: {e}",
+                buffer_id=buffer_id,
+                operation="get_full_context",
+            )
+
+    @staticmethod
+    def _find_tests_for_symbol(chunks: list[Any], symbol: str) -> list[dict[str, Any]]:
+        """Find test files/functions related to a symbol."""
+        import re
+        tests: list[dict[str, Any]] = []
+        # Heuristic: test files that import or reference the symbol
+        test_patterns = ["test_", "_test", "tests/", "spec_", "_spec"]
+        for chunk in chunks:
+            if not hasattr(chunk, "file") or not hasattr(chunk, "text"):
+                continue
+            # Check if it's a test file
+            is_test = any(p in chunk.file for p in test_patterns)
+            if not is_test:
+                continue
+            # Check if it references the symbol
+            symbols_called = getattr(chunk, "symbols_called", None) or []
+            if symbol in symbols_called or re.search(rf"\b{re.escape(symbol)}\b", chunk.text or ""):
+                tests.append({
+                    "file": chunk.file,
+                    "start_line": chunk.start_line,
+                    "end_line": chunk.end_line,
+                    "name": getattr(chunk, "name", ""),
+                    "type": getattr(chunk, "type", "function"),
+                })
+        return tests[:10]
+
+    @staticmethod
+    def _analyze_error_handling(chunks: list[Any], symbol: str) -> list[dict[str, Any]]:
+        """Find error handling patterns related to a symbol."""
+        import re
+        errors: list[dict[str, Any]] = []
+        # Find try/except blocks that contain the symbol
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            if symbol not in chunk.text:
+                continue
+            # Find try/except blocks
+            try_pattern = re.compile(r"try:\s*\n(.*?)\bexcept\b", re.DOTALL)
+            for match in try_pattern.finditer(chunk.text):
+                try_block = match.group(1)
+                if symbol in try_block:
+                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    errors.append({
+                        "file": chunk.file,
+                        "line": line,
+                        "type": "try_except",
+                        "context": try_block.strip()[:200],
+                    })
+        return errors[:5]
+
     def list_file_symbols(
         self,
         buffer_id: str,

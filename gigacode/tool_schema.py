@@ -40,6 +40,7 @@ __all__ = [
     "AUTO_LINT_SCHEMA",
     "AUTO_POLISH_SCHEMA",
     "GET_REFERENCES_SCHEMA",
+    "GET_FULL_CONTEXT_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -1290,6 +1291,49 @@ GET_REFERENCES_SCHEMA: dict[str, Any] = {
     },
 }
 
+GET_FULL_CONTEXT_SCHEMA: dict[str, Any] = {
+    "name": "get_full_context",
+    "description": (
+        "Get everything about a symbol in one call: definition, callers, callees, "
+        "type hints, tests, related code, and error handling. Single roundtrip "
+        "instead of 5+ API calls."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle."},
+            "symbol": {"type": "string", "description": "Symbol name to get full context for."},
+            "include": {
+                "type": "array",
+                "items": {"type": "string", "enum": ["definition", "callers", "callees", "tests", "related_code", "type_hints", "errors"]},
+                "description": "Sections to include. Default: all.",
+            },
+            "type_inference_method": {
+                "type": "string",
+                "enum": ["llm", "ast"],
+                "description": "Type inference method. Default: 'llm'.",
+                "default": "llm",
+            },
+        },
+        "required": ["buffer_id", "symbol"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "symbol": {"type": "string"},
+            "definition": {"type": "object", "description": "Symbol definition with source code."},
+            "callers": {"type": "array", "description": "Symbols that call this symbol."},
+            "callees": {"type": "array", "description": "Symbols called by this symbol."},
+            "types": {"type": "object", "description": "Inferred type information."},
+            "tests": {"type": "array", "description": "Test files/functions related to this symbol."},
+            "related_code": {"type": "array", "description": "Semantically related code."},
+            "errors": {"type": "array", "description": "Error handling patterns involving this symbol."},
+        },
+        "required": ["status"],
+    },
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -1316,6 +1360,7 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     AUTO_LINT_SCHEMA,
     AUTO_POLISH_SCHEMA,
     GET_REFERENCES_SCHEMA,
+    GET_FULL_CONTEXT_SCHEMA,
 ]
 
 
