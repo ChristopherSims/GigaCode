@@ -363,6 +363,42 @@ class CodeEmbeddingTool:
         return tool_validation.validate_search_params(query, top_k=top_k, max_results=max_results)
 
     # ------------------------------------------------------------------
+    # Unified diff helper (Feature 9: Return the Diff)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _compute_unified_diff(
+        old_lines: list[str],
+        new_lines: list[str],
+        file: str = "",
+        context_lines: int = 3,
+    ) -> str:
+        """Compute a unified diff between old and new file lines.
+
+        Args:
+            old_lines: Original file lines (without trailing newlines).
+            new_lines: New file lines (without trailing newlines).
+            file: File path for diff header.
+            context_lines: Number of context lines around changes.
+
+        Returns:
+            Unified diff string.
+        """
+        import difflib
+
+        # difflib expects lines with trailing newlines
+        old_with_newlines = [line + "\n" for line in old_lines]
+        new_with_newlines = [line + "\n" for line in new_lines]
+
+        diff_lines = list(difflib.unified_diff(
+            old_with_newlines,
+            new_with_newlines,
+            fromfile=f"a/{file}",
+            tofile=f"b/{file}",
+            n=context_lines,
+        ))
+        return "".join(diff_lines)
+
+    # ------------------------------------------------------------------
     # Phase 5: Response adapters (delegated to response_adapters module)
     # ------------------------------------------------------------------
     @staticmethod
@@ -2377,6 +2413,7 @@ class CodeEmbeddingTool:
             "changed_lines": len(sanitized_new_lines),
             "replaced_lines": end - start_line,
             "total_lines": len(new_file_lines),
+            "diff": self._compute_unified_diff(old_lines, new_file_lines, file),
         }
 
         # Audit log successful write

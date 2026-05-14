@@ -1280,7 +1280,7 @@ type_inference_method="ast"  # Faster alternative
 | 6 | Diff-Aware Search | ⭐⭐⭐⭐ | Medium | High | 💡 Proposed |
 | 7 | Test Coverage Map | ⭐⭐⭐⭐ | High | Very High | 🎯 Next |
 | 8 | Symbol Metadata | ⭐⭐⭐⭐ | Medium | High | 💡 Proposed |
-| 9 | Return the Diff | ⭐⭐⭐⭐ | Low | High | 🔧 In Progress |
+| 9 | Return the Diff | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
 | 10 | Execution Paths | ⭐⭐⭐ | High | Medium | 💡 Proposed |
 | 11-35 | Advanced Features | ⭐⭐-⭐⭐⭐ | Medium-High | Medium-High | 💡 Roadmap |
 | 36 | Format Code (Black) | ⭐⭐⭐⭐ | Low | High | 🎯 Next |

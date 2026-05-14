@@ -199,6 +199,7 @@ class WriteResponse:
     changed_lines: Optional[int] = None
     replaced_lines: Optional[int] = None
     total_lines: Optional[int] = None
+    diff: Optional[str] = None
     message: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -208,6 +209,8 @@ class WriteResponse:
             result["changed_lines"] = self.changed_lines
             result["replaced_lines"] = self.replaced_lines
             result["total_lines"] = self.total_lines
+        if self.diff is not None:
+            result["diff"] = self.diff
         if self.message is not None:
             result["message"] = self.message
         return result

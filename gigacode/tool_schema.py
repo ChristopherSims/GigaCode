@@ -626,6 +626,7 @@ WRITE_CODE_SCHEMA: dict[str, Any] = {
             "changed_lines": {"type": "integer"},
             "replaced_lines": {"type": "integer"},
             "total_lines": {"type": "integer"},
+            "diff": {"type": "string", "description": "Unified diff of the changes made by this write operation."},
             "message": {"type": "string"},
         },
         "required": ["status"],
