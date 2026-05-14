@@ -44,6 +44,13 @@ __all__ = [
     "ANALYZE_CHANGE_SCHEMA",
     "GET_TEST_COVERAGE_SCHEMA",
     "POLISH_BEFORE_COMMIT_SCHEMA",
+    "TRACE_EXECUTION_PATHS_SCHEMA",
+    "GET_DEPENDENCY_GRAPH_SCHEMA",
+    "DETECT_CODE_SMELLS_SCHEMA",
+    "SCAN_SECURITY_SCHEMA",
+    "SUGGEST_REFACTORINGS_SCHEMA",
+    "LINT_BUFFER_SCHEMA",
+    "FORMAT_BUFFER_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -1440,6 +1447,182 @@ POLISH_BEFORE_COMMIT_SCHEMA: dict[str, Any] = {
     },
 }
 
+TRACE_EXECUTION_PATHS_SCHEMA: dict[str, Any] = {
+    "name": "trace_execution_paths",
+    "description": "Trace all execution paths through a symbol using AST branch detection.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string"},
+            "symbol": {"type": "string", "description": "Symbol name to trace."},
+            "max_depth": {"type": "integer", "description": "Max call depth. Default: 3.", "default": 3},
+        },
+        "required": ["buffer_id", "symbol"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "symbol": {"type": "string"},
+            "paths": {"type": "array", "items": {"type": "object"}},
+            "path_count": {"type": "integer"},
+        },
+        "required": ["status"],
+    },
+}
+
+GET_DEPENDENCY_GRAPH_SCHEMA: dict[str, Any] = {
+    "name": "get_dependency_graph",
+    "description": "Get dependency graph visualization data (nodes + edges).",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string"},
+            "symbol": {"type": ["string", "null"], "description": "Optional symbol to scope graph around."},
+            "depth": {"type": "integer", "description": "Depth of dependencies. Default: 2.", "default": 2},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "nodes": {"type": "array", "items": {"type": "object"}},
+            "edges": {"type": "array", "items": {"type": "object"}},
+        },
+        "required": ["status"],
+    },
+}
+
+DETECT_CODE_SMELLS_SCHEMA: dict[str, Any] = {
+    "name": "detect_code_smells",
+    "description": "Detect code smells: long functions, deep nesting, missing docstrings, complex logic, too many params.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string"},
+            "types": {
+                "type": "array",
+                "items": {"type": "string", "enum": ["long_function", "deep_nesting", "missing_docstring", "complex_logic", "too_many_params", "duplicates"]},
+            },
+            "severity_min": {"type": "string", "enum": ["low", "medium", "high"], "default": "low"},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "smells": {"type": "array"},
+            "total": {"type": "integer"},
+        },
+        "required": ["status"],
+    },
+}
+
+SCAN_SECURITY_SCHEMA: dict[str, Any] = {
+    "name": "scan_security",
+    "description": "Scan for security vulnerabilities: eval, exec, shell injection, SQL injection, hardcoded secrets, unsafe pickle/yaml.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string"},
+            "severity_min": {"type": "string", "enum": ["low", "medium", "high"], "default": "medium"},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "vulnerabilities": {"type": "array"},
+            "total": {"type": "integer"},
+        },
+        "required": ["status"],
+    },
+}
+
+SUGGEST_REFACTORINGS_SCHEMA: dict[str, Any] = {
+    "name": "suggest_refactorings",
+    "description": "Suggest safe refactorings for a symbol with risk assessment.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string"},
+            "symbol": {"type": "string"},
+        },
+        "required": ["buffer_id", "symbol"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "symbol": {"type": "string"},
+            "suggestions": {"type": "array"},
+        },
+        "required": ["status"],
+    },
+}
+
+LINT_BUFFER_SCHEMA: dict[str, Any] = {
+    "name": "lint_buffer",
+    "description": "Deep lint analysis with detailed aggregation by file/severity/rule. Report-only, no auto-fix.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string"},
+            "files": {"type": "array", "items": {"type": "string"}},
+            "select": {"type": "array", "items": {"type": "string"}},
+            "exclude_patterns": {"type": "array", "items": {"type": "string"}},
+            "group_by": {"type": "string", "enum": ["file", "severity", "rule"], "default": "file"},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "total_issues": {"type": "integer"},
+            "by_file": {"type": "object"},
+            "by_severity": {"type": "object"},
+            "by_rule": {"type": "object"},
+        },
+        "required": ["status"],
+    },
+}
+
+FORMAT_BUFFER_SCHEMA: dict[str, Any] = {
+    "name": "format_buffer",
+    "description": "Deep format analysis with detailed change tracking across codebase.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string"},
+            "files": {"type": "array", "items": {"type": "string"}},
+            "formatter": {"type": "string", "enum": ["black", "ruff.format"], "default": "black"},
+            "line_length": {"type": "integer", "default": 88},
+            "exclude_patterns": {"type": "array", "items": {"type": "string"}},
+            "dry_run": {"type": "boolean", "default": True},
+            "summary_only": {"type": "boolean", "default": False},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "total_files": {"type": "integer"},
+            "formatted_files": {"type": "integer"},
+            "already_formatted": {"type": "integer"},
+            "total_lines_added": {"type": "integer"},
+            "total_lines_removed": {"type": "integer"},
+            "changes": {"type": "array"},
+            "summary": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -1470,6 +1653,13 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     ANALYZE_CHANGE_SCHEMA,
     GET_TEST_COVERAGE_SCHEMA,
     POLISH_BEFORE_COMMIT_SCHEMA,
+    TRACE_EXECUTION_PATHS_SCHEMA,
+    GET_DEPENDENCY_GRAPH_SCHEMA,
+    DETECT_CODE_SMELLS_SCHEMA,
+    SCAN_SECURITY_SCHEMA,
+    SUGGEST_REFACTORINGS_SCHEMA,
+    LINT_BUFFER_SCHEMA,
+    FORMAT_BUFFER_SCHEMA,
 ]
 
 def get_schema(name: str) -> dict[str, Any] | None:

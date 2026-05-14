@@ -71,6 +71,7 @@ from gigacode.type_search import TypeSearcher
 from gigacode.type_inference_cache import TypeInferenceCache
 from gigacode.code_quality import auto_format, auto_lint, auto_polish
 from gigacode.reference_map import ReferenceMap
+from gigacode.execution_paths import trace_execution_paths
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("tool")
@@ -4995,6 +4996,171 @@ class CodeEmbeddingTool:
                 str(e), buffer_id=buffer_id, operation="export_dependency_graph"
             )
 
+    def trace_execution_paths(
+        self,
+        buffer_id: str,
+        symbol: str,
+        max_depth: int = 3,
+    ) -> dict[str, Any]:
+        """Trace all execution paths through a symbol.
+
+        Feature 10: For complex logic, know all execution branches before editing.
+        Uses AST branch detection and call graph traversal.
+
+        Args:
+            buffer_id: Buffer handle.
+            symbol: Symbol name to trace paths for.
+            max_depth: Maximum depth to follow calls (default: 3).
+
+        Returns:
+            Dict with paths list, each containing path chain, branches, and calls.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="trace_execution_paths"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="trace_execution_paths"
+            )
+
+        try:
+            paths = trace_execution_paths(chunks, symbol, max_depth=max_depth)
+            return {
+                "status": "ok",
+                "symbol": symbol,
+                "paths": [p.to_dict() for p in paths],
+                "path_count": len(paths),
+            }
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Execution path trace failed: {e}",
+                buffer_id=buffer_id,
+                operation="trace_execution_paths",
+            )
+
+    def get_dependency_graph(
+        self,
+        buffer_id: str,
+        symbol: str | None = None,
+        depth: int = 2,
+    ) -> dict[str, Any]:
+        """Get dependency graph visualization data.
+
+        Feature 11: Visualize relationships; understand architecture at a glance.
+        Returns nodes and edges suitable for graph visualization.
+
+        Args:
+            buffer_id: Buffer handle.
+            symbol: Optional symbol to scope the graph around.
+            depth: Depth of dependencies to include (default: 2).
+
+        Returns:
+            Dict with nodes and edges for graph visualization.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="get_dependency_graph"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="get_dependency_graph"
+            )
+
+        try:
+            graph = DependencyGraph(chunks)
+            exported = graph.export_graph("json")
+
+            nodes: list[dict[str, Any]] = []
+            edges: list[dict[str, Any]] = []
+
+            if symbol:
+                # Scope graph around symbol
+                from gigacode.reference_map import ReferenceMap
+                ref_map = ReferenceMap(chunks)
+                visited_symbols: set[str] = {symbol}
+                visited_files: set[str] = set()
+
+                # Collect symbols at each depth level
+                current_level = [symbol]
+                for d in range(depth):
+                    next_level: list[str] = []
+                    for sym in current_level:
+                        refs = ref_map.get_references(sym, direction="both", top_k=20)
+                        if refs.get("status") == "ok":
+                            for caller in refs.get("callers", []):
+                                if caller.get("symbol") and caller["symbol"] not in visited_symbols:
+                                    visited_symbols.add(caller["symbol"])
+                                    next_level.append(caller["symbol"])
+                                    if caller.get("file"):
+                                        visited_files.add(caller["file"])
+                            for callee in refs.get("callees", []):
+                                if callee.get("symbol") and callee["symbol"] not in visited_symbols:
+                                    visited_symbols.add(callee["symbol"])
+                                    next_level.append(callee["symbol"])
+                                    if callee.get("file"):
+                                        visited_files.add(callee["file"])
+                        # Find file for this symbol
+                        for ch in chunks:
+                            if hasattr(ch, "name") and ch.name == sym:
+                                visited_files.add(ch.file)
+                    current_level = next_level
+
+                # Build filtered nodes
+                for sym in visited_symbols:
+                    for ch in chunks:
+                        if hasattr(ch, "name") and ch.name == sym:
+                            nodes.append({"id": sym, "label": sym, "type": ch.type, "file": ch.file})
+                            break
+
+                # Build filtered edges
+                for sym in visited_symbols:
+                    refs = ref_map.get_references(sym, direction="both", top_k=20)
+                    if refs.get("status") == "ok":
+                        for callee in refs.get("callees", []):
+                            if callee.get("symbol") in visited_symbols:
+                                edges.append({"from": sym, "to": callee["symbol"], "type": "calls"})
+
+                # Add import edges
+                for ch in chunks:
+                    if ch.file in visited_files and hasattr(ch, "imports"):
+                        for imp in (ch.imports or []):
+                            for other_file in visited_files:
+                                stem = Path(other_file).stem
+                                if stem in imp:
+                                    edges.append({"from": ch.file, "to": other_file, "type": "imports"})
+            else:
+                # Full graph
+                node_set: set[str] = set()
+                for ch in chunks:
+                    if ch.name:
+                        node_set.add(ch.name)
+                        nodes.append({"id": ch.name, "label": ch.name, "type": ch.type, "file": ch.file})
+                    node_set.add(ch.file)
+
+                for call_edge in exported.get("calls", []):
+                    if call_edge.get("caller") in node_set and call_edge.get("callee") in node_set:
+                        edges.append({"from": call_edge["caller"], "to": call_edge["callee"], "type": "calls"})
+
+                for imp_edge in exported.get("edges", []):
+                    if imp_edge.get("source") in node_set:
+                        edges.append({"from": imp_edge["source"], "to": imp_edge.get("target", ""), "type": "imports"})
+
+            return {"status": "ok", "nodes": nodes, "edges": edges}
+
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Dependency graph failed: {e}",
+                buffer_id=buffer_id,
+                operation="get_dependency_graph",
+            )
+
     # ------------------------------------------------------------------
     # Phase 6: Dead Code Detection
     # ------------------------------------------------------------------
@@ -5087,6 +5253,323 @@ class CodeEmbeddingTool:
             return self._make_error_response(
                 str(e), buffer_id=buffer_id, operation="score_code_quality"
             )
+
+    def detect_code_smells(
+        self,
+        buffer_id: str,
+        types: list[str] | None = None,
+        severity_min: str = "low",
+    ) -> dict[str, Any]:
+        """Detect code smells across the buffer.
+
+        Feature 13: Automatically flag refactoring opportunities.
+
+        Args:
+            buffer_id: Buffer handle.
+            types: Smell types to detect. Options: "long_function", "deep_nesting",
+                   "duplicates", "missing_docstring", "complex_logic", "too_many_params".
+                   Default: all.
+            severity_min: Minimum severity to report: "low", "medium", "high".
+
+        Returns:
+            Dict with smells list, each containing file, line, type, severity, suggestion.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="detect_code_smells"
+            )
+
+        if types is None:
+            types = ["long_function", "deep_nesting", "missing_docstring",
+                     "complex_logic", "too_many_params"]
+
+        severity_order = {"low": 0, "medium": 1, "high": 2}
+        min_severity = severity_order.get(severity_min, 0)
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="detect_code_smells"
+            )
+
+        smells: list[dict[str, Any]] = []
+        import re
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            if chunk.type not in ("function", "method", "class"):
+                continue
+
+            lines = chunk.text.split("\n")
+            line_count = len(lines)
+            name = getattr(chunk, "name", "")
+
+            # Long function
+            if "long_function" in types and line_count > 50:
+                severity = "high" if line_count > 100 else "medium"
+                if severity_order.get(severity, 0) >= min_severity:
+                    smells.append({
+                        "file": chunk.file,
+                        "line": chunk.start_line,
+                        "type": "long_function",
+                        "severity": severity,
+                        "suggestion": f"Function '{name}' is {line_count} lines. Consider extracting methods.",
+                    })
+
+            # Deep nesting
+            if "deep_nesting" in types:
+                max_indent = 0
+                for line in lines:
+                    if line.strip():
+                        indent = len(line) - len(line.lstrip())
+                        max_indent = max(max_indent, indent)
+                nesting = max_indent // 4
+                if nesting > 3:
+                    severity = "high" if nesting > 5 else "medium"
+                    if severity_order.get(severity, 0) >= min_severity:
+                        smells.append({
+                            "file": chunk.file,
+                            "line": chunk.start_line,
+                            "type": "deep_nesting",
+                            "severity": severity,
+                            "suggestion": f"Function '{name}' has {nesting} levels of nesting. Consider guard clauses or extracting methods.",
+                        })
+
+            # Missing docstring
+            if "missing_docstring" in types and chunk.type in ("function", "method"):
+                has_docstring = '"""' in chunk.text or "'''" in chunk.text
+                if not has_docstring and name:
+                    if severity_order.get("medium", 0) >= min_severity:
+                        smells.append({
+                            "file": chunk.file,
+                            "line": chunk.start_line,
+                            "type": "missing_docstring",
+                            "severity": "medium",
+                            "suggestion": f"Function '{name}' has no docstring.",
+                        })
+
+            # Complex logic (high cyclomatic complexity)
+            if "complex_logic" in types:
+                complexity = 1 + len(re.findall(
+                    r"\b(if|elif|for|while|except|and|or|assert)\b", chunk.text
+                ))
+                if complexity > 10:
+                    severity = "high" if complexity > 20 else "medium"
+                    if severity_order.get(severity, 0) >= min_severity:
+                        smells.append({
+                            "file": chunk.file,
+                            "line": chunk.start_line,
+                            "type": "complex_logic",
+                            "severity": severity,
+                            "suggestion": f"Function '{name}' has cyclomatic complexity {complexity}. Consider simplifying branches.",
+                        })
+
+            # Too many parameters
+            if "too_many_params" in types:
+                # Extract params from def line
+                def_match = re.search(r"def\s+\w+\s*\((.*?)\)", chunk.text, re.DOTALL)
+                if def_match:
+                    params_str = def_match.group(1)
+                    params = [p.strip() for p in params_str.split(",") if p.strip() and p.strip() not in ("self", "cls")]
+                    if len(params) > 5:
+                        severity = "high" if len(params) > 8 else "medium"
+                        if severity_order.get(severity, 0) >= min_severity:
+                            smells.append({
+                                "file": chunk.file,
+                                "line": chunk.start_line,
+                                "type": "too_many_params",
+                                "severity": severity,
+                                "suggestion": f"Function '{name}' has {len(params)} parameters. Consider using a config object.",
+                            })
+
+        # Sort by severity (high first)
+        smells.sort(key=lambda s: -severity_order.get(s.get("severity", "low"), 0))
+
+        return {"status": "ok", "smells": smells, "total": len(smells)}
+
+    def scan_security(
+        self,
+        buffer_id: str,
+        severity_min: str = "medium",
+    ) -> dict[str, Any]:
+        """Scan for security vulnerabilities.
+
+        Feature 15: Catch security issues before they reach production.
+
+        Args:
+            buffer_id: Buffer handle.
+            severity_min: Minimum severity: "low", "medium", "high".
+
+        Returns:
+            Dict with vulnerabilities list and fix suggestions.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="scan_security"
+            )
+
+        severity_order = {"low": 0, "medium": 1, "high": 2}
+        min_sev = severity_order.get(severity_min, 1)
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="scan_security"
+            )
+
+        import re
+        vulns: list[dict[str, Any]] = []
+
+        # Security patterns
+        patterns: list[tuple[str, str, str, str]] = [
+            (r"eval\s*\(", "eval_usage", "high", "Avoid eval() — use ast.literal_eval() for safe parsing"),
+            (r"exec\s*\(", "exec_usage", "high", "Avoid exec() — can execute arbitrary code"),
+            (r"subprocess\.call\s*\(.*shell\s*=\s*True", "shell_injection", "high", "Use shell=False and pass args as list to prevent injection"),
+            (r"os\.system\s*\(", "os_system", "high", "Use subprocess.run() with shell=False instead"),
+            (r"pickle\.load\s*\(", "unsafe_pickle", "high", "Pickle can execute arbitrary code — use json or msgpack"),
+            (r"yaml\.load\s*\((?!.*Loader)", "unsafe_yaml", "high", "Use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader)"),
+            (r"sql.*%s|f['\"].*SELECT|\.format\s*\(.*SELECT", "sql_injection", "high", "Use parameterized queries instead of string formatting"),
+            (r"secret|password|api_key|token\s*=\s*['\"]", "hardcoded_secret", "high", "Never hardcode secrets — use environment variables or vault"),
+            (r"assert\s+", "assert_usage", "medium", "Assertions can be disabled with -O flag — use proper validation"),
+            (r"\bexcept\s*:", "broad_except", "medium", "Catch specific exceptions instead of bare except:"),
+            (r"import\s+\*|from\s+\w+\s+import\s+\*", "wildcard_import", "low", "Wildcard imports pollute namespace and hide dependencies"),
+        ]
+
+        for chunk in chunks:
+            if not hasattr(chunk, "text") or not chunk.text:
+                continue
+            for pattern, vuln_type, severity, fix in patterns:
+                for match in re.finditer(pattern, chunk.text, re.IGNORECASE):
+                    if severity_order.get(severity, 0) < min_sev:
+                        continue
+                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    # Get the full line for context
+                    lines = chunk.text.split("\n")
+                    line_offset = chunk.text[:match.start()].count("\n")
+                    context = lines[line_offset].strip() if line_offset < len(lines) else match.group(0)
+                    vulns.append({
+                        "file": chunk.file,
+                        "line": line,
+                        "type": vuln_type,
+                        "severity": severity,
+                        "context": context,
+                        "fix_suggestion": fix,
+                    })
+
+        vulns.sort(key=lambda v: -severity_order.get(v.get("severity", "low"), 0))
+        return {"status": "ok", "vulnerabilities": vulns, "total": len(vulns)}
+
+    def suggest_refactorings(
+        self,
+        buffer_id: str,
+        symbol: str,
+    ) -> dict[str, Any]:
+        """Suggest safe refactorings for a symbol.
+
+        Feature 21: AI suggests safe refactorings with risk assessment.
+
+        Args:
+            buffer_id: Buffer handle.
+            symbol: Symbol name to analyze for refactoring opportunities.
+
+        Returns:
+            Dict with suggestions list, each containing type, benefit, and risk.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="suggest_refactorings"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="suggest_refactorings"
+            )
+
+        suggestions: list[dict[str, Any]] = []
+        import re
+
+        # Find the target chunk
+        target = None
+        for chunk in chunks:
+            if hasattr(chunk, "name") and chunk.name == symbol and chunk.text:
+                target = chunk
+                break
+
+        if target is None:
+            return self._make_error_response(
+                f"Symbol '{symbol}' not found",
+                buffer_id=buffer_id,
+                operation="suggest_refactorings",
+            )
+
+        lines = target.text.split("\n")
+        line_count = len(lines)
+        complexity = 1 + len(re.findall(
+            r"\b(if|elif|for|while|except|and|or)\b", target.text
+        ))
+
+        # Long function → extract method
+        if line_count > 30:
+            suggestions.append({
+                "type": "extract_method",
+                "lines": f"{target.start_line}-{target.end_line}",
+                "benefit": f"Reduce {line_count}-line function to smaller, testable units",
+                "risk": "low" if line_count < 60 else "medium",
+            })
+
+        # High complexity → simplify
+        if complexity > 8:
+            suggestions.append({
+                "type": "simplify_branches",
+                "lines": f"{target.start_line}-{target.end_line}",
+                "benefit": f"Reduce cyclomatic complexity from {complexity} to <10",
+                "risk": "medium",
+            })
+
+        # Check for duplicate calls (same call repeated)
+        calls = getattr(target, "symbols_called", None) or []
+        call_counts: dict[str, int] = {}
+        for c in calls:
+            call_counts[c] = call_counts.get(c, 0) + 1
+        for c_name, count in call_counts.items():
+            if count > 2:
+                suggestions.append({
+                    "type": "consolidate_calls",
+                    "symbol": c_name,
+                    "benefit": f"'{c_name}' called {count} times — extract to variable",
+                    "risk": "low",
+                })
+
+        # Missing type hints
+        if "def " in target.text and "->" not in target.text:
+            suggestions.append({
+                "type": "add_type_hints",
+                "lines": f"{target.start_line}-{target.end_line}",
+                "benefit": "Add return type annotation for better IDE support and safety",
+                "risk": "low",
+            })
+
+        # Deep nesting → guard clauses
+        max_indent = 0
+        for line in lines:
+            if line.strip():
+                indent = len(line) - len(line.lstrip())
+                max_indent = max(max_indent, indent)
+        nesting = max_indent // 4
+        if nesting > 3:
+            suggestions.append({
+                "type": "use_guard_clauses",
+                "lines": f"{target.start_line}-{target.end_line}",
+                "benefit": f"Reduce nesting from {nesting} levels using early returns",
+                "risk": "low",
+            })
+
+        return {"status": "ok", "symbol": symbol, "suggestions": suggestions}
 
     # ------------------------------------------------------------------
     # Phase 9: Progress Streaming (helper)
@@ -5514,3 +5997,93 @@ class CodeEmbeddingTool:
             exclude_patterns=exclude_patterns,
             dry_run=dry_run,
         )
+
+    # ------------------------------------------------------------------
+    # Detailed Analysis (Features 39-40)
+    # ------------------------------------------------------------------
+    def lint_buffer(
+        self,
+        buffer_id: str,
+        files: list[str] | None = None,
+        select: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+        group_by: str = "file",
+    ) -> dict[str, Any]:
+        """Deep lint analysis with detailed aggregation. Report-only, no auto-fix.
+
+        Feature 39: Organize results by file, severity, or rule.
+        """
+        lint_result = self.auto_lint(
+            buffer_id=buffer_id, files=files, select=select,
+            auto_fix=False, dry_run=True, exclude_patterns=exclude_patterns,
+        )
+        if lint_result.get("status") != "ok":
+            return lint_result
+
+        issues = lint_result.get("issues", [])
+        by_file: dict[str, list[dict[str, Any]]] = {}
+        by_severity: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
+        by_rule: dict[str, dict[str, Any]] = lint_result.get("by_rule", {})
+
+        for issue in issues:
+            f = issue.get("file", "unknown")
+            by_file.setdefault(f, []).append({
+                "line": issue.get("line"), "code": issue.get("code"), "message": issue.get("message"),
+            })
+            code = issue.get("code", "")
+            if code.startswith("E") or code.startswith("F"):
+                by_severity["error"] += 1
+            elif code.startswith("W"):
+                by_severity["warning"] += 1
+            else:
+                by_severity["info"] += 1
+
+        result: dict[str, Any] = {"status": "ok", "total_issues": len(issues)}
+        if group_by == "file":
+            result["by_file"] = by_file
+        elif group_by == "severity":
+            result["by_severity"] = by_severity
+        elif group_by == "rule":
+            result["by_rule"] = by_rule
+        else:
+            result.update({"by_file": by_file, "by_severity": by_severity, "by_rule": by_rule})
+        return result
+
+    def format_buffer(
+        self,
+        buffer_id: str,
+        files: list[str] | None = None,
+        formatter: str = "black",
+        line_length: int = 88,
+        exclude_patterns: list[str] | None = None,
+        dry_run: bool = True,
+        summary_only: bool = False,
+    ) -> dict[str, Any]:
+        """Deep format analysis with detailed change tracking.
+
+        Feature 40: Understand exactly what changed across codebase.
+        """
+        format_result = self.auto_format(
+            buffer_id=buffer_id, files=files, formatter=formatter,
+            line_length=line_length, dry_run=dry_run,
+            exclude_patterns=exclude_patterns,
+        )
+        if format_result.get("status") != "ok":
+            return format_result
+
+        changes = format_result.get("changes", [])
+        total_added = sum(c.get("added_lines", 0) for c in changes)
+        total_removed = sum(c.get("removed_lines", 0) for c in changes)
+
+        result: dict[str, Any] = {
+            "status": "ok",
+            "total_files": format_result.get("formatted_files", 0) + format_result.get("already_formatted", 0),
+            "formatted_files": format_result.get("formatted_files", 0),
+            "already_formatted": format_result.get("already_formatted", 0),
+            "total_lines_added": total_added,
+            "total_lines_removed": total_removed,
+            "summary": format_result.get("summary", ""),
+        }
+        if not summary_only:
+            result["changes"] = changes
+        return result

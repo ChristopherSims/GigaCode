@@ -186,6 +186,52 @@ class PolishBeforeCommitRequest(BaseModel):
     check_only: bool = False
 
 
+class TraceExecutionPathsRequest(BaseModel):
+    buffer_id: str
+    symbol: str
+    max_depth: int = 3
+
+
+class DependencyGraphRequest(BaseModel):
+    buffer_id: str
+    symbol: Optional[str] = None
+    depth: int = 2
+
+
+class CodeSmellsRequest(BaseModel):
+    buffer_id: str
+    types: Optional[List[str]] = None
+    severity_min: str = "low"
+
+
+class SecurityScanRequest(BaseModel):
+    buffer_id: str
+    severity_min: str = "medium"
+
+
+class SuggestRefactoringsRequest(BaseModel):
+    buffer_id: str
+    symbol: str
+
+
+class LintBufferRequest(BaseModel):
+    buffer_id: str
+    files: Optional[List[str]] = None
+    select: Optional[List[str]] = None
+    exclude_patterns: Optional[List[str]] = None
+    group_by: str = "file"
+
+
+class FormatBufferRequest(BaseModel):
+    buffer_id: str
+    files: Optional[List[str]] = None
+    formatter: str = "black"
+    line_length: int = 88
+    exclude_patterns: Optional[List[str]] = None
+    dry_run: bool = True
+    summary_only: bool = False
+
+
 class AutoFormatRequest(BaseModel):
     buffer_id: str
     files: Optional[List[str]] = None
@@ -458,6 +504,73 @@ def create_app(tool: Any) -> FastAPI:
             raise HTTPException(status_code=400, detail=result)
         return result
 
+    # ------------------------------------------------------------------
+    # Phase 3: Advanced Analysis
+    # ------------------------------------------------------------------
+    @app.post("/execution-paths")
+    async def trace_execution_paths(req: TraceExecutionPathsRequest) -> dict[str, Any]:
+        result = tool.trace_execution_paths(
+            req.buffer_id, req.symbol, max_depth=req.max_depth,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/dependency-graph")
+    async def get_dependency_graph(req: DependencyGraphRequest) -> dict[str, Any]:
+        result = tool.get_dependency_graph(
+            req.buffer_id, symbol=req.symbol, depth=req.depth,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/analysis/code-smells")
+    async def detect_code_smells(req: CodeSmellsRequest) -> dict[str, Any]:
+        result = tool.detect_code_smells(
+            req.buffer_id, types=req.types, severity_min=req.severity_min,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/security/scan")
+    async def scan_security(req: SecurityScanRequest) -> dict[str, Any]:
+        result = tool.scan_security(
+            req.buffer_id, severity_min=req.severity_min,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/refactoring/suggest")
+    async def suggest_refactorings(req: SuggestRefactoringsRequest) -> dict[str, Any]:
+        result = tool.suggest_refactorings(req.buffer_id, req.symbol)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/quality/lint-buffer")
+    async def lint_buffer(req: LintBufferRequest) -> dict[str, Any]:
+        result = tool.lint_buffer(
+            req.buffer_id, files=req.files, select=req.select,
+            exclude_patterns=req.exclude_patterns, group_by=req.group_by,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/quality/format-buffer")
+    async def format_buffer(req: FormatBufferRequest) -> dict[str, Any]:
+        result = tool.format_buffer(
+            req.buffer_id, files=req.files, formatter=req.formatter,
+            line_length=req.line_length, exclude_patterns=req.exclude_patterns,
+            dry_run=req.dry_run, summary_only=req.summary_only,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
     @app.post("/quality/format")
     async def auto_format_endpoint(req: AutoFormatRequest) -> dict[str, Any]:
         result = tool.auto_format(
@@ -510,5 +623,106 @@ def create_app(tool: Any) -> FastAPI:
         if isinstance(result, dict) and result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
+
+    # ------------------------------------------------------------------
+    # Middleware: monitoring + error handling
+    # ------------------------------------------------------------------
+    @app.middleware("http")
+    async def monitoring_middleware(request: Request, call_next):
+        import time
+        start = time.perf_counter()
+        response = await call_next(request)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        response.headers["X-Response-Time-Ms"] = f"{elapsed_ms:.1f}"
+        logger.info(f"{request.method} {request.url.path} -> {response.status_code} ({elapsed_ms:.1f}ms)")
+        return response
+
+    return app
+
+
+# ---------------------------------------------------------------------------
+# Starter app template with auth + rate limiting
+# ---------------------------------------------------------------------------
+
+def create_production_app(
+    tool: CodeEmbeddingTool,
+    api_key: str | None = None,
+    rate_limit_calls: int = 100,
+    rate_limit_period: int = 60,
+) -> FastAPI:
+    """Create a production-ready FastAPI app with API key auth and rate limiting.
+
+    Usage:
+        from gigacode.gigacode_tool import CodeEmbeddingTool
+        from gigacode.gigacode_api import create_production_app
+
+        tool = CodeEmbeddingTool(work_dir='./buffers', device='cpu')
+        app = create_production_app(tool, api_key="my-secret-key")
+
+    Args:
+        tool: CodeEmbeddingTool instance.
+        api_key: Optional API key for authentication. If None, auth is disabled.
+        rate_limit_calls: Max calls per period (default: 100).
+        rate_limit_period: Rate limit period in seconds (default: 60).
+    """
+    from fastapi.security import APIKeyHeader
+    from fastapi import Security
+
+    app = create_app(tool)
+
+    # API Key authentication
+    if api_key:
+        api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+        @app.middleware("http")
+        async def auth_middleware(request: Request, call_next):
+            # Skip auth for health endpoint
+            if request.url.path == "/health":
+                return await call_next(request)
+            # Skip for OpenAPI docs
+            if request.url.path.startswith("/docs") or request.url.path.startswith("/openapi"):
+                return await call_next(request)
+
+            key = request.headers.get("X-API-Key")
+            if key != api_key:
+                return JSONResponse(
+                    status_code=401,
+                    content={"status": "error", "message": "Invalid or missing API key"},
+                )
+            return await call_next(request)
+
+    # Simple in-memory rate limiter
+    _rate_tracker: dict[str, list[float]] = {}
+    import time as _time
+
+    @app.middleware("http")
+    async def rate_limit_middleware(request: Request, call_next):
+        # Skip rate limiting for health/docs
+        if request.url.path in ("/health", "/docs", "/openapi.json"):
+            return await call_next(request)
+
+        client_id = request.client.host if request.client else "unknown"
+        now = _time.perf_counter()
+
+        if client_id not in _rate_tracker:
+            _rate_tracker[client_id] = []
+
+        # Remove expired entries
+        _rate_tracker[client_id] = [
+            t for t in _rate_tracker[client_id]
+            if now - t < rate_limit_period
+        ]
+
+        if len(_rate_tracker[client_id]) >= rate_limit_calls:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "status": "error",
+                    "message": f"Rate limit exceeded: {rate_limit_calls} calls per {rate_limit_period}s",
+                },
+            )
+
+        _rate_tracker[client_id].append(now)
+        return await call_next(request)
 
     return app

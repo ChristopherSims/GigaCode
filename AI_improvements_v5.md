@@ -1281,13 +1281,16 @@ type_inference_method="ast"  # Faster alternative
 | 7 | Test Coverage Map | ⭐⭐⭐⭐ | High | Very High | ✅ Implemented |
 | 8 | Symbol Metadata | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
 | 9 | Return the Diff | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
-| 10 | Execution Paths | ⭐⭐⭐ | High | Medium | 💡 Proposed |
-| 11-35 | Advanced Features | ⭐⭐-⭐⭐⭐ | Medium-High | Medium-High | 💡 Roadmap |
+| 10 | Execution Paths | ⭐⭐⭐ | High | Medium | ✅ Implemented |
+| 11 | Dependency Graph | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 13 | Code Smell Detection | ⭐⭐⭐ | Medium | Medium | ✅ Implemented |
+| 15 | Security Scanning | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
+| 21 | Refactoring Suggestions | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
 | 36 | Format Code (Black) | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
 | 37 | Lint Code (Ruff) | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
 | 38 | Combined Polish | ⭐⭐⭐⭐ | Medium | Very High | ✅ Implemented |
-| 39 | Lint Entire Buffer | ⭐⭐⭐⭐ | Medium | High | 💡 Proposed |
-| 40 | Format Entire Buffer | ⭐⭐⭐⭐ | Medium | High | 💡 Proposed |
+| 39 | Lint Entire Buffer | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
+| 40 | Format Entire Buffer | ⭐⭐⭐⭐ | Medium | High | ✅ Implemented |
 | 41 | Lint with Config | ⭐⭐⭐ | Low | Medium | 💡 Proposed |
 | 42 | Format with Config | ⭐⭐⭐ | Low | Medium | 💡 Proposed |
 | 43 | Pre-Commit Polish | ⭐⭐⭐⭐ | Medium | Very High | ✅ Implemented |
