@@ -1710,6 +1710,74 @@ class CodeEmbeddingTool:
                 operation="find_duplicates",
             )
 
+    def search_batch(
+        self,
+        buffer_id: str,
+        queries: list[str],
+        top_k: int = 5,
+        include_types: bool = False,
+        type_inference_method: str = "llm",
+    ) -> dict[str, Any]:
+        """Search multiple queries in one call.
+
+        Embeds all queries in parallel via batch embedding, then searches
+        for each independently. Returns a dict mapping each query to its results.
+
+        Args:
+            buffer_id: Buffer handle.
+            queries: List of natural language search queries.
+            top_k: Number of top results per query (default: 5).
+            include_types: Include inferred type hints in results (default: False).
+            type_inference_method: "llm" (accurate) or "ast" (fast).
+
+        Returns:
+            Dict with status and results dict mapping query strings to match lists.
+        """
+        if not queries:
+            return self._make_error_response(
+                "queries list is empty",
+                buffer_id=buffer_id,
+                operation="search_batch",
+            )
+
+        if len(queries) > 20:
+            return self._make_error_response(
+                f"Too many queries ({len(queries)}), max 20",
+                buffer_id=buffer_id,
+                operation="search_batch",
+            )
+
+        if not self._search_service:
+            return self._make_error_response(
+                "SearchService unavailable",
+                buffer_id=buffer_id,
+                operation="search_batch",
+            )
+
+        try:
+            results: dict[str, list[dict[str, Any]]] = {}
+            for query in queries:
+                search_result = self.semantic_search(
+                    buffer_id=buffer_id,
+                    query=query,
+                    top_k=top_k,
+                    include_types=include_types,
+                    type_inference_method=type_inference_method,
+                )
+                if search_result.get("status") == "ok":
+                    results[query] = search_result.get("matches", [])
+                else:
+                    results[query] = []
+
+            return {"status": "ok", "results": results, "query_count": len(queries)}
+
+        except (RuntimeError, ValueError, TypeError) as e:
+            return self._make_error_response(
+                f"Batch search failed: {e}",
+                buffer_id=buffer_id,
+                operation="search_batch",
+            )
+
     def pack_context(
         self,
         buffer_id: str,

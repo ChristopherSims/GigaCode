@@ -35,6 +35,7 @@ __all__ = [
     "PACK_CONTEXT_SCHEMA",
     "INFER_TYPES_SCHEMA",
     "GET_SYMBOL_METADATA_SCHEMA",
+    "SEARCH_BATCH_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -1013,6 +1014,58 @@ GET_SYMBOL_METADATA_SCHEMA: dict[str, Any] = {
     },
 }
 
+SEARCH_BATCH_SCHEMA: dict[str, Any] = {
+    "name": "search_batch",
+    "description": (
+        "Search multiple queries in one call. Embeds all queries in parallel, "
+        "then searches for each independently. Returns a dict mapping each query "
+        "to its results."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "queries": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of natural language search queries (max 20).",
+            },
+            "top_k": {
+                "type": "integer",
+                "description": "Number of top results per query (default 5).",
+                "default": 5,
+            },
+            "include_types": {
+                "type": "boolean",
+                "description": "Include inferred type hints in results (default: false).",
+                "default": False,
+            },
+            "type_inference_method": {
+                "type": "string",
+                "enum": ["llm", "ast"],
+                "description": "Type inference method: 'llm' (accurate) or 'ast' (fast). Default: 'llm'.",
+                "default": "llm",
+            },
+        },
+        "required": ["buffer_id", "queries"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "results": {
+                "type": "object",
+                "description": "Dict mapping query strings to arrays of search matches.",
+            },
+            "query_count": {"type": "integer"},
+        },
+        "required": ["status"],
+    },
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -1034,6 +1087,7 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     COMMIT_SCHEMA,
     INFER_TYPES_SCHEMA,
     GET_SYMBOL_METADATA_SCHEMA,
+    SEARCH_BATCH_SCHEMA,
 ]
 
 
