@@ -69,6 +69,7 @@ from gigacode.todo_tracker import TodoTracker
 from gigacode.tool_security import ToolSecurityLayer
 from gigacode.type_search import TypeSearcher
 from gigacode.type_inference_cache import TypeInferenceCache
+from gigacode.code_quality import auto_format, auto_lint, auto_polish
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("tool")
@@ -4701,6 +4702,145 @@ class CodeEmbeddingTool:
     def forget(self, key: str) -> dict[str, Any]:
         """Remove a stored memory."""
         return self._conversation_memory.forget(key)
+
+    # ------------------------------------------------------------------
+    # Code Quality (Features 36-38)
+    # ------------------------------------------------------------------
+    def auto_format(
+        self,
+        buffer_id: str,
+        files: list[str] | None = None,
+        formatter: str = "black",
+        line_length: int = 88,
+        skip_magic_trailing_comma: bool = False,
+        dry_run: bool = True,
+        exclude_patterns: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Format code using Black or ruff format.
+
+        Operates on entire buffer directory by default (files=None).
+
+        Args:
+            buffer_id: Buffer handle.
+            files: Specific files to format. If None, format entire directory.
+            formatter: "black" or "ruff.format".
+            line_length: Maximum line length (default: 88).
+            skip_magic_trailing_comma: Skip Black's magic trailing comma.
+            dry_run: Preview only, don't modify files (default: True).
+            exclude_patterns: Glob patterns to exclude.
+
+        Returns:
+            Dict with status, formatted_files, changes, and summary.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="auto_format"
+            )
+        work_dir = info.get("buffer_dir", self.work_dir)
+        return auto_format(
+            work_dir=work_dir,
+            files=files,
+            formatter=formatter,
+            line_length=line_length,
+            skip_magic_trailing_comma=skip_magic_trailing_comma,
+            dry_run=dry_run,
+            exclude_patterns=exclude_patterns,
+        )
+
+    def auto_lint(
+        self,
+        buffer_id: str,
+        files: list[str] | None = None,
+        linter: str = "ruff",
+        select: list[str] | None = None,
+        ignore: list[str] | None = None,
+        auto_fix: bool = False,
+        dry_run: bool = True,
+        exclude_patterns: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Lint code using Ruff.
+
+        Operates on entire buffer directory by default (files=None).
+
+        Args:
+            buffer_id: Buffer handle.
+            files: Specific files to lint. If None, lint entire directory.
+            linter: Linter to use (currently only "ruff").
+            select: Rule categories (e.g., ["E", "F", "W"]).
+            ignore: Rule codes to ignore (e.g., ["E501"]).
+            auto_fix: Auto-fix fixable issues (default: False).
+            dry_run: Preview only (default: True).
+            exclude_patterns: Glob patterns to exclude.
+
+        Returns:
+            Dict with status, issues, by_rule, fixed_count, unfixed_count.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="auto_lint"
+            )
+        work_dir = info.get("buffer_dir", self.work_dir)
+        return auto_lint(
+            work_dir=work_dir,
+            files=files,
+            linter=linter,
+            select=select,
+            ignore=ignore,
+            auto_fix=auto_fix,
+            dry_run=dry_run,
+            exclude_patterns=exclude_patterns,
+        )
+
+    def auto_polish(
+        self,
+        buffer_id: str,
+        files: list[str] | None = None,
+        format_with: str = "black",
+        lint_with: str = "ruff",
+        auto_fix_lints: bool = True,
+        line_length: int = 88,
+        ruff_select: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+        dry_run: bool = True,
+    ) -> dict[str, Any]:
+        """Format AND lint in one call (convenience wrapper).
+
+        Delegates to auto_format() then auto_lint(). Format runs first
+        so lint checks the formatted code.
+
+        Args:
+            buffer_id: Buffer handle.
+            files: Specific files. If None, polish entire directory.
+            format_with: Formatter ("black" or "ruff.format").
+            lint_with: Linter (currently only "ruff").
+            auto_fix_lints: Auto-fix fixable lint issues (default: True).
+            line_length: Maximum line length (default: 88).
+            ruff_select: Ruff rule categories.
+            exclude_patterns: Glob patterns to exclude.
+            dry_run: Preview only (default: True).
+
+        Returns:
+            Dict with formatting and linting sub-results, plus ready_to_commit.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="auto_polish"
+            )
+        work_dir = info.get("buffer_dir", self.work_dir)
+        return auto_polish(
+            work_dir=work_dir,
+            files=files,
+            format_with=format_with,
+            lint_with=lint_with,
+            auto_fix_lints=auto_fix_lints,
+            line_length=line_length,
+            ruff_select=ruff_select,
+            exclude_patterns=exclude_patterns,
+            dry_run=dry_run,
+        )
 
     # ------------------------------------------------------------------
     # Lifecycle

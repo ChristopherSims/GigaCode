@@ -1283,9 +1283,9 @@ type_inference_method="ast"  # Faster alternative
 | 9 | Return the Diff | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
 | 10 | Execution Paths | ⭐⭐⭐ | High | Medium | 💡 Proposed |
 | 11-35 | Advanced Features | ⭐⭐-⭐⭐⭐ | Medium-High | Medium-High | 💡 Roadmap |
-| 36 | Format Code (Black) | ⭐⭐⭐⭐ | Low | High | 🎯 Next |
-| 37 | Lint Code (Ruff) | ⭐⭐⭐⭐ | Low | High | 🎯 Next |
-| 38 | Combined Polish | ⭐⭐⭐⭐ | Medium | Very High | 🎯 Next |
+| 36 | Format Code (Black) | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
+| 37 | Lint Code (Ruff) | ⭐⭐⭐⭐ | Low | High | ✅ Implemented |
+| 38 | Combined Polish | ⭐⭐⭐⭐ | Medium | Very High | ✅ Implemented |
 | 39 | Lint Entire Buffer | ⭐⭐⭐⭐ | Medium | High | 💡 Proposed |
 | 40 | Format Entire Buffer | ⭐⭐⭐⭐ | Medium | High | 💡 Proposed |
 | 41 | Lint with Config | ⭐⭐⭐ | Low | Medium | 💡 Proposed |

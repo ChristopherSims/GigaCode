@@ -36,6 +36,9 @@ __all__ = [
     "INFER_TYPES_SCHEMA",
     "GET_SYMBOL_METADATA_SCHEMA",
     "SEARCH_BATCH_SCHEMA",
+    "AUTO_FORMAT_SCHEMA",
+    "AUTO_LINT_SCHEMA",
+    "AUTO_POLISH_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -1066,6 +1069,155 @@ SEARCH_BATCH_SCHEMA: dict[str, Any] = {
     },
 }
 
+AUTO_FORMAT_SCHEMA: dict[str, Any] = {
+    "name": "auto_format",
+    "description": (
+        "Format code using Black or ruff format. Operates on entire "
+        "buffer directory by default. Use dry_run=True to preview changes."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle."},
+            "files": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Specific files to format. If null, format entire directory.",
+            },
+            "formatter": {
+                "type": "string",
+                "enum": ["black", "ruff.format"],
+                "description": "Formatter to use. Default: 'black'.",
+                "default": "black",
+            },
+            "line_length": {"type": "integer", "description": "Max line length. Default: 88.", "default": 88},
+            "skip_magic_trailing_comma": {"type": "boolean", "default": False},
+            "dry_run": {"type": "boolean", "description": "Preview only. Default: true.", "default": True},
+            "exclude_patterns": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Glob patterns to exclude.",
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "formatter": {"type": "string"},
+            "formatted_files": {"type": "integer"},
+            "already_formatted": {"type": "integer"},
+            "changes": {"type": "array"},
+            "summary": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+AUTO_LINT_SCHEMA: dict[str, Any] = {
+    "name": "auto_lint",
+    "description": (
+        "Lint code using Ruff. Operates on entire buffer directory by default. "
+        "Optionally auto-fix fixable issues."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle."},
+            "files": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Specific files to lint. If null, lint entire directory.",
+            },
+            "linter": {"type": "string", "description": "Linter (only 'ruff'). Default: 'ruff'.", "default": "ruff"},
+            "select": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Rule categories (e.g., ['E', 'F', 'W']).",
+            },
+            "ignore": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Rule codes to ignore (e.g., ['E501']).",
+            },
+            "auto_fix": {"type": "boolean", "description": "Auto-fix fixable issues. Default: false.", "default": False},
+            "dry_run": {"type": "boolean", "description": "Preview only. Default: true.", "default": True},
+            "exclude_patterns": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Glob patterns to exclude.",
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "linter": {"type": "string"},
+            "files_with_issues": {"type": "integer"},
+            "total_issues": {"type": "integer"},
+            "issues": {"type": "array"},
+            "fixed_count": {"type": "integer"},
+            "unfixed_count": {"type": "integer"},
+            "by_rule": {"type": "object"},
+        },
+        "required": ["status"],
+    },
+}
+
+AUTO_POLISH_SCHEMA: dict[str, Any] = {
+    "name": "auto_polish",
+    "description": (
+        "Format AND lint in one call. Convenience wrapper that delegates to "
+        "auto_format then auto_lint. Format runs first so lint checks formatted code."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle."},
+            "files": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Specific files. If null, polish entire directory.",
+            },
+            "format_with": {
+                "type": "string",
+                "enum": ["black", "ruff.format"],
+                "description": "Formatter. Default: 'black'.",
+                "default": "black",
+            },
+            "lint_with": {"type": "string", "description": "Linter. Default: 'ruff'.", "default": "ruff"},
+            "auto_fix_lints": {"type": "boolean", "description": "Auto-fix fixable lint issues. Default: true.", "default": True},
+            "line_length": {"type": "integer", "description": "Max line length. Default: 88.", "default": 88},
+            "ruff_select": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Ruff rule categories.",
+            },
+            "exclude_patterns": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Glob patterns to exclude.",
+            },
+            "dry_run": {"type": "boolean", "description": "Preview only. Default: true.", "default": True},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "formatting": {"type": "object"},
+            "linting": {"type": "object"},
+            "ready_to_commit": {"type": "boolean"},
+            "summary": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -1088,6 +1240,9 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     INFER_TYPES_SCHEMA,
     GET_SYMBOL_METADATA_SCHEMA,
     SEARCH_BATCH_SCHEMA,
+    AUTO_FORMAT_SCHEMA,
+    AUTO_LINT_SCHEMA,
+    AUTO_POLISH_SCHEMA,
 ]
 
 
