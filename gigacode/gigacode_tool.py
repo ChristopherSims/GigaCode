@@ -3499,6 +3499,116 @@ class CodeEmbeddingTool:
                 operation="analyze_impact",
             )
 
+    def analyze_change(
+        self,
+        buffer_id: str,
+        file: str,
+        start_line: int | None = None,
+        end_line: int | None = None,
+        max_depth: int = 6,
+    ) -> dict[str, Any]:
+        """Analyze impact of a proposed change before editing.
+
+        Feature 4: Before editing, know what breaks. Uses the reference map
+        and impact analyzer to report direct callers, test coverage, and
+        dependent symbols.
+
+        Args:
+            buffer_id: Buffer handle.
+            file: File that would be modified.
+            start_line: Start line of the proposed change (1-based).
+            end_line: End line of the proposed change (1-based).
+            max_depth: Max call-chain depth to traverse.
+
+        Returns:
+            Dict with direct_callers, test_coverage, dependent_symbols,
+            files_affected, and risk assessment.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="analyze_change"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="analyze_change"
+            )
+
+        try:
+            # Find symbols in the target range
+            from gigacode.reference_map import ReferenceMap
+
+            ref_map = ReferenceMap(chunks)
+            affected_symbols: list[str] = []
+
+            # Find symbols defined in the file (optionally within line range)
+            index = SymbolIndex(chunks)
+            file_syms = index.get_file_symbols(file)
+            for sym in file_syms:
+                if start_line is not None and end_line is not None:
+                    if sym.start_line <= end_line and sym.end_line >= start_line:
+                        affected_symbols.append(sym.name)
+                else:
+                    affected_symbols.append(sym.name)
+
+            # Find callers for each affected symbol
+            direct_callers: list[dict[str, Any]] = []
+            all_impacted_files: set[str] = set()
+            dependent_symbols: list[dict[str, Any]] = []
+
+            for sym in affected_symbols:
+                refs = ref_map.get_references(sym, direction="called_by", top_k=20)
+                if refs.get("status") == "ok":
+                    for caller in refs.get("callers", []):
+                        direct_callers.append({**caller, "target_symbol": sym})
+                        if caller.get("file"):
+                            all_impacted_files.add(caller["file"])
+                dependent_symbols.append({
+                    "symbol": sym,
+                    "file": file,
+                    "caller_count": len(refs.get("callers", [])),
+                })
+
+            # Find test coverage
+            tests_for_symbols: list[dict[str, Any]] = []
+            for sym in affected_symbols:
+                tests = self._find_tests_for_symbol(chunks, sym)
+                for t in tests:
+                    tests_for_symbols.append({**t, "target_symbol": sym})
+
+            # Run impact analyzer for risk scoring
+            analyzer = ImpactAnalyzer(chunks)
+            analysis = analyzer.analyze(
+                dirty_files=[file],
+                modified_symbols=affected_symbols,
+                max_depth=max_depth,
+            )
+
+            return {
+                "status": "ok",
+                "file": file,
+                "start_line": start_line,
+                "end_line": end_line,
+                "affected_symbols": affected_symbols,
+                "direct_callers": direct_callers,
+                "dependent_symbols": len(affected_symbols),
+                "files_affected": len(all_impacted_files),
+                "impacted_files": sorted(all_impacted_files),
+                "test_coverage": tests_for_symbols,
+                "has_tests": len(tests_for_symbols) > 0,
+                "risk_level": analysis.risk_level,
+                "risk_score": analysis.risk_score,
+            }
+
+        except (ValueError, RuntimeError) as e:
+            return self._make_error_response(
+                f"Change analysis failed: {e}",
+                buffer_id=buffer_id,
+                operation="analyze_change",
+            )
+
     # ------------------------------------------------------------------
     # Phase 5: Execution Sandbox
     # ------------------------------------------------------------------

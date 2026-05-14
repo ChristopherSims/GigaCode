@@ -41,6 +41,7 @@ __all__ = [
     "AUTO_POLISH_SCHEMA",
     "GET_REFERENCES_SCHEMA",
     "GET_FULL_CONTEXT_SCHEMA",
+    "ANALYZE_CHANGE_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -1334,6 +1335,42 @@ GET_FULL_CONTEXT_SCHEMA: dict[str, Any] = {
     },
 }
 
+ANALYZE_CHANGE_SCHEMA: dict[str, Any] = {
+    "name": "analyze_change",
+    "description": (
+        "Analyze impact of a proposed change before editing. Reports direct callers, "
+        "test coverage, dependent symbols, and files affected."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle."},
+            "file": {"type": "string", "description": "File that would be modified."},
+            "start_line": {"type": ["integer", "null"], "description": "Start line of proposed change (1-based)."},
+            "end_line": {"type": ["integer", "null"], "description": "End line of proposed change (1-based)."},
+            "max_depth": {"type": "integer", "description": "Max call-chain depth. Default: 6.", "default": 6},
+        },
+        "required": ["buffer_id", "file"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "file": {"type": "string"},
+            "affected_symbols": {"type": "array", "items": {"type": "string"}},
+            "direct_callers": {"type": "array"},
+            "dependent_symbols": {"type": "integer"},
+            "files_affected": {"type": "integer"},
+            "impacted_files": {"type": "array", "items": {"type": "string"}},
+            "test_coverage": {"type": "array"},
+            "has_tests": {"type": "boolean"},
+            "risk_level": {"type": "string", "enum": ["low", "medium", "high"]},
+            "risk_score": {"type": "number"},
+        },
+        "required": ["status"],
+    },
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -1361,8 +1398,8 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     AUTO_POLISH_SCHEMA,
     GET_REFERENCES_SCHEMA,
     GET_FULL_CONTEXT_SCHEMA,
+    ANALYZE_CHANGE_SCHEMA,
 ]
-
 
 def get_schema(name: str) -> dict[str, Any] | None:
     """Return a single tool schema by name, or None if not found."""

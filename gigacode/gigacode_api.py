@@ -146,6 +146,14 @@ class FullContextRequest(BaseModel):
     type_inference_method: str = "llm"
 
 
+class AnalyzeChangeRequest(BaseModel):
+    buffer_id: str
+    file: str
+    start_line: Optional[int] = None
+    end_line: Optional[int] = None
+    max_depth: int = 6
+
+
 class AutoFormatRequest(BaseModel):
     buffer_id: str
     files: Optional[List[str]] = None
@@ -384,6 +392,16 @@ def create_app(tool: Any) -> FastAPI:
         result = tool.get_full_context(
             req.buffer_id, req.symbol, include=req.include,
             type_inference_method=req.type_inference_method,
+        )
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/impact/analyze-change")
+    async def analyze_change(req: AnalyzeChangeRequest) -> dict[str, Any]:
+        result = tool.analyze_change(
+            req.buffer_id, req.file, start_line=req.start_line,
+            end_line=req.end_line, max_depth=req.max_depth,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
