@@ -277,6 +277,8 @@ class TestDelegationIntegration:
             buffer_id="buffer-1",
             query="search term",
             top_k=10,  # top_k + offset (10 + 0)
+            include_types=False,
+            type_inference_method="llm",
         )
 
         # Verify response

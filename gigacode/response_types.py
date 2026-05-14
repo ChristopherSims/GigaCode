@@ -51,6 +51,12 @@ class SearchMatch:
     semantic_rank: Optional[int] = None
     lexical_rank: Optional[int] = None
     rrf_score: Optional[float] = None
+    # Type inference fields (Feature 3: Type Info in Search Results)
+    signature: Optional[str] = None
+    parameter_types: Optional[list[dict[str, str]]] = None
+    return_type: Optional[str] = None
+    type_confidence: Optional[float] = None
+    inference_method: Optional[str] = None  # "llm" or "ast"
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dict, excluding None values."""

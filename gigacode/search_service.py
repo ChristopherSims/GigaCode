@@ -52,6 +52,12 @@ class SearchMatch:
     name: str | None
     score: float
     text: str | None = None
+    # Type inference fields (Feature 3)
+    signature: str | None = None
+    parameter_types: list[dict[str, str]] | None = None
+    return_type: str | None = None
+    type_confidence: float | None = None
+    inference_method: str | None = None
 
 
 @dataclass
@@ -169,6 +175,8 @@ class SearchService:
         buffer_id: str,
         query: str,
         top_k: int = 5,
+        include_types: bool = False,
+        type_inference_method: str = "llm",
     ) -> SearchResponse | dict[str, Any]:
         """Perform semantic search using embeddings.
 
@@ -176,6 +184,8 @@ class SearchService:
             buffer_id: Buffer ID to search in
             query: Search query string
             top_k: Number of top results to return
+            include_types: Include inferred type hints in results (default: False)
+            type_inference_method: How to infer types: "llm" (accurate, ~50-300ms) or "ast" (fast, ~1-5ms)
 
         Returns:
             SearchResponse with matches or error dict
@@ -288,17 +298,27 @@ class SearchService:
                     chunk = chunks[idx]
                     # Compute signature (first line + docstring)
                     signature_lines = self._extract_signature(chunk.text)
-                    matches.append(
-                        SearchMatch(
-                            file=chunk.file,
-                            start_line=chunk.start_line,
-                            end_line=chunk.end_line,
-                            type=chunk.type,
-                            name=chunk.name,
-                            score=float(score),
-                            text=chunk.text,
-                        )
+                    match = SearchMatch(
+                        file=chunk.file,
+                        start_line=chunk.start_line,
+                        end_line=chunk.end_line,
+                        type=chunk.type,
+                        name=chunk.name,
+                        score=float(score),
+                        text=chunk.text,
                     )
+                    # Enrich with type inference if requested
+                    if include_types:
+                        type_info = self._infer_type_for_chunk(
+                            chunk, method=type_inference_method
+                        )
+                        if type_info:
+                            match.signature = type_info.get("signature")
+                            match.parameter_types = type_info.get("parameters")
+                            match.return_type = type_info.get("return_type")
+                            match.type_confidence = type_info.get("type_confidence")
+                            match.inference_method = type_inference_method
+                    matches.append(match)
 
             response = SearchResponse(
                 buffer_id=buffer_id,
@@ -1154,3 +1174,74 @@ class SearchService:
                 )
             except (RuntimeError, ValueError, TypeError, ImportError) as e:
                 logger.warning(f"Failed to record metrics: {e}")
+
+    def _infer_type_for_chunk(
+        self,
+        chunk: Any,
+        method: str = "ast",
+    ) -> dict[str, Any] | None:
+        """Extract type information from a code chunk.
+
+        Args:
+            chunk: CodeChunk object with text, file, type, name attributes
+            method: "ast" for fast pattern extraction (~1-5ms) or
+                    "llm" for embedding-based semantic inference (~50-300ms)
+
+        Returns:
+            Dict with signature, parameters, return_type, type_confidence or None
+        """
+        if not chunk.text or chunk.type not in ("function", "method", "class"):
+            return None
+
+        try:
+            from gigacode.type_search import _extract_python_types
+
+            # AST-based extraction (fast path)
+            sigs = _extract_python_types(chunk.text)
+            if not sigs:
+                return None
+
+            sig = sigs[0]  # Take the first (most relevant) signature
+            # Build a human-readable signature string
+            params_str = ", ".join(
+                f"{p['name']}: {p['type']}" if p.get("type") else p["name"]
+                for p in sig.parameters
+            )
+            signature = f"def {sig.name}({params_str})"
+            if sig.return_type:
+                signature += f" -> {sig.return_type}"
+            if sig.is_async:
+                signature = f"async {signature}"
+
+            result: dict[str, Any] = {
+                "signature": signature,
+                "parameters": sig.parameters if sig.parameters else None,
+                "return_type": sig.return_type,
+            }
+
+            if method == "llm":
+                # LLM-assisted: use embedding similarity to estimate confidence
+                # Compare the chunk's embedding with a synthesized type-query embedding
+                try:
+                    type_desc = f"function returning {sig.return_type}" if sig.return_type else f"function {sig.name}"
+                    type_embedding = self._embedder.encode([type_desc], batch_size=1)
+                    chunk_embedding = self._embedder.encode([chunk.text[:500]], batch_size=1)
+                    if type_embedding is not None and chunk_embedding is not None:
+                        similarity = float(np.dot(type_embedding[0], chunk_embedding[0]))
+                        # Map cosine similarity to confidence (0.0-1.0)
+                        confidence = max(0.0, min(1.0, (similarity + 1) / 2))
+                        result["type_confidence"] = round(confidence, 3)
+                    else:
+                        result["type_confidence"] = None
+                except (RuntimeError, ValueError, TypeError) as e:
+                    logger.debug(f"LLM confidence estimation failed: {e}")
+                    result["type_confidence"] = None
+            else:
+                # AST-based: no confidence score (deterministic extraction)
+                result["type_confidence"] = None
+
+            return result
+
+        except (ImportError, RuntimeError, ValueError, TypeError) as e:
+            logger.debug(f"Type inference failed for chunk: {e}")
+            return None

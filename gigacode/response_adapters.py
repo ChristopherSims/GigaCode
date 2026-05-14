@@ -66,6 +66,11 @@ def adapt_search_response(
                 type=match_dict.get("type"),
                 name=match_dict.get("name"),
                 match_type=match_dict.get("match_type", "semantic"),
+                signature=match_dict.get("signature"),
+                parameter_types=match_dict.get("parameter_types"),
+                return_type=match_dict.get("return_type"),
+                type_confidence=match_dict.get("type_confidence"),
+                inference_method=match_dict.get("inference_method"),
             )
             converted_matches.append(converted)
         else:

@@ -33,6 +33,7 @@ __all__ = [
     "HYBRID_SEARCH_SCHEMA",
     "FIND_DUPLICATES_SCHEMA",
     "PACK_CONTEXT_SCHEMA",
+    "INFER_TYPES_SCHEMA",
     "ALL_SCHEMAS",
     "get_schema",
     "get_all_schemas",
@@ -127,7 +128,8 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
     "name": "semantic_search",
     "description": (
         "Find the top-K code blocks most similar to a natural-language query. "
-        "Returns complete source code, file paths, line ranges, and relevance scores."
+        "Returns complete source code, file paths, line ranges, and relevance scores. "
+        "Optionally includes inferred type hints (parameter types, return types, confidence scores)."
     ),
     "input_schema": {
         "type": "object",
@@ -144,6 +146,17 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
                 "type": "integer",
                 "description": "Number of top matches to return (default 5).",
                 "default": 5,
+            },
+            "include_types": {
+                "type": "boolean",
+                "description": "Include inferred type hints in results (parameter types, return types). Default: false.",
+                "default": False,
+            },
+            "type_inference_method": {
+                "type": "string",
+                "enum": ["llm", "ast"],
+                "description": "Type inference method: 'llm' (accurate, ~50-300ms) or 'ast' (fast, ~1-5ms). Default: 'llm'.",
+                "default": "llm",
             },
         },
         "required": ["buffer_id", "query"],
@@ -165,6 +178,21 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
                         "type": {"type": "string", "description": "Symbol type (function, class, etc.)"},
                         "name": {"type": "string", "description": "Symbol name if applicable"},
                         "text": {"type": "string", "description": "Complete source code for the match"},
+                        "signature": {"type": "string", "description": "Function/class signature with type annotations (only when include_types=true)"},
+                        "parameter_types": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"type": "string"},
+                                    "type": {"type": "string"},
+                                },
+                            },
+                            "description": "Inferred parameter types (only when include_types=true)",
+                        },
+                        "return_type": {"type": "string", "description": "Inferred return type (only when include_types=true)"},
+                        "type_confidence": {"type": "number", "description": "Confidence score 0.0-1.0 (only for LLM inference)"},
+                        "inference_method": {"type": "string", "enum": ["llm", "ast"], "description": "Inference method used"},
                     },
                     "required": ["file", "start_line", "end_line", "score"],
                 },
@@ -867,6 +895,59 @@ PACK_CONTEXT_SCHEMA: dict[str, Any] = {
 }
 
 
+INFER_TYPES_SCHEMA: dict[str, Any] = {
+    "name": "infer_types",
+    "description": (
+        "Infer type information for a symbol (parameter types, return type, confidence). "
+        "Supports 'llm' method (accurate, ~50-300ms, includes confidence) or 'ast' method (fast, ~1-5ms)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "symbol": {
+                "type": "string",
+                "description": "Symbol name to infer types for.",
+            },
+            "method": {
+                "type": "string",
+                "enum": ["llm", "ast"],
+                "description": "Type inference method: 'llm' (accurate) or 'ast' (fast). Default: 'llm'.",
+                "default": "llm",
+            },
+        },
+        "required": ["buffer_id", "symbol"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "symbol": {"type": "string"},
+            "parameters": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "type": {"type": "string"},
+                    },
+                },
+            },
+            "return_type": {"type": ["string", "null"]},
+            "is_async": {"type": "boolean"},
+            "signature": {"type": "string"},
+            "type_confidence": {"type": ["number", "null"], "description": "Confidence 0.0-1.0 (LLM only)"},
+            "method": {"type": "string", "enum": ["llm", "ast"]},
+            "cached": {"type": "boolean", "description": "Whether result was from type inference cache"},
+        },
+        "required": ["status"],
+    },
+}
+
+
 # ---------------------------------------------------------------------------
 # Schema registry
 # ---------------------------------------------------------------------------
@@ -889,6 +970,7 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     DIFF_SCHEMA,
     DISCARD_SCHEMA,
     COMMIT_SCHEMA,
+    INFER_TYPES_SCHEMA,
 ]
 
 

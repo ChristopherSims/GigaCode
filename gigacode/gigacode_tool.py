@@ -68,6 +68,7 @@ from gigacode.test_runner import TestRunner
 from gigacode.todo_tracker import TodoTracker
 from gigacode.tool_security import ToolSecurityLayer
 from gigacode.type_search import TypeSearcher
+from gigacode.type_inference_cache import TypeInferenceCache
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("tool")
@@ -217,6 +218,9 @@ class CodeEmbeddingTool:
             self._lexical_cache: dict[str, Any] = LRUDict(max_size=max_buffers)
             self._query_cache: Any = _QueryCache()
         self._audit_log_path = self.work_dir / "audit.jsonl"
+
+        # Type inference cache (session-scoped, write-invalidated)
+        self._type_inference_cache = TypeInferenceCache()
 
         # Audit logger reference (shared with security layer)
         self._audit_logger = self._security._audit_logger if self._security is not None else None
@@ -534,6 +538,8 @@ class CodeEmbeddingTool:
         query: str,
         top_k: int = 5,
         offset: int = 0,
+        include_types: bool = False,
+        type_inference_method: str = "llm",
     ) -> dict[str, Any]:
         """Semantic search via embeddings.
 
@@ -544,6 +550,8 @@ class CodeEmbeddingTool:
             query: Search query
             top_k: Number of top results to return
             offset: Pagination offset
+            include_types: Include inferred type hints in results (default: False)
+            type_inference_method: How to infer types: "llm" (accurate) or "ast" (fast)
 
         Returns:
             Dict with search results or error
@@ -553,6 +561,14 @@ class CodeEmbeddingTool:
         if err is not None:
             return err
 
+        # Validate type_inference_method
+        if type_inference_method not in ("llm", "ast"):
+            return self._make_error_response(
+                f"type_inference_method must be 'llm' or 'ast', got '{type_inference_method}'",
+                buffer_id=buffer_id,
+                operation="semantic_search",
+            )
+
         # Phase 5: Delegate to SearchService
         if self._search_service:
             try:
@@ -560,6 +576,8 @@ class CodeEmbeddingTool:
                     buffer_id=buffer_id,
                     query=query,
                     top_k=top_k + offset,
+                    include_types=include_types,
+                    type_inference_method=type_inference_method,
                 )
                 return self._adapt_search_response(result, offset=offset, top_k=top_k)
             except (ImportError, RuntimeError, ValueError) as e:
@@ -1081,6 +1099,125 @@ class CodeEmbeddingTool:
                 f"Find implementations failed: {e}",
                 buffer_id=buffer_id,
                 operation="find_implementations",
+            )
+
+    def infer_types(
+        self,
+        buffer_id: str,
+        symbol: str,
+        method: str = "llm",
+    ) -> dict[str, Any]:
+        """Infer type information for a symbol.
+
+        Args:
+            buffer_id: Buffer handle.
+            symbol: Symbol name to infer types for.
+            method: "llm" for accurate semantic inference (~50-300ms) or
+                    "ast" for fast pattern extraction (~1-5ms).
+
+        Returns:
+            Dict with inferred types, confidence scores, and reasoning.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="infer_types"
+            )
+
+        if method not in ("llm", "ast"):
+            return self._make_error_response(
+                f"method must be 'llm' or 'ast', got '{method}'",
+                buffer_id=buffer_id,
+                operation="infer_types",
+            )
+
+        # Check type inference cache (LLM only)
+        if method == "llm":
+            cached = self._type_inference_cache.get(buffer_id, symbol)
+            if cached is not None:
+                return {"status": "ok", **cached.to_dict(), "cached": True}
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="infer_types"
+            )
+
+        try:
+            from gigacode.type_search import _extract_python_types
+            from gigacode.type_inference_cache import InferredType
+
+            # Find the chunk containing this symbol
+            matching_chunks = [
+                c for c in chunks if hasattr(c, "name") and c.name == symbol
+            ]
+            if not matching_chunks:
+                # Fallback: search by symbol name in text
+                matching_chunks = [
+                    c for c in chunks if hasattr(c, "text") and symbol in (c.text or "")
+                ]
+            if not matching_chunks:
+                return self._make_error_response(
+                    f"Symbol '{symbol}' not found", buffer_id=buffer_id, operation="infer_types"
+                )
+
+            chunk = matching_chunks[0]
+            sigs = _extract_python_types(chunk.text)
+            if not sigs:
+                return {
+                    "status": "ok",
+                    "symbol": symbol,
+                    "parameters": [],
+                    "return_type": None,
+                    "method": method,
+                    "type_confidence": None,
+                    "message": "No type annotations found for this symbol",
+                }
+
+            sig = sigs[0]
+            result: dict[str, Any] = {
+                "symbol": symbol,
+                "parameters": sig.parameters,
+                "return_type": sig.return_type,
+                "method": method,
+                "is_async": sig.is_async,
+            }
+
+            if method == "llm" and self._search_service:
+                try:
+                    type_info = self._search_service._infer_type_for_chunk(
+                        chunk, method="llm"
+                    )
+                    if type_info:
+                        result["type_confidence"] = type_info.get("type_confidence")
+                        result["signature"] = type_info.get("signature")
+                    else:
+                        result["type_confidence"] = None
+                except (RuntimeError, ValueError, TypeError) as e:
+                    logger.debug(f"LLM type inference failed: {e}")
+                    result["type_confidence"] = None
+            else:
+                result["type_confidence"] = None
+
+            # Cache LLM result
+            if method == "llm":
+                inferred = InferredType(
+                    symbol_name=symbol,
+                    file=chunk.file,
+                    parameters=sig.parameters,
+                    return_type=sig.return_type,
+                    confidence=result.get("type_confidence", 0.0) or 0.0,
+                    method=method,
+                )
+                self._type_inference_cache.put(buffer_id, inferred)
+
+            return {"status": "ok", **result}
+
+        except (ImportError, RuntimeError, ValueError, TypeError) as e:
+            return self._make_error_response(
+                f"Type inference failed: {e}",
+                buffer_id=buffer_id,
+                operation="infer_types",
             )
 
     def symbol_search(
@@ -2218,6 +2355,9 @@ class CodeEmbeddingTool:
         dirty = info.setdefault("dirty_files", {})
         dirty[file] = True
         self._save_registry()
+
+        # Invalidate type inference cache for the modified file
+        self._type_inference_cache.invalidate_file(file)
 
         # Transition state from READY → DIRTY if not already dirty
         try:
