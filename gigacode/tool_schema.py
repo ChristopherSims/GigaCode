@@ -1471,9 +1471,9 @@ TRACE_EXECUTION_PATHS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string"},
-            "symbol": {"type": "string", "description": "Symbol name to trace."},
-            "max_depth": {"type": "integer", "description": "Max call depth. Default: 3.", "default": 3},
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "symbol": {"type": "string", "description": "Symbol name to analyze."},
+            "max_depth": {"type": "integer", "description": "Maximum call depth to trace.", "default": 3},
         },
         "required": ["buffer_id", "symbol"],
     },
@@ -1482,7 +1482,18 @@ TRACE_EXECUTION_PATHS_SCHEMA: dict[str, Any] = {
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "symbol": {"type": "string"},
-            "paths": {"type": "array", "items": {"type": "object"}},
+            "paths": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "array", "items": {"type": "string"}},
+                        "branches": {"type": "integer"},
+                        "calls": {"type": "array", "items": {"type": "string"}},
+                        "conditions": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
             "path_count": {"type": "integer"},
         },
         "required": ["status"],
@@ -1495,9 +1506,9 @@ GET_DEPENDENCY_GRAPH_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string"},
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
             "symbol": {"type": ["string", "null"], "description": "Optional symbol to scope graph around."},
-            "depth": {"type": "integer", "description": "Depth of dependencies. Default: 2.", "default": 2},
+            "depth": {"type": "integer", "description": "Depth of dependency graph to include.", "default": 2},
         },
         "required": ["buffer_id"],
     },
@@ -1505,8 +1516,29 @@ GET_DEPENDENCY_GRAPH_SCHEMA: dict[str, Any] = {
         "type": "object",
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
-            "nodes": {"type": "array", "items": {"type": "object"}},
-            "edges": {"type": "array", "items": {"type": "object"}},
+            "nodes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "label": {"type": "string"},
+                        "type": {"type": "string", "description": "chunk type: function/class/module"},
+                        "file": {"type": "string"},
+                    },
+                },
+            },
+            "edges": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "from": {"type": "string", "description": "source node id"},
+                        "to": {"type": "string", "description": "target node id"},
+                        "type": {"type": "string", "enum": ["calls", "imports"]},
+                    },
+                },
+            },
         },
         "required": ["status"],
     },
@@ -1518,12 +1550,13 @@ DETECT_CODE_SMELLS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string"},
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
             "types": {
                 "type": "array",
                 "items": {"type": "string", "enum": ["long_function", "deep_nesting", "missing_docstring", "complex_logic", "too_many_params", "duplicates"]},
+                "description": "Smell types to detect. Options: long_function, deep_nesting, missing_docstring, complex_logic, too_many_params, duplicates.",
             },
-            "severity_min": {"type": "string", "enum": ["low", "medium", "high"], "default": "low"},
+            "severity_min": {"type": "string", "enum": ["low", "medium", "high"], "description": "Minimum severity to report: low, medium, or high.", "default": "low"},
         },
         "required": ["buffer_id"],
     },
@@ -1531,7 +1564,19 @@ DETECT_CODE_SMELLS_SCHEMA: dict[str, Any] = {
         "type": "object",
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
-            "smells": {"type": "array"},
+            "smells": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "type": {"type": "string", "description": "long_function|deep_nesting|missing_docstring|complex_logic|too_many_params"},
+                        "severity": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "suggestion": {"type": "string"},
+                    },
+                },
+            },
             "total": {"type": "integer"},
         },
         "required": ["status"],
@@ -1544,8 +1589,8 @@ SCAN_SECURITY_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string"},
-            "severity_min": {"type": "string", "enum": ["low", "medium", "high"], "default": "medium"},
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "severity_min": {"type": "string", "enum": ["low", "medium", "high"], "description": "Minimum severity to report: low, medium, or high.", "default": "medium"},
         },
         "required": ["buffer_id"],
     },
@@ -1553,7 +1598,20 @@ SCAN_SECURITY_SCHEMA: dict[str, Any] = {
         "type": "object",
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
-            "vulnerabilities": {"type": "array"},
+            "vulnerabilities": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "type": {"type": "string", "description": "eval_usage|exec_usage|shell_injection|os_system|unsafe_pickle|unsafe_yaml|sql_injection|hardcoded_secret|assert_usage|broad_except|wildcard_import"},
+                        "severity": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "context": {"type": "string"},
+                        "fix_suggestion": {"type": "string"},
+                    },
+                },
+            },
             "total": {"type": "integer"},
         },
         "required": ["status"],
@@ -1566,8 +1624,8 @@ SUGGEST_REFACTORINGS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string"},
-            "symbol": {"type": "string"},
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "symbol": {"type": "string", "description": "Symbol name to analyze."},
         },
         "required": ["buffer_id", "symbol"],
     },
@@ -1576,7 +1634,19 @@ SUGGEST_REFACTORINGS_SCHEMA: dict[str, Any] = {
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "symbol": {"type": "string"},
-            "suggestions": {"type": "array"},
+            "suggestions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "type": {"type": "string", "description": "extract_method|simplify_branches|consolidate_calls|add_type_hints|use_guard_clauses"},
+                        "lines": {"type": "string", "description": "line range like '10-20'"},
+                        "symbol": {"type": "string", "description": "related symbol name"},
+                        "benefit": {"type": "string"},
+                        "risk": {"type": "string", "enum": ["low", "medium", "high"]},
+                    },
+                },
+            },
         },
         "required": ["status"],
     },
@@ -1588,11 +1658,11 @@ LINT_BUFFER_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string"},
-            "files": {"type": "array", "items": {"type": "string"}},
-            "select": {"type": "array", "items": {"type": "string"}},
-            "exclude_patterns": {"type": "array", "items": {"type": "string"}},
-            "group_by": {"type": "string", "enum": ["file", "severity", "rule"], "default": "file"},
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "files": {"type": "array", "items": {"type": "string"}, "description": "Specific files to analyze. If None, analyzes entire buffer."},
+            "select": {"type": "array", "items": {"type": "string"}, "description": "Lint rule categories to check (e.g. E, F, W)."},
+            "exclude_patterns": {"type": "array", "items": {"type": "string"}, "description": "Glob patterns to exclude from analysis."},
+            "group_by": {"type": "string", "enum": ["file", "severity", "rule"], "description": "How to organize results: by file, severity, or rule.", "default": "file"},
         },
         "required": ["buffer_id"],
     },
@@ -1601,9 +1671,38 @@ LINT_BUFFER_SCHEMA: dict[str, Any] = {
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "total_issues": {"type": "integer"},
-            "by_file": {"type": "object"},
-            "by_severity": {"type": "object"},
-            "by_rule": {"type": "object"},
+            "by_file": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "line": {"type": "integer"},
+                            "code": {"type": "string"},
+                            "message": {"type": "string"},
+                        },
+                    },
+                },
+            },
+            "by_severity": {
+                "type": "object",
+                "properties": {
+                    "error": {"type": "integer"},
+                    "warning": {"type": "integer"},
+                    "info": {"type": "integer"},
+                },
+            },
+            "by_rule": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                        "count": {"type": "integer"},
+                        "severity": {"type": "string"},
+                    },
+                },
+            },
         },
         "required": ["status"],
     },
@@ -1615,13 +1714,13 @@ FORMAT_BUFFER_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string"},
-            "files": {"type": "array", "items": {"type": "string"}},
-            "formatter": {"type": "string", "enum": ["black", "ruff.format"], "default": "black"},
-            "line_length": {"type": "integer", "default": 88},
-            "exclude_patterns": {"type": "array", "items": {"type": "string"}},
-            "dry_run": {"type": "boolean", "default": True},
-            "summary_only": {"type": "boolean", "default": False},
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "files": {"type": "array", "items": {"type": "string"}, "description": "Specific files to analyze. If None, analyzes entire buffer."},
+            "formatter": {"type": "string", "enum": ["black", "ruff.format"], "description": "Formatter to use: black or ruff.format.", "default": "black"},
+            "line_length": {"type": "integer", "description": "Maximum line length for formatting.", "default": 88},
+            "exclude_patterns": {"type": "array", "items": {"type": "string"}, "description": "Glob patterns to exclude from analysis."},
+            "dry_run": {"type": "boolean", "description": "Preview only without making changes.", "default": True},
+            "summary_only": {"type": "boolean", "description": "Return only summary statistics, not full diffs.", "default": False},
         },
         "required": ["buffer_id"],
     },
@@ -1634,7 +1733,18 @@ FORMAT_BUFFER_SCHEMA: dict[str, Any] = {
             "already_formatted": {"type": "integer"},
             "total_lines_added": {"type": "integer"},
             "total_lines_removed": {"type": "integer"},
-            "changes": {"type": "array"},
+            "changes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "added_lines": {"type": "integer"},
+                        "removed_lines": {"type": "integer"},
+                        "diff": {"type": "string"},
+                    },
+                },
+            },
             "summary": {"type": "string"},
         },
         "required": ["status"],
@@ -1644,127 +1754,754 @@ FORMAT_BUFFER_SCHEMA: dict[str, Any] = {
 FIND_PERFORMANCE_HOTSPOTS_SCHEMA: dict[str, Any] = {
     "name": "find_performance_hotspots",
     "description": "Detect performance hotspots: N+1 queries, inefficient loops, unbounded recursion.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "hotspots": {"type": "array"}, "total": {"type": "integer"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "hotspots": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "type": {"type": "string", "description": "n_plus_one|unbounded_growth|missing_prefetch|inefficient_loop|slow_serialization|regex_in_loop|unclosed_file|full_table_scan|nested_loop"},
+                        "severity": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "context": {"type": "string"},
+                        "suggestion": {"type": "string"},
+                    },
+                },
+            },
+            "total": {"type": "integer"},
+        },
+        "required": ["status"],
+    },
 }
 
 GENERATE_DOCUMENTATION_SCHEMA: dict[str, Any] = {
     "name": "generate_documentation",
     "description": "Auto-generate documentation from code analysis.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "symbol": {"type": "string"}, "style": {"type": "string", "enum": ["google", "numpy", "sphinx"], "default": "google"}}, "required": ["buffer_id", "symbol"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "symbol": {"type": "string"}, "docstring": {"type": "string"}, "type_hints": {"type": "object"}, "examples": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "symbol": {"type": "string", "description": "Symbol name to analyze."},
+            "style": {"type": "string", "enum": ["google", "numpy", "sphinx"], "description": "Docstring style: google, numpy, or sphinx.", "default": "google"},
+        },
+        "required": ["buffer_id", "symbol"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "symbol": {"type": "string"},
+            "docstring": {"type": "string", "description": "Generated docstring ready to insert"},
+            "type_hints": {
+                "type": "object",
+                "additionalProperties": {"type": "string"},
+                "description": "Map of parameter name to inferred type",
+            },
+            "examples": {"type": "array", "items": {"type": "string"}, "description": "Usage examples found in test files"},
+            "generated_from_code": {"type": "boolean"},
+            "style": {"type": "string"},
+        },
+        "required": ["status"],
+    },
 }
 
 FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
     "name": "find_similar_patterns",
     "description": "Find similar code patterns using semantic + syntactic matching.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "code_snippet": {"type": "string"}, "min_similarity": {"type": "number", "default": 0.7}, "top_k": {"type": "integer", "default": 10}}, "required": ["buffer_id", "code_snippet"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "syntactic_matches": {"type": "array"}, "semantic_matches": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "code_snippet": {"type": "string", "description": "Code snippet to find similar patterns for."},
+            "min_similarity": {"type": "number", "description": "Minimum Jaccard similarity threshold (0.0-1.0).", "default": 0.7},
+            "top_k": {"type": "integer", "description": "Maximum number of results to return.", "default": 10},
+        },
+        "required": ["buffer_id", "code_snippet"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "syntactic_matches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "similarity": {"type": "number"},
+                    },
+                },
+            },
+            "semantic_matches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "score": {"type": "number"},
+                    },
+                },
+            },
+            "snippet_length": {"type": "integer"},
+        },
+        "required": ["status"],
+    },
 }
 
 FIND_DEPRECATED_SCHEMA: dict[str, Any] = {
     "name": "find_deprecated",
     "description": "Detect usage of deprecated functions and APIs.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "deprecated": {"type": "array"}, "total": {"type": "integer"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "deprecated": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "detection_method": {"type": "string", "description": "decorator|warning|comment|deprecation_warning"},
+                        "context": {"type": "string"},
+                        "symbol": {"type": "string"},
+                    },
+                },
+            },
+            "total": {"type": "integer"},
+        },
+        "required": ["status"],
+    },
 }
 
 VALIDATE_CHANGES_SCHEMA: dict[str, Any] = {
     "name": "validate_changes",
     "description": "Validate changes before committing (static analysis + import resolution).",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "dry_run": {"type": "boolean", "default": True}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "type_errors": {"type": "array"}, "broken_imports": {"type": "array"}, "safe_to_commit": {"type": "boolean"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "dry_run": {"type": "boolean", "description": "Preview only without making changes.", "default": True},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "type_errors": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "message": {"type": "string"},
+                    },
+                },
+            },
+            "broken_imports": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "import": {"type": "string"},
+                        "message": {"type": "string"},
+                    },
+                },
+            },
+            "test_impact_predictions": {"type": "array", "items": {"type": "string"}},
+            "safe_to_commit": {"type": "boolean"},
+            "dry_run": {"type": "boolean"},
+        },
+        "required": ["status"],
+    },
 }
 
 EXTRACT_CONFIGURATION_SCHEMA: dict[str, Any] = {
     "name": "extract_configuration",
     "description": "Extract configuration: env vars, config files, hardcoded secrets, defaults.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "env_vars": {"type": "array"}, "config_files": {"type": "array"}, "hardcoded_secrets": {"type": "array"}, "default_values": {"type": "object"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "env_vars": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "used_in": {"type": "string", "description": "file:line reference"},
+                        "required": {"type": "boolean"},
+                        "default": {"type": ["string", "null"]},
+                    },
+                },
+            },
+            "config_files": {"type": "array", "items": {"type": "string"}},
+            "hardcoded_secrets": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "pattern": {"type": "string"},
+                        "severity": {"type": "string", "enum": ["high"]},
+                    },
+                },
+            },
+            "default_values": {
+                "type": "object",
+                "additionalProperties": {"type": "string"},
+                "description": "Map of env var name to default value",
+            },
+        },
+        "required": ["status"],
+    },
 }
 
 ANALYZE_LOGGING_PATTERNS_SCHEMA: dict[str, Any] = {
     "name": "analyze_logging_patterns",
     "description": "Analyze logging patterns: levels, consistency, gaps.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "total_logs": {"type": "integer"}, "levels": {"type": "object"}, "missing_logs_in": {"type": "array"}, "inconsistent_format": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "total_logs": {"type": "integer"},
+            "levels": {
+                "type": "object",
+                "properties": {
+                    "debug": {"type": "integer"},
+                    "info": {"type": "integer"},
+                    "warning": {"type": "integer"},
+                    "error": {"type": "integer"},
+                    "critical": {"type": "integer"},
+                },
+            },
+            "missing_logs_in": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "symbol": {"type": "string"},
+                        "issue": {"type": "string"},
+                    },
+                },
+            },
+            "inconsistent_format": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "format_string": {"type": "string"},
+                    },
+                },
+            },
+            "patterns_detected": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["status"],
+    },
 }
 
 ANALYZE_ERROR_HANDLING_SCHEMA: dict[str, Any] = {
     "name": "analyze_error_handling_patterns",
     "description": "Analyze error handling patterns: broad catches, missing finally, uncaught exceptions.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "try_except_blocks": {"type": "integer"}, "broad_catches": {"type": "array"}, "missing_finally": {"type": "array"}, "suggestions": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "try_except_blocks": {"type": "integer"},
+            "uncaught_exceptions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "issue": {"type": "string"},
+                    },
+                },
+            },
+            "broad_catches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "catches": {"type": "string"},
+                    },
+                },
+            },
+            "missing_finally": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "resource": {"type": "string"},
+                    },
+                },
+            },
+            "suggestions": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["status"],
+    },
 }
 
 GENERATE_CHANGELOG_SCHEMA: dict[str, Any] = {
     "name": "generate_changelog",
     "description": "Generate changelog from git history + semantic analysis.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "since_commit": {"type": ["string", "null"]}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "features": {"type": "array"}, "bugfixes": {"type": "array"}, "breaking_changes": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "since_commit": {"type": ["string", "null"], "description": "Git commit hash to compare against. If None, compares against HEAD."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "features": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "commit": {"type": "string"},
+                        "message": {"type": "string"},
+                    },
+                },
+            },
+            "bugfixes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "commit": {"type": "string"},
+                        "message": {"type": "string"},
+                    },
+                },
+            },
+            "breaking_changes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "commit": {"type": "string"},
+                        "message": {"type": "string"},
+                    },
+                },
+            },
+            "other": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "commit": {"type": "string"},
+                        "message": {"type": "string"},
+                    },
+                },
+            },
+            "migration_notes": {"type": "string"},
+        },
+        "required": ["status"],
+    },
 }
 
 DETECT_API_CHANGES_SCHEMA: dict[str, Any] = {
     "name": "detect_api_changes",
     "description": "Detect API-breaking changes between commits.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "since_commit": {"type": ["string", "null"]}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "changes": {"type": "array"}, "current_api_surface": {"type": "integer"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "since_commit": {"type": ["string", "null"], "description": "Git commit hash to compare against. If None, compares against HEAD."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "current_api_surface": {"type": "integer"},
+            "changes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "symbol": {"type": "string"},
+                        "breaking": {"type": "boolean"},
+                        "parameters_added": {"type": "array", "items": {"type": "string"}},
+                        "return_type_changed": {"type": "boolean"},
+                        "migration_guide": {"type": "string"},
+                    },
+                },
+            },
+            "symbols": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "params": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+        },
+        "required": ["status"],
+    },
 }
 
 GET_ROLLBACK_INFO_SCHEMA: dict[str, Any] = {
     "name": "get_rollback_info",
     "description": "Get rollback information for a file.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "file": {"type": "string"}}, "required": ["buffer_id", "file"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "last_working_commit": {"type": ["string", "null"]}, "diff_to_revert": {"type": "string"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "file": {"type": "string", "description": "File path within the buffer."},
+        },
+        "required": ["buffer_id", "file"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "last_working_commit": {"type": ["string", "null"]},
+            "commit_message": {"type": "string"},
+            "commit_date": {"type": "string"},
+            "diff_to_revert": {"type": "string", "description": "Unified diff to revert to last working state"},
+        },
+        "required": ["status"],
+    },
 }
 
 GENERATE_CHANGE_TEMPLATE_SCHEMA: dict[str, Any] = {
     "name": "generate_change_template",
     "description": "Generate a change plan template for a request.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "request": {"type": "string"}}, "required": ["buffer_id", "request"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "files_to_modify": {"type": "array"}, "change_strategy": {"type": "string"}, "risk_assessment": {"type": "string"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "request": {"type": "string", "description": "Natural language description of the desired change."},
+        },
+        "required": ["buffer_id", "request"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "request": {"type": "string"},
+            "files_to_modify": {"type": "array", "items": {"type": "string"}},
+            "change_strategy": {"type": "string"},
+            "test_cases_needed": {"type": "array", "items": {"type": "string"}},
+            "risk_assessment": {"type": "string", "description": "low, medium, or high"},
+        },
+        "required": ["status"],
+    },
 }
 
 MAP_API_ENDPOINTS_SCHEMA: dict[str, Any] = {
     "name": "map_api_endpoints",
     "description": "Map all API endpoints (FastAPI, Flask, Django patterns).",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "endpoints": {"type": "array"}, "total": {"type": "integer"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "endpoints": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "method": {"type": "string", "description": "HTTP method"},
+                        "path": {"type": "string"},
+                        "handler": {"type": "string"},
+                        "is_async": {"type": "boolean"},
+                        "file": {"type": "string"},
+                    },
+                },
+            },
+            "total": {"type": "integer"},
+        },
+        "required": ["status"],
+    },
 }
 
 ANALYZE_CACHE_PATTERNS_SCHEMA: dict[str, Any] = {
     "name": "analyze_cache_patterns",
     "description": "Analyze cache usage patterns: invalidation logic, stale data risks.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "caches_used": {"type": "array"}, "invalidation_logic": {"type": "array"}, "stale_data_risks": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "caches_used": {"type": "array", "items": {"type": "string"}, "description": "Cache libraries detected: redis, memcache, lru_cache, etc."},
+            "invalidation_logic": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "pattern": {"type": "string"},
+                        "safe": {"type": "boolean"},
+                    },
+                },
+            },
+            "stale_data_risks": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "risk_level": {"type": "string"},
+                    },
+                },
+            },
+        },
+        "required": ["status"],
+    },
 }
 
 ANALYZE_THREAD_SAFETY_SCHEMA: dict[str, Any] = {
     "name": "analyze_thread_safety",
     "description": "Analyze thread safety: shared state, race conditions, deadlock risks.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "shared_state": {"type": "array"}, "race_conditions": {"type": "array"}, "deadlock_risks": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "shared_state": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "file": {"type": "string"},
+                        "modified_by": {"type": "array", "items": {"type": "string"}},
+                        "protected_by": {"type": "string", "description": "lock|atomic|none"},
+                    },
+                },
+            },
+            "race_conditions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "variables": {"type": "array", "items": {"type": "string"}},
+                        "risk_level": {"type": "string"},
+                    },
+                },
+            },
+            "deadlock_risks": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "locks_count": {"type": "integer"},
+                        "suggestion": {"type": "string"},
+                    },
+                },
+            },
+        },
+        "required": ["status"],
+    },
 }
 
 DETECT_MEMORY_ISSUES_SCHEMA: dict[str, Any] = {
     "name": "detect_memory_issues",
     "description": "Detect memory issues: circular refs, unbounded collections, resource leaks.",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "circular_refs": {"type": "array"}, "unbounded_collections": {"type": "array"}, "resource_leaks": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "circular_refs": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "symbols": {"type": "array", "items": {"type": "string"}},
+                    },
+                },
+            },
+            "unbounded_collections": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "symbol": {"type": "string"},
+                        "growth_reason": {"type": "string"},
+                    },
+                },
+            },
+            "resource_leaks": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "resource": {"type": "string"},
+                        "cleanup_missing": {"type": "boolean"},
+                    },
+                },
+            },
+        },
+        "required": ["status"],
+    },
 }
 
 LINT_WITH_CONFIG_SCHEMA: dict[str, Any] = {
     "name": "lint_with_config",
     "description": "Lint using project configuration (ruff.toml, pyproject.toml).",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "config_file": {"type": ["string", "null"]}, "files": {"type": "array", "items": {"type": "string"}}, "auto_fix": {"type": "boolean", "default": False}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "config_file": {"type": "string"}, "issues": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "config_file": {"type": ["string", "null"], "description": "Path to config file (ruff.toml, pyproject.toml). Auto-detected if None."},
+            "files": {"type": "array", "items": {"type": "string"}, "description": "Specific files to analyze. If None, analyzes entire buffer."},
+            "auto_fix": {"type": "boolean", "description": "Automatically fix lint issues instead of just reporting.", "default": False},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "config_file": {"type": "string", "description": "Config file used (auto-detected or specified)"},
+            "issues": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "code": {"type": "string"},
+                        "message": {"type": "string"},
+                        "severity": {"type": "string"},
+                    },
+                },
+            },
+        },
+        "required": ["status"],
+    },
 }
 
 FORMAT_WITH_CONFIG_SCHEMA: dict[str, Any] = {
     "name": "format_with_config",
     "description": "Format using project configuration (pyproject.toml, .black, ruff.toml).",
-    "input_schema": {"type": "object", "properties": {"buffer_id": {"type": "string"}, "config_file": {"type": ["string", "null"]}, "files": {"type": "array", "items": {"type": "string"}}, "dry_run": {"type": "boolean", "default": True}}, "required": ["buffer_id"]},
-    "output_schema": {"type": "object", "properties": {"status": {"type": "string"}, "config_file": {"type": "string"}, "changes": {"type": "array"}}, "required": ["status"]},
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "config_file": {"type": ["string", "null"], "description": "Path to config file (ruff.toml, pyproject.toml). Auto-detected if None."},
+            "files": {"type": "array", "items": {"type": "string"}, "description": "Specific files to analyze. If None, analyzes entire buffer."},
+            "dry_run": {"type": "boolean", "description": "Preview only without making changes.", "default": True},
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string"},
+            "config_file": {"type": "string", "description": "Config file used (auto-detected or specified)"},
+            "changes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "added_lines": {"type": "integer"},
+                        "removed_lines": {"type": "integer"},
+                        "diff": {"type": "string"},
+                    },
+                },
+            },
+        },
+        "required": ["status"],
+    },
 }
 
 ALL_SCHEMAS: list[dict[str, Any]] = [

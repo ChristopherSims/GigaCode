@@ -5002,18 +5002,33 @@ class CodeEmbeddingTool:
         symbol: str,
         max_depth: int = 3,
     ) -> dict[str, Any]:
-        """Trace all execution paths through a symbol.
+        """Trace all execution paths through a symbol using AST branch detection.
 
         Feature 10: For complex logic, know all execution branches before editing.
-        Uses AST branch detection and call graph traversal.
+        Follows function calls through the call graph up to max_depth.
 
         Args:
-            buffer_id: Buffer handle.
+            buffer_id: Buffer handle returned by embed_codebase.
             symbol: Symbol name to trace paths for.
-            max_depth: Maximum depth to follow calls (default: 3).
+            max_depth: Maximum call depth to follow (default: 3).
 
         Returns:
-            Dict with paths list, each containing path chain, branches, and calls.
+            Dict with keys:
+                status: "ok" on success.
+                symbol: The symbol that was traced.
+                paths: List of ExecutionPath dicts, each with:
+                    path: List of path chains like ["handle_request -> validate_input -> check_auth"].
+                    branches: Number of branch points along this path.
+                    calls: List of function calls in order.
+                    conditions: Condition expressions at branch points.
+                path_count: Number of paths found.
+
+        Example:
+            >>> result = tool.trace_execution_paths(buf_id, "handle_request", max_depth=3)
+            >>> result["paths"][0]["path"]
+            ["handle_request -> validate_input -> check_auth"]
+            >>> result["paths"][0]["branches"]
+            3
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5048,18 +5063,29 @@ class CodeEmbeddingTool:
         symbol: str | None = None,
         depth: int = 2,
     ) -> dict[str, Any]:
-        """Get dependency graph visualization data.
+        """Get dependency graph visualization data (nodes + edges).
 
         Feature 11: Visualize relationships; understand architecture at a glance.
-        Returns nodes and edges suitable for graph visualization.
+        When symbol is provided, scopes the graph around that symbol using ReferenceMap.
+        When symbol is None, returns the full dependency graph.
 
         Args:
-            buffer_id: Buffer handle.
-            symbol: Optional symbol to scope the graph around.
+            buffer_id: Buffer handle returned by embed_codebase.
+            symbol: Optional symbol to scope the graph around. If None, returns full graph.
             depth: Depth of dependencies to include (default: 2).
 
         Returns:
-            Dict with nodes and edges for graph visualization.
+            Dict with keys:
+                status: "ok" on success.
+                nodes: List of node dicts with keys: id, label, type, file.
+                edges: List of edge dicts with keys: from, to, type ("calls" or "imports").
+
+        Example:
+            >>> result = tool.get_dependency_graph(buf_id, symbol="process_payment", depth=2)
+            >>> result["nodes"][0]
+            {"id": "process_payment", "label": "process_payment", "type": "function", "file": "src/pay.py"}
+            >>> result["edges"][0]
+            {"from": "process_payment", "to": "validate_card", "type": "calls"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5260,19 +5286,33 @@ class CodeEmbeddingTool:
         types: list[str] | None = None,
         severity_min: str = "low",
     ) -> dict[str, Any]:
-        """Detect code smells across the buffer.
+        """Detect code smells across the buffer with severity filtering.
 
         Feature 13: Automatically flag refactoring opportunities.
+        Detects: long functions, deep nesting, missing docstrings, complex logic, too many parameters.
 
         Args:
-            buffer_id: Buffer handle.
+            buffer_id: Buffer handle returned by embed_codebase.
             types: Smell types to detect. Options: "long_function", "deep_nesting",
-                   "duplicates", "missing_docstring", "complex_logic", "too_many_params".
-                   Default: all.
-            severity_min: Minimum severity to report: "low", "medium", "high".
+                "missing_docstring", "complex_logic", "too_many_params". Default: all.
+            severity_min: Minimum severity to report: "low", "medium", or "high". Default: "low".
 
         Returns:
-            Dict with smells list, each containing file, line, type, severity, suggestion.
+            Dict with keys:
+                status: "ok" on success.
+                smells: List of smell dicts with keys:
+                    file: Source file path.
+                    line: Start line number.
+                    type: Smell type (e.g. "long_function", "deep_nesting").
+                    severity: "low", "medium", or "high".
+                    suggestion: Human-readable fix suggestion.
+                total: Number of smells found.
+
+        Example:
+            >>> result = tool.detect_code_smells(buf_id, types=["long_function", "complex_logic"])
+            >>> result["smells"][0]
+            {"file": "src/auth.py", "line": 42, "type": "long_function", "severity": "medium",
+             "suggestion": "Function 'process_login' is 80 lines. Consider extracting methods."}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5394,16 +5434,34 @@ class CodeEmbeddingTool:
         buffer_id: str,
         severity_min: str = "medium",
     ) -> dict[str, Any]:
-        """Scan for security vulnerabilities.
+        """Scan for security vulnerabilities using pattern-based detection.
 
         Feature 15: Catch security issues before they reach production.
+        Detects: eval/exec usage, shell injection, SQL injection, hardcoded secrets,
+        unsafe pickle/yaml, broad except, wildcard imports.
 
         Args:
-            buffer_id: Buffer handle.
-            severity_min: Minimum severity: "low", "medium", "high".
+            buffer_id: Buffer handle returned by embed_codebase.
+            severity_min: Minimum severity to report: "low", "medium", or "high". Default: "medium".
 
         Returns:
-            Dict with vulnerabilities list and fix suggestions.
+            Dict with keys:
+                status: "ok" on success.
+                vulnerabilities: List of vulnerability dicts with keys:
+                    file: Source file path.
+                    line: Line number of the vulnerability.
+                    type: Vulnerability type (e.g. "eval_usage", "sql_injection", "hardcoded_secret").
+                    severity: "low", "medium", or "high".
+                    context: The offending line of code.
+                    fix_suggestion: How to fix the vulnerability.
+                total: Number of vulnerabilities found.
+
+        Example:
+            >>> result = tool.scan_security(buf_id, severity_min="high")
+            >>> result["vulnerabilities"][0]
+            {"file": "src/db.py", "line": 42, "type": "sql_injection", "severity": "high",
+             "context": 'cursor.execute(f"SELECT * FROM {table}")',
+             "fix_suggestion": "Use parameterized queries instead of string formatting"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5467,16 +5525,33 @@ class CodeEmbeddingTool:
         buffer_id: str,
         symbol: str,
     ) -> dict[str, Any]:
-        """Suggest safe refactorings for a symbol.
+        """Suggest safe refactorings for a symbol with risk assessment.
 
-        Feature 21: AI suggests safe refactorings with risk assessment.
+        Feature 21: AI suggests safe refactorings before you make changes.
+        Analyzes: extract method opportunities, branch simplification, duplicate calls,
+        missing type hints, deep nesting guard clauses.
 
         Args:
-            buffer_id: Buffer handle.
+            buffer_id: Buffer handle returned by embed_codebase.
             symbol: Symbol name to analyze for refactoring opportunities.
 
         Returns:
-            Dict with suggestions list, each containing type, benefit, and risk.
+            Dict with keys:
+                status: "ok" on success.
+                symbol: The analyzed symbol name.
+                suggestions: List of suggestion dicts with keys:
+                    type: Refactoring type ("extract_method", "simplify_branches",
+                        "consolidate_calls", "add_type_hints", "use_guard_clauses").
+                    lines: Line range string (e.g. "10-20").
+                    symbol: Related symbol name (for consolidate_calls).
+                    benefit: Human-readable benefit description.
+                    risk: "low", "medium", or "high".
+
+        Example:
+            >>> result = tool.suggest_refactorings(buf_id, "process_payment")
+            >>> result["suggestions"][0]
+            {"type": "extract_method", "lines": "10-60", "benefit": "Reduce 80-line function to smaller units",
+             "risk": "medium"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5578,9 +5653,31 @@ class CodeEmbeddingTool:
         self,
         buffer_id: str,
     ) -> dict[str, Any]:
-        """Detect performance hotspots: N+1 queries, inefficient loops, unbounded recursion.
+        """Detect performance hotspots: N+1 queries, inefficient loops, unbounded growth, resource leaks.
 
         Feature 14: Identify performance-critical code for optimization.
+        Uses regex pattern matching to detect common anti-patterns and nested loops.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                hotspots: List of hotspot dicts with keys:
+                    file: Source file path.
+                    line: Line number.
+                    type: Hotspot type (e.g. "n_plus_one", "nested_loop", "unclosed_file").
+                    severity: "low", "medium", or "high".
+                    context: The offending code snippet.
+                    suggestion: Optimization recommendation.
+                total: Number of hotspots found.
+
+        Example:
+            >>> result = tool.find_performance_hotspots(buf_id)
+            >>> result["hotspots"][0]
+            {"file": "src/db.py", "line": 42, "type": "n_plus_one", "severity": "high",
+             "context": "for user in User.objects.all():", "suggestion": "Review n_plus_one pattern"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5649,6 +5746,36 @@ class CodeEmbeddingTool:
         """Auto-generate documentation from code analysis.
 
         Feature 16: Generate accurate docstrings from AST + type info.
+        Parses function signatures, extracts type hints, and finds usage examples in test files.
+        Supports Google, NumPy, and Sphinx docstring styles.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            symbol: Symbol name to generate documentation for.
+            style: Docstring style: "google", "numpy", or "sphinx". Default: "google".
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                symbol: The documented symbol name.
+                docstring: Generated docstring ready to insert into code.
+                type_hints: Dict mapping parameter names to inferred types.
+                examples: List of usage examples found in test files.
+                generated_from_code: True (always, since this is AST-based).
+                style: The docstring style used.
+
+        Example:
+            >>> result = tool.generate_documentation(buf_id, "process_payment", style="google")
+            >>> print(result["docstring"])
+            \"\"\"process_payment documentation.
+
+            Args:
+                amount (float): Payment amount.
+                currency (str): ISO 4217 currency code.
+
+            Returns:
+                bool
+            \"\"\"
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5757,6 +5884,25 @@ class CodeEmbeddingTool:
         """Find similar code patterns using semantic + syntactic matching.
 
         Feature 18: Find duplicate logic for consolidation.
+        Combines MinHash/LSH syntactic matching with semantic embedding search.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            code_snippet: Code snippet to find similar patterns for.
+            min_similarity: Minimum Jaccard similarity threshold (0.0-1.0). Default: 0.7.
+            top_k: Maximum number of semantic results to return. Default: 10.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                syntactic_matches: List of near-duplicate code chunks (from MinHash/LSH).
+                semantic_matches: List of dicts with keys: file, line, score.
+                snippet_length: Length of the input snippet in characters.
+
+        Example:
+            >>> result = tool.find_similar_patterns(buf_id, "def validate(x):\\n    return x is not None")
+            >>> result["semantic_matches"][0]
+            {"file": "src/validators.py", "line": 15, "score": 0.89}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5792,6 +5938,28 @@ class CodeEmbeddingTool:
         """Detect usage of deprecated functions and APIs.
 
         Feature 20: Identify code that uses outdated APIs.
+        Searches for @deprecated decorators, DeprecationWarning usage,
+        deprecated comments, and warnings.warn("deprecated...") patterns.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                deprecated: List of deprecation dicts with keys:
+                    file: Source file path.
+                    line: Line number.
+                    detection_method: How it was detected ("decorator", "warning", "comment", "deprecation_warning").
+                    context: The offending line of code.
+                    symbol: Symbol name containing the deprecation.
+                total: Number of deprecated items found.
+
+        Example:
+            >>> result = tool.find_deprecated(buf_id)
+            >>> result["deprecated"][0]
+            {"file": "src/api.py", "line": 42, "detection_method": "decorator",
+             "context": "@deprecated", "symbol": "old_endpoint"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5835,9 +6003,30 @@ class CodeEmbeddingTool:
         buffer_id: str,
         dry_run: bool = True,
     ) -> dict[str, Any]:
-        """Validate changes before committing (static analysis + import resolution).
+        """Validate changes before committing with static analysis + import resolution.
 
         Feature 22: Pre-commit validation without running full test suite.
+        Checks: Python syntax errors, import resolution, test impact prediction.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            dry_run: If True, only preview validation without side effects. Default: True.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                type_errors: List of syntax error dicts with keys: file, line, message.
+                broken_imports: List of import error dicts with keys: file, import, message.
+                test_impact_predictions: List of test symbol names that may be affected.
+                safe_to_commit: True if no errors or broken imports found.
+                dry_run: Whether this was a dry run.
+
+        Example:
+            >>> result = tool.validate_changes(buf_id)
+            >>> result["safe_to_commit"]
+            False
+            >>> result["type_errors"]
+            [{"file": "src/main.py", "line": 10, "message": "SyntaxError: invalid syntax"}]
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5912,9 +6101,28 @@ class CodeEmbeddingTool:
         self,
         buffer_id: str,
     ) -> dict[str, Any]:
-        """Extract configuration: env vars, config files, hardcoded secrets, defaults.
+        """Extract configuration: environment variables, config files, hardcoded secrets, defaults.
 
         Feature 27: Understand what needs to be configured; detect hardcoded secrets.
+        Parses os.environ.get(), os.getenv(), config file references, and secret patterns.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                env_vars: List of env var dicts with keys: name, used_in (file:line), required (bool), default (str or None).
+                config_files: List of config file paths referenced in code.
+                hardcoded_secrets: List of secret dicts with keys: file, line, pattern, severity.
+                default_values: Dict mapping env var names to their default values.
+
+        Example:
+            >>> result = tool.extract_configuration(buf_id)
+            >>> result["env_vars"][0]
+            {"name": "DATABASE_URL", "used_in": "src/db.py:5", "required": True, "default": None}
+            >>> result["hardcoded_secrets"]
+            [{"file": "src/auth.py", "line": 12, "pattern": "api_key = 'abc123'", "severity": "high"}]
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -5991,6 +6199,26 @@ class CodeEmbeddingTool:
         """Analyze logging patterns: levels, consistency, gaps.
 
         Feature 29: Ensure consistent logging for debugging/monitoring.
+        Counts log levels, detects try/except blocks without logging, and finds format inconsistencies.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                total_logs: Total number of log statements found.
+                levels: Dict with keys: debug, info, warning, error, critical — each an integer count.
+                missing_logs_in: List of dicts with keys: file, symbol, issue (e.g. "try/except without logging").
+                inconsistent_format: List of dicts with keys: file, line, format_string.
+                patterns_detected: List of detected anti-patterns (e.g. "f-string-in-log").
+
+        Example:
+            >>> result = tool.analyze_logging_patterns(buf_id)
+            >>> result["levels"]
+            {"debug": 10, "info": 42, "warning": 8, "error": 3, "critical": 0}
+            >>> result["missing_logs_in"][0]
+            {"file": "src/critical.py", "symbol": "process_refund", "issue": "try/except without logging"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6050,9 +6278,29 @@ class CodeEmbeddingTool:
         self,
         buffer_id: str,
     ) -> dict[str, Any]:
-        """Analyze error handling patterns: broad catches, missing finally, uncaught exceptions.
+        """Analyze error handling patterns: broad catches, missing finally, silent failures.
 
         Feature 30: Ensure robust error handling; prevent silent failures.
+        Detects bare except, broad Exception catches, missing finally for resources, and silent pass statements.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                try_except_blocks: Total number of try/except blocks found.
+                uncaught_exceptions: List of dicts with keys: file, line, issue.
+                broad_catches: List of dicts with keys: file, line, catches (e.g. "Exception" or "bare except").
+                missing_finally: List of dicts with keys: file, line, resource.
+                suggestions: List of human-readable improvement suggestions.
+
+        Example:
+            >>> result = tool.analyze_error_handling_patterns(buf_id)
+            >>> result["broad_catches"][0]
+            {"file": "src/db.py", "line": 42, "catches": "Exception"}
+            >>> result["suggestions"]
+            ["Replace broad exception handlers with specific exception types"]
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6117,9 +6365,28 @@ class CodeEmbeddingTool:
         buffer_id: str,
         since_commit: str | None = None,
     ) -> dict[str, Any]:
-        """Generate changelog from git history + semantic analysis.
+        """Generate changelog from git history with semantic categorization.
 
         Feature 26: Auto-generate release notes from code changes.
+        Parses git log and categorizes commits into features, bugfixes, and breaking changes.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            since_commit: Git commit hash to compare against. If None, shows last 50 commits.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                features: List of feature commit dicts with keys: commit, message.
+                bugfixes: List of bugfix commit dicts with keys: commit, message.
+                breaking_changes: List of breaking change dicts with keys: commit, message.
+                other: List of uncategorized commit dicts with keys: commit, message.
+                migration_notes: Migration notes string (empty if no breaking changes).
+
+        Example:
+            >>> result = tool.generate_changelog(buf_id, since_commit="v1.0.0")
+            >>> result["features"][0]
+            {"commit": "abc1234", "message": "feat: add retry logic to database calls"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6174,6 +6441,25 @@ class CodeEmbeddingTool:
         """Detect API-breaking changes between commits.
 
         Feature 25: Detect breaking changes that would affect consumers.
+        Compares current API surface (public symbols + signatures) against a previous commit.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            since_commit: Git commit hash to compare against. If None, only lists current API surface.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                current_api_surface: Number of public symbols found.
+                changes: List of change dicts with keys: symbol, breaking (bool),
+                    parameters_added, return_type_changed (bool), migration_guide.
+                symbols: List of symbol dicts with keys: name, params (list of param names).
+
+        Example:
+            >>> result = tool.detect_api_changes(buf_id, since_commit="v1.0.0")
+            >>> result["changes"][0]
+            {"symbol": "process_payment", "breaking": True, "parameters_added": ["currency"],
+             "return_type_changed": False, "migration_guide": "Review changes to process_payment"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6238,9 +6524,29 @@ class CodeEmbeddingTool:
         buffer_id: str,
         file: str,
     ) -> dict[str, Any]:
-        """Get rollback information for a file.
+        """Get rollback information for a file using git history.
 
-        Feature 23: Understand what changed and why for debugging regressions.
+        Feature 23: Understand what changed and why—helps with debugging regressions.
+        Returns the last commit that touched the file and a diff to revert.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            file: File path within the buffer to get rollback info for.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                last_working_commit: Commit hash of last change, or None if no history.
+                commit_message: The commit message.
+                commit_date: ISO timestamp of the commit.
+                diff_to_revert: Unified diff showing changes from HEAD.
+
+        Example:
+            >>> result = tool.get_rollback_info(buf_id, "src/auth.py")
+            >>> result["last_working_commit"]
+            "abc1234"
+            >>> result["commit_message"]
+            "feat: add MFA support"
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6280,9 +6586,30 @@ class CodeEmbeddingTool:
         buffer_id: str,
         request: str,
     ) -> dict[str, Any]:
-        """Generate a change plan template for a request.
+        """Generate a change plan template for a natural language request.
 
         Feature 24: AI creates a plan before making changes.
+        Uses semantic search to find relevant files, then impact analysis for risk assessment.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            request: Natural language description of the desired change.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                request: The original request string.
+                files_to_modify: List of file paths relevant to the request.
+                change_strategy: Summary of the change approach.
+                test_cases_needed: List of test symbol names that should be updated.
+                risk_assessment: "low", "medium", or "high".
+
+        Example:
+            >>> result = tool.generate_change_template(buf_id, "add retry logic to database calls")
+            >>> result["files_to_modify"]
+            ["src/db.py", "src/config.py"]
+            >>> result["risk_assessment"]
+            "medium"
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6327,9 +6654,30 @@ class CodeEmbeddingTool:
         self,
         buffer_id: str,
     ) -> dict[str, Any]:
-        """Map all API endpoints (FastAPI, Flask, Django patterns).
+        """Map all API endpoints from FastAPI and Flask decorators.
 
         Feature 32: Know all exposed endpoints; find security issues.
+        Parses @app.get/post/put/delete/patch decorators and Flask @app.route patterns.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                endpoints: List of endpoint dicts with keys:
+                    method: HTTP method (e.g. "GET", "POST").
+                    path: URL path (e.g. "/api/v1/payment").
+                    handler: Function name that handles the endpoint.
+                    is_async: True if the handler is async.
+                    file: Source file containing the endpoint.
+                total: Number of endpoints found.
+
+        Example:
+            >>> result = tool.map_api_endpoints(buf_id)
+            >>> result["endpoints"][0]
+            {"method": "POST", "path": "/api/v1/payment", "handler": "process_payment",
+             "is_async": True, "file": "src/api.py"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6391,6 +6739,24 @@ class CodeEmbeddingTool:
         """Analyze cache usage patterns: invalidation logic, stale data risks.
 
         Feature 33: Prevent stale cache bugs.
+        Detects cache libraries, invalidation triggers, and cache writes without matching invalidation.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                caches_used: List of cache library names detected (e.g. "redis", "lru_cache").
+                invalidation_logic: List of dicts with keys: file, line, pattern, safe (bool).
+                stale_data_risks: List of dicts with keys: file, line, risk_level.
+
+        Example:
+            >>> result = tool.analyze_cache_patterns(buf_id)
+            >>> result["caches_used"]
+            ["redis", "lru_cache"]
+            >>> result["stale_data_risks"][0]
+            {"file": "src/cache.py", "line": 42, "risk_level": "medium"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6438,9 +6804,25 @@ class CodeEmbeddingTool:
         self,
         buffer_id: str,
     ) -> dict[str, Any]:
-        """Analyze thread safety: shared state, race conditions, deadlock risks.
+        """Analyze thread safety: shared mutable state, race conditions, deadlock risks.
 
         Feature 34: Catch concurrency bugs early.
+        Detects unprotected shared state, non-atomic mutations, and multiple-lock patterns.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                shared_state: List of dicts with keys: name, file, modified_by (list), protected_by ("lock"|"atomic"|"none").
+                race_conditions: List of dicts with keys: file, line, variables (list), risk_level.
+                deadlock_risks: List of dicts with keys: file, line, locks_count, suggestion.
+
+        Example:
+            >>> result = tool.analyze_thread_safety(buf_id)
+            >>> result["shared_state"][0]
+            {"name": "global_cache", "file": "src/cache.py", "modified_by": [], "protected_by": "none"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6501,9 +6883,26 @@ class CodeEmbeddingTool:
         self,
         buffer_id: str,
     ) -> dict[str, Any]:
-        """Detect memory issues: circular refs, unbounded collections, resource leaks.
+        """Detect memory issues: circular references, unbounded collections, resource leaks.
 
         Feature 35: Identify memory issues in long-running processes.
+        Detects: self-referential patterns, loops with append but no size limit,
+        open() calls without with/context or .close().
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                circular_refs: List of dicts with keys: file, line, symbols (list).
+                unbounded_collections: List of dicts with keys: file, line, symbol, growth_reason.
+                resource_leaks: List of dicts with keys: file, line, resource, cleanup_missing (bool).
+
+        Example:
+            >>> result = tool.detect_memory_issues(buf_id)
+            >>> result["unbounded_collections"][0]
+            {"file": "src/collector.py", "line": 15, "symbol": "aggregate", "growth_reason": "append in loop without size limit"}
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -6998,9 +7397,30 @@ class CodeEmbeddingTool:
         exclude_patterns: list[str] | None = None,
         group_by: str = "file",
     ) -> dict[str, Any]:
-        """Deep lint analysis with detailed aggregation. Report-only, no auto-fix.
+        """Deep lint analysis with detailed aggregation by file/severity/rule. Report-only, no auto-fix.
 
-        Feature 39: Organize results by file, severity, or rule.
+        Feature 39: Organize lint results for full-buffer analysis.
+        Delegates to auto_lint with auto_fix=False, then reorganizes results.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            files: Specific files to lint. If None, lints entire buffer.
+            select: Lint rule categories to check (e.g. ["E", "F", "W"]). Default: all.
+            exclude_patterns: Glob patterns to exclude from linting.
+            group_by: How to organize results: "file", "severity", or "rule". Default: "file".
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                total_issues: Total number of lint issues found.
+                by_file: (when group_by="file") Dict mapping file paths to lists of {line, code, message}.
+                by_severity: (when group_by="severity") Dict with keys: error, warning, info — each an integer.
+                by_rule: (when group_by="rule") Dict mapping rule codes to {count, severity}.
+
+        Example:
+            >>> result = tool.lint_buffer(buf_id, group_by="severity")
+            >>> result["by_severity"]
+            {"error": 5, "warning": 12, "info": 3}
         """
         lint_result = self.auto_lint(
             buffer_id=buffer_id, files=files, select=select,
@@ -7048,9 +7468,37 @@ class CodeEmbeddingTool:
         dry_run: bool = True,
         summary_only: bool = False,
     ) -> dict[str, Any]:
-        """Deep format analysis with detailed change tracking.
+        """Deep format analysis with detailed change tracking across codebase.
 
-        Feature 40: Understand exactly what changed across codebase.
+        Feature 40: Understand exactly what changed across the codebase.
+        Delegates to auto_format, then enriches with aggregate statistics.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            files: Specific files to format. If None, formats entire buffer.
+            formatter: Formatter to use: "black" or "ruff.format". Default: "black".
+            line_length: Maximum line length. Default: 88.
+            exclude_patterns: Glob patterns to exclude.
+            dry_run: Preview only without making changes. Default: True.
+            summary_only: If True, return only stats (not full diffs). Default: False.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                total_files: Total files analyzed.
+                formatted_files: Number of files that needed formatting.
+                already_formatted: Number of files already compliant.
+                total_lines_added: Lines added by formatting.
+                total_lines_removed: Lines removed by formatting.
+                changes: List of per-file change dicts with keys: file, added_lines, removed_lines, diff.
+                summary: Human-readable summary string.
+
+        Example:
+            >>> result = tool.format_buffer(buf_id, dry_run=True)
+            >>> result["formatted_files"]
+            3
+            >>> result["total_lines_added"]
+            12
         """
         format_result = self.auto_format(
             buffer_id=buffer_id, files=files, formatter=formatter,
@@ -7087,6 +7535,24 @@ class CodeEmbeddingTool:
         """Lint using project configuration (ruff.toml, pyproject.toml, .flake8).
 
         Feature 41: Config-aware linting respects project-specific rules.
+        Auto-discovers config files in the work directory if not specified.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            config_file: Path to config file. Auto-detected from work_dir if None.
+            files: Specific files to lint. If None, lints entire buffer.
+            auto_fix: Automatically fix lint issues. Default: False.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                config_file: Config file used (or "none found").
+                Plus all auto_lint output fields: issues, by_rule, etc.
+
+        Example:
+            >>> result = tool.lint_with_config(buf_id)
+            >>> result["config_file"]
+            "pyproject.toml"
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
@@ -7123,6 +7589,24 @@ class CodeEmbeddingTool:
         """Format using project configuration (pyproject.toml, .black, ruff.toml).
 
         Feature 42: Config-aware formatting respects project-specific style.
+        Auto-discovers config files in the work directory if not specified.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            config_file: Path to config file. Auto-detected from work_dir if None.
+            files: Specific files to format. If None, formats entire buffer.
+            dry_run: Preview only without making changes. Default: True.
+
+        Returns:
+            Dict with keys:
+                status: "ok" on success.
+                config_file: Config file used (or "none found").
+                Plus all auto_format output fields: changes, formatted_files, etc.
+
+        Example:
+            >>> result = tool.format_with_config(buf_id, dry_run=True)
+            >>> result["config_file"]
+            "pyproject.toml"
         """
         info = self._get_buffer_info(buffer_id)
         if info is None:
