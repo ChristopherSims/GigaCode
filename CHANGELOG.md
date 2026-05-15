@@ -5,6 +5,95 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-15
+
+### Added — 43 New AI Agent Capabilities
+
+#### Core Foundations
+
+- **Type inference in search results** — `semantic_search()` now optionally returns parameter types, return types, confidence scores, and inference method (AST or LLM). Session-scoped LRU cache (cap 500) with write-driven invalidation via `TypeInferenceCache` in `type_inference_cache.py`.
+- **`infer_types()`** — standalone method for type inference at a specific code location using AST or LLM methods.
+- **Symbol metadata** — `get_symbol_metadata()` returns file, line, type, parameters, return type, lines of code, cyclomatic complexity, called_by_count, calls_count, docstring, and optional type inference.
+- **Batch search** — `search_batch()` runs up to 20 semantic search queries in a single call, returning per-query results.
+- **Return the diff** — `write_code()` now returns a unified diff of the change alongside the existing status and impact fields.
+- **Auto-format** — `auto_format()` wraps Black and ruff format with diff parsing and dry-run support.
+- **Auto-lint** — `auto_lint()` wraps Ruff with issue aggregation by rule and file, optional auto-fix.
+- **Auto-polish** — `auto_polish()` convenience wrapper that delegates to auto_format + auto_lint.
+- **6 async variants** — `semantic_search_async`, `write_code_async`, `search_batch_async`, `auto_format_async`, `auto_lint_async`, `auto_polish_async` using `asyncio.to_thread`.
+- **6+ FastAPI endpoints** for all Phase 1 features.
+
+#### Navigation & Context
+
+- **Reference Map** — `ReferenceMap` in `reference_map.py` implements a three-phase incremental strategy: (1) lazy/on-demand indexing with LRU cache, (2) subgraph eviction on file invalidation, (3) depth-limited neighborhood expansion. `get_references()` returns callers, callees, and related references with direction/depth control.
+- **Context Bundle** — `get_full_context()` combines definition + callers + callees + type info + tests + related code + error handling into a single call.
+- **Impact Analysis** — `analyze_change()` reports affected symbols, direct callers, test coverage, risk scoring, and recommendations before editing.
+- **Test Coverage Map** — `get_test_coverage()` maps source files to line ranges and covering test names via SymbolIndex.
+- **Pre-Commit Polish** — `polish_before_commit()` chains auto_polish + test coverage warnings + impact analysis warnings + large diff detection.
+
+#### Advanced Analysis
+
+- **Execution Paths** — `trace_execution_paths()` in `execution_paths.py` uses AST branch detection + DFS call graph traversal. Returns path chains with branch counts and conditions. Regex fallback for non-Python code.
+- **Dependency Graph Visualization** — `get_dependency_graph()` returns nodes + edges for graph visualization. Optional symbol-scoping with depth-limited graph extraction via ReferenceMap.
+- **Code Smell Detection** — `detect_code_smells()` detects long functions, deep nesting, missing docstrings, complex logic, and too many parameters with severity filtering.
+- **Security Scanning** — `scan_security()` uses pattern-based detection for eval, exec, shell injection, SQL injection, hardcoded secrets, unsafe pickle/yaml, broad except, wildcard imports.
+- **Refactoring Suggestions** — `suggest_refactorings()` identifies extract method, simplify branches, consolidate calls, add type hints, and guard clause opportunities with risk assessment.
+- **Lint Entire Buffer** — `lint_buffer()` provides report-only deep analysis grouped by file, severity, or rule.
+- **Format Entire Buffer** — `format_buffer()` provides detailed change tracking with summary_only option.
+
+#### Extended Analysis & Safety
+
+- **Performance Hotspots** — `find_performance_hotspots()` detects N+1 queries, nested loops, unclosed files, regex-in-loop, and full table scans.
+- **Auto-Documentation** — `generate_documentation()` generates docstrings from AST + type info in Google, NumPy, or Sphinx style, with usage examples from test files.
+- **Similar Code Patterns** — `find_similar_patterns()` combines semantic embedding search with MinHash/LSH syntactic matching.
+- **Deprecated Function Detection** — `find_deprecated()` detects @deprecated decorators, DeprecationWarning usage, deprecated comments, and warnings.warn patterns.
+- **Pre-Commit Validation** — `validate_changes()` checks Python syntax errors, import resolution, and test impact prediction before committing.
+- **Rollback Information** — `get_rollback_info()` returns last commit touching a file plus a diff to revert.
+- **Change Request Templates** — `generate_change_template()` uses semantic search to find relevant files, then impact analysis for risk assessment.
+- **API Contract Changes** — `detect_api_changes()` compares public symbol signatures between commits.
+- **Changelog Generation** — `generate_changelog()` parses git log and categorizes commits into features, bugfixes, and breaking changes.
+- **Configuration Extraction** — `extract_configuration()` finds env vars, config files, hardcoded secrets, and default values.
+- **Logging Pattern Analysis** — `analyze_logging_patterns()` counts log levels, detects try/except without logging, and finds format inconsistencies.
+- **Error Handling Analysis** — `analyze_error_handling_patterns()` detects broad catches, missing finally, and silent pass statements.
+- **API Endpoint Mapping** — `map_api_endpoints()` parses FastAPI and Flask decorators to enumerate all HTTP endpoints.
+- **Cache Pattern Analysis** — `analyze_cache_patterns()` detects cache libraries, invalidation triggers, and stale data risks.
+- **Thread Safety Analysis** — `analyze_thread_safety()` finds unprotected shared state, race conditions, and deadlock risks.
+- **Memory Leak Detection** — `detect_memory_issues()` identifies circular references, unbounded collections, and resource leaks.
+
+#### Config-Aware Quality Tools
+
+- **Config-aware Linting** — `lint_with_config()` auto-discovers ruff.toml/pyproject.toml/.flake8 and respects project-specific rules.
+- **Config-aware Formatting** — `format_with_config()` auto-discovers pyproject.toml/.black/ruff.toml and respects project-specific style.
+
+#### FastAPI & Production
+
+- **Pydantic request/response models** — 50+ typed Pydantic models for all endpoints with `Field(description=...)` for OpenAPI spec generation.
+- **FastAPI dependency injection** — `get_tool` dependency reads tool from `app.state.tool`, initialized during lifespan.
+- **Monitoring middleware** — X-Response-Time-Ms header + request logging on all endpoints.
+- **`create_production_app()`** — Starter template with API key authentication middleware and in-memory rate limiter.
+- **38 new FastAPI endpoints** across /search, /types, /symbols, /references, /context, /impact, /tests, /quality, /execution-paths, /dependency-graph, /analysis, /security, /refactoring, /config, /validation, /changelog, /api, /rollback, /planning, /performance, /docs, /security.
+
+#### AI Agent Auto-Discoverability (10/10)
+
+- **54 tool schemas** with full input/output typed definitions including `items.properties` on all arrays.
+- **Category tagging** — 8 categories (analysis, editing, indexing, navigation, quality, safety, search, security) + tags per tool (read-only, write, fast, slow, mutating, destructive, setup).
+- **Side-effect annotations** — `read_only` (bool) + `side_effects` (str|None) on every schema. 44 read-only tools safe to call freely; 10 write tools with explicit mutation descriptions.
+- **Error schema** — Shared `error_schema` on all 54 tools documenting the error/conflict response shape (status, message, operation, buffer_id).
+- **Composition hints** — `delegates_to` / `composed_of` on 10 wrapper tools (auto_polish → [auto_format, auto_lint], polish_before_commit → [auto_polish, get_test_coverage, analyze_change], etc.).
+- **JSON Schema examples** — `input_schema.examples` and `output_schema.examples` on all 54 tools for few-shot prompting.
+- **Full docstrings** — Args/Returns/Example sections on all 25+ new methods.
+- **Endpoint docstrings** — All 38+ FastAPI endpoints documented for OpenAPI spec.
+- **Helper functions** — `get_schemas_by_category()`, `get_read_only_tools()`, `get_write_tools()`, `TOOL_CATEGORIES`.
+- **Enriched export formats** — `to_openai_functions()` and `to_mcp_tools()` include category, tags, read_only, side_effects, composition hints, and error schemas.
+
+### Fixed
+
+- **`git_utils.run_git()` missing** — Added module-level `run_git()` function. Previously `generate_changelog`, `detect_api_changes`, and `get_rollback_info` all crashed with `AttributeError` at runtime because only the private `GitUtils._run_git()` method existed.
+- **`find_similar_patterns` wrong kwarg** — Changed `jaccard_threshold` to `threshold` matching `duplicate_detector.find_duplicates()` actual signature.
+- **`semantic_search` result key mismatch** — Changed `search_result.get("results")` to `search_result.get("matches")` in `find_similar_patterns` and `generate_change_template` (both silently returned empty lists).
+- **`generate_change_template` wrong key** — Changed `affected_tests` to `test_coverage` with proper name extraction from test_coverage dicts.
+- **Reused Pydantic models** — Replaced `DeleteBufferRequest` with proper `FindDuplicatesRequest` (with threshold), `PackContextRequest` (with max_tokens/top_k), and `BufferIdRequest` (for read-only endpoints like diff and test coverage).
+- **`write_code` type cache invalidation** — Write-invalidation now evicts all cached type inference entries for symbols in the modified file.
+
 ## [0.5.1] - 2026-05-09
 
 ### Added — Agent Improvements v4 
