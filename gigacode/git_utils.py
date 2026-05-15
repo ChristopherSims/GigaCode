@@ -21,6 +21,7 @@ __all__ = [
     "GitStatus",
     "GitBlameLine",
     "GitUtils",
+    "run_git",
 ]
 
 
@@ -464,3 +465,34 @@ def get_git_status(source_dir: str | Path) -> dict[str, Any]:
     if isinstance(status, dict):
         return status
     return status.to_dict()
+
+
+def run_git(args: list[str], cwd: str | Path | None = None) -> str:
+    """Run a git command and return stdout.
+
+    Module-level convenience for one-off git calls without
+    constructing a GitUtils instance.
+
+    Args:
+        args: Git subcommand and arguments, e.g. ["log", "--oneline", "-10"].
+        cwd: Working directory for the git command.
+
+    Returns:
+        Git command stdout as a string.
+
+    Raises:
+        RuntimeError: If the git command exits with a non-zero code.
+    """
+    cmd = ["git"]
+    if cwd:
+        cmd += ["-C", str(cwd)]
+    cmd += args
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if result.returncode != 0 and result.stderr:
+        raise RuntimeError(result.stderr.strip())
+    return result.stdout

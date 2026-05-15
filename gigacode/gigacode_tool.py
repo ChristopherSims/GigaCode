@@ -5913,14 +5913,14 @@ class CodeEmbeddingTool:
             return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_similar_patterns")
 
         from gigacode.duplicate_detector import find_duplicates
-        results = find_duplicates(chunks, jaccard_threshold=min_similarity)
+        results = find_duplicates(chunks, threshold=min_similarity)
 
         # Also try semantic search
         semantic_results = []
         try:
             search_result = self.semantic_search(buffer_id, code_snippet, top_k=top_k)
             if search_result.get("status") == "ok":
-                semantic_results = search_result.get("results", [])
+                semantic_results = search_result.get("matches", [])
         except Exception:
             pass
 
@@ -6619,7 +6619,7 @@ class CodeEmbeddingTool:
         search_result = self.semantic_search(buffer_id, request, top_k=10)
         files_to_modify = []
         if search_result.get("status") == "ok":
-            for r in search_result.get("results", []):
+            for r in search_result.get("matches", []):
                 f = r.get("file", "")
                 if f and f not in files_to_modify:
                     files_to_modify.append(f)
@@ -6635,9 +6635,10 @@ class CodeEmbeddingTool:
                     risk = impact.get("risk_level", "low")
                     if risk in ("high", "medium"):
                         risk_level = "medium" if risk_level != "high" else "high"
-                    for t in impact.get("affected_tests", []):
-                        if t not in test_cases_needed:
-                            test_cases_needed.append(t)
+                    for t in impact.get("test_coverage", []):
+                        name = t.get("name", t.get("target_symbol", ""))
+                        if name and name not in test_cases_needed:
+                            test_cases_needed.append(name)
             except Exception:
                 pass
 

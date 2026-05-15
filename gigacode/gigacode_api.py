@@ -320,6 +320,22 @@ class FormatWithConfigRequest(BaseModel):
     dry_run: bool = Field(default=True, description="Preview only without making changes.")
 
 
+class FindDuplicatesRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    threshold: float = Field(default=0.85, description="Minimum Jaccard similarity threshold (0.0-1.0).")
+
+
+class PackContextRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    query: str = Field(description="Natural language search query.")
+    max_tokens: int = Field(default=8192, description="Maximum tokens for packed context.")
+    top_k: int = Field(default=10, description="Maximum number of chunks to include.")
+
+
+class BufferIdRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+
+
 class AutoFormatRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     files: Optional[List[str]] = Field(default=None, description="Specific files to analyze. If None, processes entire buffer.")
@@ -458,17 +474,17 @@ def create_app(tool: Any) -> FastAPI:
         return result
 
     @app.post("/duplicates")
-    async def find_duplicates(req: DeleteBufferRequest) -> dict[str, Any]:
+    async def find_duplicates(req: FindDuplicatesRequest) -> dict[str, Any]:
         """Find duplicate code blocks across the buffer."""
-        result = tool.find_duplicates(req.buffer_id)
+        result = tool.find_duplicates(req.buffer_id, threshold=req.threshold)
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
 
     @app.post("/pack")
-    async def pack_context(req: SearchRequest) -> dict[str, Any]:
+    async def pack_context(req: PackContextRequest) -> dict[str, Any]:
         """Pack relevant context for a query into a compact summary."""
-        result = tool.pack_context(req.buffer_id, req.query, max_tokens=8192, top_k=req.top_k)
+        result = tool.pack_context(req.buffer_id, req.query, max_tokens=req.max_tokens, top_k=req.top_k)
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
@@ -505,7 +521,7 @@ def create_app(tool: Any) -> FastAPI:
         return result
 
     @app.post("/diff")
-    async def diff(req: DeleteBufferRequest) -> dict[str, Any]:
+    async def diff(req: BufferIdRequest) -> dict[str, Any]:
         """Show uncommitted changes in the buffer."""
         result = tool.diff(req.buffer_id)
         if result.get("status") != "ok":
@@ -595,7 +611,7 @@ def create_app(tool: Any) -> FastAPI:
         return result
 
     @app.post("/tests/coverage")
-    async def get_test_coverage(req: DeleteBufferRequest) -> dict[str, Any]:
+    async def get_test_coverage(req: BufferIdRequest) -> dict[str, Any]:
         """Map source files to test coverage with line ranges and test names."""
         result = tool.get_test_coverage(req.buffer_id)
         if result.get("status") != "ok":
