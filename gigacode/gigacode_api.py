@@ -906,6 +906,50 @@ def create_app(tool: Any) -> FastAPI:
         return result
 
     # ------------------------------------------------------------------
+    # Schema Export (format-configurable for AI agent integration)
+    # ------------------------------------------------------------------
+    @app.get("/schemas")
+    async def export_schemas(
+        format: str = "openai",
+        include_metadata: bool = True,
+        category: Optional[str] = None,
+        read_only_only: bool = False,
+    ) -> Any:
+        """Export all tool schemas in the requested format.
+
+        Supported formats: openai, anthropic, mcp, ollama.
+        Query params: format, include_metadata, category, read_only_only.
+        """
+        from gigacode.tool_schema import export_schemas as _export, SchemaFormat
+        try:
+            fmt = SchemaFormat(format)
+        except ValueError:
+            valid = ", ".join(f.value for f in SchemaFormat)
+            raise HTTPException(status_code=400, detail={
+                "status": "error",
+                "message": f"Invalid format '{format}'. Supported: {valid}",
+            })
+        return _export(
+            format=fmt,
+            include_metadata=include_metadata,
+            category=category,
+            read_only_only=read_only_only,
+        )
+
+    @app.get("/schemas/config")
+    async def get_schema_config() -> dict[str, Any]:
+        """Read the current schema export config (from gigacode.toml or pyproject.toml)."""
+        from gigacode.tool_schema import SchemaConfig
+        config = SchemaConfig()
+        return {"status": "ok", "config": config.to_dict()}
+
+    @app.get("/schemas/categories")
+    async def get_schema_categories() -> dict[str, Any]:
+        """List all available tool categories."""
+        from gigacode.tool_schema import TOOL_CATEGORIES
+        return {"status": "ok", "categories": TOOL_CATEGORIES}
+
+    # ------------------------------------------------------------------
     # Middleware: monitoring + error handling
     # ------------------------------------------------------------------
     @app.middleware("http")

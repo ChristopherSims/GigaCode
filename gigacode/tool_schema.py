@@ -71,13 +71,19 @@ __all__ = [
     "FORMAT_WITH_CONFIG_SCHEMA",
     "ALL_SCHEMAS",
     "TOOL_CATEGORIES",
+    "SchemaFormat",
+    "SchemaConfig",
     "get_schema",
     "get_all_schemas",
     "get_schemas_by_category",
     "get_read_only_tools",
     "get_write_tools",
     "to_openai_functions",
+    "to_anthropic_tools",
+    "to_ollama_tools",
     "to_mcp_tools",
+    "export_schemas",
+    "export_schemas_from_config",
 ]
 
 
@@ -2903,3 +2909,285 @@ def to_mcp_tools() -> list[dict[str, Any]]:
             tool["errorSchema"] = schema["error_schema"]
         tools.append(tool)
     return tools
+
+
+# ---------------------------------------------------------------------------
+# Schema Format Configuration
+# ---------------------------------------------------------------------------
+
+from enum import Enum
+
+
+class SchemaFormat(str, Enum):
+    """Supported tool schema export formats.
+
+    - OPENAI:   OpenAI function-calling format (also used by Ollama).
+                Nested under ``{"type":"function","function":{...}}`` with
+                ``parameters`` key.
+
+    - ANTHROPIC: Anthropic/Claude tool-use format. Flat dict with
+                ``input_schema`` (snake_case) at top level.
+
+    - MCP:      Model Context Protocol format. Flat dict with
+                ``inputSchema`` (camelCase) and ``annotations``.
+
+    - OLLAMA:   Alias for OPENAI (Ollama uses the same format).
+    """
+
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    MCP = "mcp"
+    OLLAMA = "ollama"
+
+
+def to_anthropic_tools(
+    *,
+    include_metadata: bool = True,
+) -> list[dict[str, Any]]:
+    """Convert schemas to Anthropic tool-use format.
+
+    Anthropic tools use a flat structure with ``input_schema`` (snake_case)
+    and optional ``cache_control`` for prompt caching.
+
+    Args:
+        include_metadata: If True, attach category/tags/read_only/side_effects
+            as a ``x-gigacode`` extension dict. Default: True.
+
+    Returns:
+        List of Anthropic tool dicts ready for ``client.messages.create()``.
+    """
+    tools: list[dict[str, Any]] = []
+    for schema in ALL_SCHEMAS:
+        tool: dict[str, Any] = {
+            "name": schema["name"],
+            "description": schema["description"],
+            "input_schema": schema["input_schema"],
+        }
+        if include_metadata:
+            tool["x-gigacode"] = {
+                "category": schema.get("category", "uncategorized"),
+                "tags": schema.get("tags", []),
+                "read_only": schema.get("read_only", True),
+                "side_effects": schema.get("side_effects"),
+                "error_schema": schema.get("error_schema"),
+            }
+            if "delegates_to" in schema:
+                tool["x-gigacode"]["delegates_to"] = schema["delegates_to"]
+            if "composed_of" in schema:
+                tool["x-gigacode"]["composed_of"] = schema["composed_of"]
+        tools.append(tool)
+    return tools
+
+
+def to_ollama_tools(
+    *,
+    include_metadata: bool = True,
+) -> list[dict[str, Any]]:
+    """Convert schemas to Ollama tool format.
+
+    Ollama uses the same format as OpenAI function-calling.
+    This is an alias for ``to_openai_functions()`` with metadata support.
+
+    Args:
+        include_metadata: If True, attach enriched metadata as top-level
+            extension fields. Default: True.
+
+    Returns:
+        List of Ollama-compatible function dicts.
+    """
+    # Ollama uses the OpenAI function-calling format
+    functions = to_openai_functions()
+    if not include_metadata:
+        # Strip metadata fields
+        for func in functions:
+            for key in ("category", "tags", "read_only", "side_effects",
+                        "delegates_to", "composed_of"):
+                func.pop(key, None)
+    return functions
+
+
+def export_schemas(
+    format: str | SchemaFormat = SchemaFormat.OPENAI,
+    *,
+    include_metadata: bool = True,
+    category: str | None = None,
+    read_only_only: bool = False,
+) -> list[dict[str, Any]]:
+    """Export all tool schemas in the specified format.
+
+    Unified entry point for schema export. Picks the right converter
+    based on the format parameter.
+
+    Args:
+        format: Output format — "openai", "anthropic", "mcp", or "ollama".
+            Also accepts SchemaFormat enum values. Default: "openai".
+        include_metadata: If True, include enriched metadata
+            (category, tags, read_only, side_effects, composition hints).
+            Default: True.
+        category: If set, only export tools matching this category
+            (e.g. "search", "security", "quality").
+        read_only_only: If True, only export read-only (safe) tools.
+
+    Returns:
+        List of tool schema dicts in the requested format.
+
+    Example:
+        >>> from gigacode.tool_schema import export_schemas, SchemaFormat
+        >>> openai_tools = export_schemas("openai")
+        >>> anthropic_tools = export_schemas(SchemaFormat.ANTHROPIC, category="security")
+        >>> mcp_tools = export_schemas("mcp", read_only_only=True)
+    """
+    fmt = SchemaFormat(format)
+
+    # Filter schemas if requested
+    global ALL_SCHEMAS
+    source = ALL_SCHEMAS
+    if category:
+        source = [s for s in source if s.get("category") == category]
+    if read_only_only:
+        source = [s for s in source if s.get("read_only") is True]
+
+    # Temporarily swap ALL_SCHEMAS so converters work on the filtered set
+    original = ALL_SCHEMAS
+    ALL_SCHEMAS = source  # type: ignore[assignment]
+
+    try:
+        if fmt == SchemaFormat.OPENAI:
+            result = to_openai_functions()
+        elif fmt == SchemaFormat.ANTHROPIC:
+            result = to_anthropic_tools(include_metadata=include_metadata)
+        elif fmt == SchemaFormat.MCP:
+            result = to_mcp_tools()
+        elif fmt == SchemaFormat.OLLAMA:
+            result = to_ollama_tools(include_metadata=include_metadata)
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+    finally:
+        ALL_SCHEMAS = original
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Schema Config (file-based defaults)
+# ---------------------------------------------------------------------------
+
+import os
+
+
+class SchemaConfig:
+    """Configuration for schema export defaults.
+
+    Reads from ``gigacode.toml`` in the working directory, or falls back
+    to ``[tool.gigacode]`` section in ``pyproject.toml``, or uses built-in
+    defaults.
+
+    Supported keys in TOML:
+
+        [tool.gigacode]
+        schema_format = "openai"          # "openai" | "anthropic" | "mcp" | "ollama"
+        include_metadata = true           # Attach enriched metadata to exported schemas
+        default_category = null           # Filter to a single category by default
+        read_only_only = false            # Only export read-only tools by default
+
+    Example gigacode.toml:
+
+        schema_format = "anthropic"
+        include_metadata = true
+    """
+
+    _DEFAULTS: dict[str, Any] = {
+        "schema_format": "openai",
+        "include_metadata": True,
+        "default_category": None,
+        "read_only_only": False,
+    }
+
+    def __init__(self, config_path: str | None = None) -> None:
+        self.schema_format: SchemaFormat = SchemaFormat.OPENAI
+        self.include_metadata: bool = True
+        self.default_category: str | None = None
+        self.read_only_only: bool = False
+
+        if config_path:
+            self._load_toml(config_path)
+        else:
+            # Auto-discover config file
+            cwd = os.getcwd()
+            for candidate in [
+                os.path.join(cwd, "gigacode.toml"),
+                os.path.join(cwd, "pyproject.toml"),
+            ]:
+                if os.path.isfile(candidate):
+                    self._load_toml(candidate)
+                    break
+
+    def _load_toml(self, path: str) -> None:
+        """Load config from a TOML file."""
+        try:
+            with open(path, "rb") as f:
+                import tomllib
+                data = tomllib.load(f)
+        except (ImportError, ModuleNotFoundError):
+            # Python < 3.11 fallback
+            try:
+                import tomli as tomllib  # type: ignore[no-redef]
+                with open(path, "rb") as f:
+                    data = tomllib.load(f)
+            except ImportError:
+                return  # No TOML parser available, use defaults
+        except FileNotFoundError:
+            return
+
+        # Support both top-level gigacode.toml and [tool.gigacode] in pyproject.toml
+        if "schema_format" in data:
+            # Flat gigacode.toml
+            section = data
+        else:
+            section = data.get("tool", {}).get("gigacode", {})
+
+        if "schema_format" in section:
+            self.schema_format = SchemaFormat(section["schema_format"])
+        if "include_metadata" in section:
+            self.include_metadata = bool(section["include_metadata"])
+        if "default_category" in section:
+            self.default_category = section["default_category"]
+        if "read_only_only" in section:
+            self.read_only_only = bool(section["read_only_only"])
+
+    def export(self) -> list[dict[str, Any]]:
+        """Export schemas using this config's defaults."""
+        return export_schemas(
+            format=self.schema_format,
+            include_metadata=self.include_metadata,
+            category=self.default_category,
+            read_only_only=self.read_only_only,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return current config as a dict."""
+        return {
+            "schema_format": self.schema_format.value,
+            "include_metadata": self.include_metadata,
+            "default_category": self.default_category,
+            "read_only_only": self.read_only_only,
+        }
+
+
+def export_schemas_from_config(
+    config_path: str | None = None,
+) -> list[dict[str, Any]]:
+    """Load config from file and export schemas in the configured format.
+
+    Convenience function that reads ``gigacode.toml`` or ``pyproject.toml``
+    and exports schemas accordingly.
+
+    Args:
+        config_path: Explicit path to a TOML config file. If None,
+            auto-discovers gigacode.toml or pyproject.toml in CWD.
+
+    Returns:
+        List of tool schema dicts in the configured format.
+    """
+    config = SchemaConfig(config_path)
+    return config.export()
