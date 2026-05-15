@@ -5,6 +5,26 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-05-15
+
+### Added
+
+- **Configurable schema export formats** — AI agents and users can now choose the JSON format for tool schema exports. Supported formats:
+  - **OpenAI** — `{"type":"function","function":{"name","description","parameters"}}` (also used by Ollama)
+  - **Anthropic** — flat dict with `input_schema` (snake_case) and `x-gigacode` metadata extension
+  - **MCP** — flat dict with `inputSchema` (camelCase) and `annotations` per the Model Context Protocol spec
+  - **Ollama** — OpenAI-compatible format with optional enriched metadata
+- **`SchemaFormat` enum** — `OPENAI`, `ANTHROPIC`, `MCP`, `OLLAMA` values for type-safe format selection
+- **`export_schemas(format, include_metadata, category, read_only_only)`** — unified entry point for schema export with filtering by category and read-only status
+- **`to_anthropic_tools()`** — Anthropic/Claude tool-use format converter with `x-gigacode` metadata extension
+- **`to_ollama_tools()`** — Ollama-compatible function-calling format converter
+- **`SchemaConfig`** — reads `gigacode.toml` or `[tool.gigacode]` section in `pyproject.toml` for default export settings (schema_format, include_metadata, default_category, read_only_only)
+- **`export_schemas_from_config()`** — convenience function that loads config from TOML and exports schemas
+- **`GET /schemas?format=anthropic`** — API endpoint for format-parametric schema export with query params: format, include_metadata, category, read_only_only
+- **`GET /schemas/config`** — API endpoint that returns the current schema config read from TOML
+- **`GET /schemas/categories`** — API endpoint listing all 8 tool categories
+- **`gigacode.toml.example`** — sample config file with documented settings
+
 ## [0.6.0] - 2026-05-15
 
 ### Added — 43 New AI Agent Capabilities
