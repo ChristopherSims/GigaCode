@@ -83,7 +83,6 @@ from gigacode.agent_profile import AgentProfile, ChunkingStrategyFactory, Adapti
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("tool")
 
-
 class CodeEmbeddingTool:
     """Embed a codebase into GPU/CPU buffers and expose search + cluster.
 
@@ -97,6 +96,15 @@ class CodeEmbeddingTool:
         enable_prometheus: Enable Prometheus metrics export (default False).
         prometheus_port: Port for Prometheus metrics endpoint (default 9090).
     """
+
+    _ASYNC_WRAPPERS = frozenset({
+        "semantic_search_async",
+        "write_code_async",
+        "search_batch_async",
+        "auto_format_async",
+        "auto_lint_async",
+        "auto_polish_async",
+    })
 
     def __init__(
         self,
@@ -274,6 +282,30 @@ class CodeEmbeddingTool:
     # Backward-compat properties for direct _registry / _snapshot_managers access
     # Tests and legacy code may access these directly.
     # ------------------------------------------------------------------
+
+    def __getattr__(self, name: str):
+        """Auto-generate async wrapper methods on first access."""
+        if name in self._ASYNC_WRAPPERS and not name.startswith("_"):
+            sync_name = name.removesuffix("_async")
+            sync_method = getattr(self.__class__, sync_name, None)
+            if sync_method is not None:
+                import asyncio
+
+                async def _async_wrapper(*args, **kwargs):
+                    return await asyncio.to_thread(
+                        getattr(self, sync_name), *args, **kwargs
+                    )
+
+                _async_wrapper.__name__ = name
+                _async_wrapper.__qualname__ = f"{self.__class__.__qualname__}.{name}"
+                _async_wrapper.__doc__ = f"Async version of {sync_name}. Delegates to the synchronous method in a thread pool."
+
+                # Cache on the instance so __getattr__ isn't called again
+                setattr(self, name, _async_wrapper)
+                return _async_wrapper
+
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
     @property
     def _registry(self) -> dict[str, Any]:
         """Backward-compat: proxy to BufferManager._registry or fallback."""
@@ -364,6 +396,36 @@ class CodeEmbeddingTool:
             message, buffer_id=buffer_id, operation=operation, context=context
         )
 
+    def _require_buffer(
+        self,
+        buffer_id: str,
+        operation: str,
+        require_chunks: bool = True,
+    ) -> tuple[dict[str, Any], list[dict]] | dict[str, Any]:
+        """Validate buffer exists and optionally that chunks are loaded.
+
+        Args:
+            buffer_id: Buffer handle to validate.
+            operation: Operation name for error messages.
+            require_chunks: If True, also verify chunks are loaded.
+
+        Returns:
+            On success: (info, chunks) tuple.
+            On failure: error response dict (also falsy via _is_error_response check).
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation=operation
+            )
+        if require_chunks:
+            chunks = self._load_chunks(buffer_id)
+            if chunks is None or not chunks:
+                return self._make_error_response(
+                    "No chunks loaded", buffer_id=buffer_id, operation=operation
+                )
+            return info, chunks
+        return info, []
     @staticmethod
     def _validate_search_params(
         query: str,
@@ -846,17 +908,10 @@ class CodeEmbeddingTool:
             Dict with matches (each has score, confidence, score_breakdown, why),
             uncertain_matches, total_matches, filtered_out.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="faceted_search"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="faceted_search"
-            )
+        result = self._require_buffer(buffer_id, "faceted_search")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         buffer_dir = Path(info["buffer_dir"])
         embeddings_path = buffer_dir / "embeddings.npy"
@@ -918,11 +973,10 @@ class CodeEmbeddingTool:
         if err is not None:
             return err
 
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="hybrid_search"
-            )
+        result = self._require_buffer(buffer_id, "hybrid_search", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         # Delegate to SearchService
         if self._search_service:
@@ -975,9 +1029,10 @@ class CodeEmbeddingTool:
         if err is not None:
             return err
 
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+        result = self._require_buffer(buffer_id, "search_for", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         result = self._search_service.search_for(
             buffer_id=buffer_id,
@@ -1014,9 +1069,10 @@ class CodeEmbeddingTool:
             Dict with ``status``, ``file_location``, ``absolute_path``,
             ``match_type``, and optionally ``candidates``.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+        result = self._require_buffer(buffer_id, "look_for_file", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         result = self._search_service.look_for_file(
             buffer_id=buffer_id,
@@ -1055,11 +1111,10 @@ class CodeEmbeddingTool:
         if err is not None:
             return err
 
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="search_symbols"
-            )
+        result = self._require_buffer(buffer_id, "search_symbols", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         result = self._search_service.search_symbols(
             buffer_id=buffer_id,
@@ -1084,17 +1139,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with matches, each containing type_signature, match_score, match_reason.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="search_by_type"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="search_by_type"
-            )
+        result = self._require_buffer(buffer_id, "search_by_type")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         searcher = TypeSearcher(chunks)
         try:
@@ -1124,17 +1172,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with implementations list, each with class_name, inheritance_type, confidence.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="find_implementations"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="find_implementations"
-            )
+        result = self._require_buffer(buffer_id, "find_implementations")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         searcher = TypeSearcher(chunks)
         try:
@@ -1165,11 +1206,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with inferred types, confidence scores, and reasoning.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="infer_types"
-            )
+        result = self._require_buffer(buffer_id, "infer_types", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         if method not in ("llm", "ast"):
             return self._make_error_response(
@@ -1281,17 +1321,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with exact_matches, prefix_matches, fuzzy_matches.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="symbol_search"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="symbol_search"
-            )
+        result = self._require_buffer(buffer_id, "symbol_search")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             index = SymbolIndex(chunks)
@@ -1313,17 +1346,10 @@ class CodeEmbeddingTool:
 
         Supports qualified names like "UserRepository.validate_email".
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="get_symbol_definition"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="get_symbol_definition"
-            )
+        result = self._require_buffer(buffer_id, "get_symbol_definition")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             index = SymbolIndex(chunks)
@@ -1346,17 +1372,10 @@ class CodeEmbeddingTool:
 
         Returns reference locations with context lines and confidence scores.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="get_symbol_references"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="get_symbol_references"
-            )
+        result = self._require_buffer(buffer_id, "get_symbol_references")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             index = SymbolIndex(chunks)
@@ -1394,11 +1413,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with symbol, file, line, callers, callees, direction, cached.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="get_references"
-            )
+        result = self._require_buffer(buffer_id, "get_references", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         if direction not in ("both", "calls", "called_by"):
             return self._make_error_response(
@@ -1457,11 +1475,10 @@ class CodeEmbeddingTool:
         if include is None:
             include = ["definition", "callers", "callees", "tests", "related_code", "type_hints", "errors"]
 
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="get_full_context"
-            )
+        result = self._require_buffer(buffer_id, "get_full_context", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         result: dict[str, Any] = {"status": "ok", "symbol": symbol}
 
@@ -1601,17 +1618,10 @@ class CodeEmbeddingTool:
         file: str,
     ) -> dict[str, Any]:
         """List all symbols defined in a specific file."""
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="list_file_symbols"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="list_file_symbols"
-            )
+        result = self._require_buffer(buffer_id, "list_file_symbols")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             index = SymbolIndex(chunks)
@@ -1644,11 +1654,10 @@ class CodeEmbeddingTool:
             cyclomatic_complexity, called_by_count, calls_count, docstring,
             and optionally type_confidence.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="get_symbol_metadata"
-            )
+        result = self._require_buffer(buffer_id, "get_symbol_metadata", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         if type_inference_method not in ("llm", "ast"):
             return self._make_error_response(
@@ -1855,11 +1864,10 @@ class CodeEmbeddingTool:
                       f"avg_score={cluster['avg_score']:.3f})")
             ```
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="cluster_code"
-            )
+        result = self._require_buffer(buffer_id, "cluster_code", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         if not self._search_service:
             return self._make_error_response(
@@ -1920,11 +1928,10 @@ class CodeEmbeddingTool:
                       f"(similarity={dup['similarity']:.3f})")
             ```
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="find_duplicates"
-            )
+        result = self._require_buffer(buffer_id, "find_duplicates", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         if not self._search_service:
             return self._make_error_response(
@@ -2027,13 +2034,10 @@ class CodeEmbeddingTool:
         Uses hybrid search to find the most relevant chunks, then greedily
         packs them by score until the token budget is exhausted.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return {"status": "error", "message": "No chunks loaded."}
+        result = self._require_buffer(buffer_id, "pack_context")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         # Use hybrid search for relevance scoring (always delegates to SearchService)
         search_result = self.hybrid_search(buffer_id, query, top_k=top_k, offset=0)
@@ -2106,13 +2110,10 @@ class CodeEmbeddingTool:
             Dict with packed_chunks, total_tokens, savings stats, and
             filter report.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return {"status": "error", "message": "No chunks loaded."}
+        result = self._require_buffer(buffer_id, "pack_context_smart")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         # Use hybrid search for relevance scoring
         search_result = self.hybrid_search(buffer_id, query, top_k=top_k, offset=0)
@@ -2183,17 +2184,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with hierarchy list and total_tokens.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="pack_context_hierarchical"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="pack_context_hierarchical"
-            )
+        result = self._require_buffer(buffer_id, "pack_context_hierarchical")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             query_embedding = self._embedder.encode([query])[0]
@@ -2250,17 +2244,10 @@ class CodeEmbeddingTool:
             (callers, tests, interfaces, imports, semantic_neighbors),
             and ``total_tokens``.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="related_code"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="related_code"
-            )
+        result = self._require_buffer(buffer_id, "related_code")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         # Load embeddings from disk
         buffer_dir = Path(info["buffer_dir"])
@@ -2342,17 +2329,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, changed_files, changes list.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="refactor_rename"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="refactor_rename"
-            )
+        result = self._require_buffer(buffer_id, "refactor_rename")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             engine = RefactorEngine(chunks)
@@ -2389,17 +2369,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, change preview, and applied info.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="edit_symbol"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="edit_symbol"
-            )
+        result = self._require_buffer(buffer_id, "edit_symbol")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         language = language_hint or info.get("language_hint", "python")
         try:
@@ -2455,17 +2428,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, change preview, and applied info.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="add_parameter"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="add_parameter"
-            )
+        result = self._require_buffer(buffer_id, "add_parameter")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         language = language_hint or info.get("language_hint", "python")
         try:
@@ -2526,11 +2492,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, preview, and applied info.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="extract_method"
-            )
+        result = self._require_buffer(buffer_id, "extract_method", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         snapshot_mgr = self._get_snapshot_manager(buffer_id)
         if snapshot_mgr is None:
@@ -2615,17 +2580,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, changed_files, changes list.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="add_import"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="add_import"
-            )
+        result = self._require_buffer(buffer_id, "add_import")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             engine = RefactorEngine(chunks)
@@ -2660,17 +2618,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, changed_files, changes list.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="remove_import"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="remove_import"
-            )
+        result = self._require_buffer(buffer_id, "remove_import")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             engine = RefactorEngine(chunks)
@@ -2714,17 +2665,10 @@ class CodeEmbeddingTool:
             +    payload = jwt.decode(token, SECRET, options={"verify_exp": True})
                  return payload
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="apply_patch"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="apply_patch"
-            )
+        result = self._require_buffer(buffer_id, "apply_patch")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             applier = PatchApplier(chunks)
@@ -2826,9 +2770,10 @@ class CodeEmbeddingTool:
             return {"status": "error", "message": "new_lines is required"}
 
         t0 = time.perf_counter()
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+        result = self._require_buffer(buffer_id, "write_code", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         # Check current buffer state - must be READY to write
         try:
@@ -2988,9 +2933,10 @@ class CodeEmbeddingTool:
         buffer_id: str,
         file: str | None = None,
     ) -> dict[str, Any]:
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+        result = self._require_buffer(buffer_id, "discard", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         root = Path(info["root"])
         snapshot = self._load_source_snapshot(buffer_id)
@@ -3065,9 +3011,10 @@ class CodeEmbeddingTool:
             - "impact_analysis": Included when check_impact=True and commit is blocked
         """
         t0 = time.perf_counter()
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return {"status": "error", "message": f"Unknown buffer_id: {buffer_id}"}
+        result = self._require_buffer(buffer_id, "commit", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         root = Path(info["root"])
         snapshot = self._load_source_snapshot(buffer_id)
@@ -3340,21 +3287,10 @@ class CodeEmbeddingTool:
             - ``token_estimate``: approximate tokens in the output
             - ``stdout``, ``stderr`` (truncated)
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id",
-                buffer_id=buffer_id,
-                operation="run_impacted_tests",
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded",
-                buffer_id=buffer_id,
-                operation="run_impacted_tests",
-            )
+        result = self._require_buffer(buffer_id, "run_impacted_tests")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         dirty = info.get("dirty_files", {})
         if not dirty:
@@ -3446,21 +3382,10 @@ class CodeEmbeddingTool:
             - ``recommendations``: human-readable action items
             - ``message``: one-line summary
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id",
-                buffer_id=buffer_id,
-                operation="analyze_impact",
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded",
-                buffer_id=buffer_id,
-                operation="analyze_impact",
-            )
+        result = self._require_buffer(buffer_id, "analyze_impact")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         dirty = info.get("dirty_files", {})
         if not dirty:
@@ -3533,17 +3458,10 @@ class CodeEmbeddingTool:
             Dict with direct_callers, test_coverage, dependent_symbols,
             files_affected, and risk assessment.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="analyze_change"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="analyze_change"
-            )
+        result = self._require_buffer(buffer_id, "analyze_change")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             # Find symbols in the target range
@@ -3649,13 +3567,10 @@ class CodeEmbeddingTool:
             - ``violations``: list of security policy violations (if any)
             - ``truncated``: bool
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id",
-                buffer_id=buffer_id,
-                operation="execute_in_context",
-            )
+        result = self._require_buffer(buffer_id, "execute_in_context", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         root = Path(info.get("root", self.work_dir))
         try:
@@ -3774,11 +3689,10 @@ class CodeEmbeddingTool:
 
         Returns branch, ahead/behind counts, modified/staged/untracked files.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="git_status"
-            )
+        result = self._require_buffer(buffer_id, "git_status", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         source_dir = info.get("path") or info.get("root")
         if not source_dir:
@@ -3801,11 +3715,10 @@ class CodeEmbeddingTool:
             file: Specific file, or None for all.
             against: "HEAD", "STAGED", commit hash, or branch name.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="git_diff"
-            )
+        result = self._require_buffer(buffer_id, "git_diff", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         source_dir = info.get("path") or info.get("root")
         if not source_dir:
@@ -3828,11 +3741,10 @@ class CodeEmbeddingTool:
             file: File path.
             line: Specific line (1-based), or None for full file.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="git_blame"
-            )
+        result = self._require_buffer(buffer_id, "git_blame", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         source_dir = info.get("path") or info.get("root")
         if not source_dir:
@@ -3855,11 +3767,10 @@ class CodeEmbeddingTool:
             file: File path.
             commit: Commit hash or reference.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="git_show"
-            )
+        result = self._require_buffer(buffer_id, "git_show", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         source_dir = info.get("path") or info.get("root")
         if not source_dir:
@@ -3880,11 +3791,10 @@ class CodeEmbeddingTool:
             Dict with ``status``, ``buffer_id``, ``state``, and optional
             ``state_changed_at`` timestamp.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="check_buffer_state"
-            )
+        result = self._require_buffer(buffer_id, "check_buffer_state", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         try:
             state = self._get_buffer_state(buffer_id)
@@ -4603,17 +4513,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with test_files list.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="get_test_context"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="get_test_context"
-            )
+        result = self._require_buffer(buffer_id, "get_test_context")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         # Load embeddings
         buffer_dir = Path(info["buffer_dir"])
@@ -4715,17 +4618,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with suggested_tests list.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="suggest_tests"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="suggest_tests"
-            )
+        result = self._require_buffer(buffer_id, "suggest_tests")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         # Load embeddings
         buffer_dir = Path(info["buffer_dir"])
@@ -4825,17 +4721,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict mapping source files to {line_range: [test_names]}.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="get_test_coverage"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="get_test_coverage"
-            )
+        result = self._require_buffer(buffer_id, "get_test_coverage")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             language = info.get("language_hint", "python")
@@ -4897,17 +4786,11 @@ class CodeEmbeddingTool:
         max_depth: int = 10,
     ) -> dict[str, Any]:
         """Find call chain between two symbols using BFS."""
-        info = self._get_buffer_info(buffer_id)
-        if not info:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="trace_call_chain"
-            )
+        result = self._require_buffer(buffer_id, "trace_call_chain")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
         try:
-            chunks = self._load_chunks(buffer_id)
-            if not chunks:
-                return self._make_error_response(
-                    "No chunks loaded", buffer_id=buffer_id, operation="trace_call_chain"
-                )
             graph = DependencyGraph(chunks)
             result = graph.trace_call_chain(from_symbol, to_symbol, max_depth)
             return {"status": "ok", **result.to_dict()}
@@ -4923,17 +4806,11 @@ class CodeEmbeddingTool:
         direction: str = "both",
     ) -> dict[str, Any]:
         """Get file dependencies (outgoing imports, incoming references)."""
-        info = self._get_buffer_info(buffer_id)
-        if not info:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="get_dependencies"
-            )
+        result = self._require_buffer(buffer_id, "get_dependencies")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
         try:
-            chunks = self._load_chunks(buffer_id)
-            if not chunks:
-                return self._make_error_response(
-                    "No chunks loaded", buffer_id=buffer_id, operation="get_dependencies"
-                )
             graph = DependencyGraph(chunks)
             deps = graph.get_dependencies(file, direction)
             return {"status": "ok", "file": file, "direction": direction, "dependencies": deps}
@@ -4944,17 +4821,11 @@ class CodeEmbeddingTool:
 
     def find_circular_dependencies(self, buffer_id: str) -> dict[str, Any]:
         """Find circular import/reference cycles in a buffer."""
-        info = self._get_buffer_info(buffer_id)
-        if not info:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="find_circular_dependencies"
-            )
+        result = self._require_buffer(buffer_id, "find_circular_dependencies")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
         try:
-            chunks = self._load_chunks(buffer_id)
-            if not chunks:
-                return self._make_error_response(
-                    "No chunks loaded", buffer_id=buffer_id, operation="find_circular_dependencies"
-                )
             graph = DependencyGraph(chunks)
             cycles = graph.find_cycles()
             return {"status": "ok", "cycles": cycles, "cycle_count": len(cycles)}
@@ -4969,17 +4840,11 @@ class CodeEmbeddingTool:
         format: str = "json",
     ) -> dict[str, Any]:
         """Export dependency graph in JSON or DOT format."""
-        info = self._get_buffer_info(buffer_id)
-        if not info:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="export_dependency_graph"
-            )
+        result = self._require_buffer(buffer_id, "export_dependency_graph")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
         try:
-            chunks = self._load_chunks(buffer_id)
-            if not chunks:
-                return self._make_error_response(
-                    "No chunks loaded", buffer_id=buffer_id, operation="export_dependency_graph"
-                )
             graph = DependencyGraph(chunks)
             return graph.export_graph(format)
         except (ValueError, RuntimeError) as e:
@@ -5021,17 +4886,10 @@ class CodeEmbeddingTool:
             >>> result["paths"][0]["branches"]
             3
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="trace_execution_paths"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="trace_execution_paths"
-            )
+        result = self._require_buffer(buffer_id, "trace_execution_paths")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             paths = trace_execution_paths(chunks, symbol, max_depth=max_depth)
@@ -5078,17 +4936,10 @@ class CodeEmbeddingTool:
             >>> result["edges"][0]
             {"from": "process_payment", "to": "validate_card", "type": "calls"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="get_dependency_graph"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="get_dependency_graph"
-            )
+        result = self._require_buffer(buffer_id, "get_dependency_graph")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             graph = DependencyGraph(chunks)
@@ -5187,17 +5038,11 @@ class CodeEmbeddingTool:
         min_confidence: str = "medium",
     ) -> dict[str, Any]:
         """Find dead code and unused symbols in a buffer."""
-        info = self._get_buffer_info(buffer_id)
-        if not info:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="find_dead_code"
-            )
+        result = self._require_buffer(buffer_id, "find_dead_code")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
         try:
-            chunks = self._load_chunks(buffer_id)
-            if not chunks:
-                return self._make_error_response(
-                    "No chunks loaded", buffer_id=buffer_id, operation="find_dead_code"
-                )
             detector = DeadCodeDetector(chunks)
             dead = detector.find_dead_code(min_confidence)
             unused = detector.find_unused_imports()
@@ -5220,17 +5065,11 @@ class CodeEmbeddingTool:
         tag: str | None = None,
     ) -> dict[str, Any]:
         """Extract TODO, FIXME, HACK, XXX comments from a buffer."""
-        info = self._get_buffer_info(buffer_id)
-        if not info:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="extract_todos"
-            )
+        result = self._require_buffer(buffer_id, "extract_todos")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
         try:
-            chunks = self._load_chunks(buffer_id)
-            if not chunks:
-                return self._make_error_response(
-                    "No chunks loaded", buffer_id=buffer_id, operation="extract_todos"
-                )
             tracker = TodoTracker()
             todos = tracker.extract_todos(chunks)
             if tag:
@@ -5248,17 +5087,11 @@ class CodeEmbeddingTool:
         file: str,
     ) -> dict[str, Any]:
         """Score code quality metrics for a file."""
-        info = self._get_buffer_info(buffer_id)
-        if not info:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="score_code_quality"
-            )
+        result = self._require_buffer(buffer_id, "score_code_quality")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
         try:
-            chunks = self._load_chunks(buffer_id)
-            if not chunks:
-                return self._make_error_response(
-                    "No chunks loaded", buffer_id=buffer_id, operation="score_code_quality"
-                )
             scorer = QualityScorer()
             result = scorer.score_file(chunks, file)
             if not result:
@@ -5305,11 +5138,10 @@ class CodeEmbeddingTool:
             {"file": "src/auth.py", "line": 42, "type": "long_function", "severity": "medium",
              "suggestion": "Function 'process_login' is 80 lines. Consider extracting methods."}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="detect_code_smells"
-            )
+        result = self._require_buffer(buffer_id, "detect_code_smells")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         if types is None:
             types = ["long_function", "deep_nesting", "missing_docstring",
@@ -5317,12 +5149,6 @@ class CodeEmbeddingTool:
 
         severity_order = {"low": 0, "medium": 1, "high": 2}
         min_severity = severity_order.get(severity_min, 0)
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="detect_code_smells"
-            )
 
         smells: list[dict[str, Any]] = []
         import re
@@ -5454,20 +5280,13 @@ class CodeEmbeddingTool:
              "context": 'cursor.execute(f"SELECT * FROM {table}")',
              "fix_suggestion": "Use parameterized queries instead of string formatting"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="scan_security"
-            )
+        result = self._require_buffer(buffer_id, "scan_security")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         severity_order = {"low": 0, "medium": 1, "high": 2}
         min_sev = severity_order.get(severity_min, 1)
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="scan_security"
-            )
 
         import re
         vulns: list[dict[str, Any]] = []
@@ -5544,17 +5363,10 @@ class CodeEmbeddingTool:
             {"type": "extract_method", "lines": "10-60", "benefit": "Reduce 80-line function to smaller units",
              "risk": "medium"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="suggest_refactorings"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="suggest_refactorings"
-            )
+        result = self._require_buffer(buffer_id, "suggest_refactorings")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         suggestions: list[dict[str, Any]] = []
         import re
@@ -5670,13 +5482,10 @@ class CodeEmbeddingTool:
             {"file": "src/db.py", "line": 42, "type": "n_plus_one", "severity": "high",
              "context": "for user in User.objects.all():", "suggestion": "Review n_plus_one pattern"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_performance_hotspots")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_performance_hotspots")
+        result = self._require_buffer(buffer_id, "find_performance_hotspots")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import re
         hotspots: list[dict[str, Any]] = []
@@ -5768,13 +5577,10 @@ class CodeEmbeddingTool:
                 bool
             \"\"\"
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="generate_documentation")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="generate_documentation")
+        result = self._require_buffer(buffer_id, "generate_documentation")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         target = None
         for chunk in chunks:
@@ -5895,13 +5701,10 @@ class CodeEmbeddingTool:
             >>> result["semantic_matches"][0]
             {"file": "src/validators.py", "line": 15, "score": 0.89}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_similar_patterns")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_similar_patterns")
+        result = self._require_buffer(buffer_id, "find_similar_patterns")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         from gigacode.duplicate_detector import find_duplicates
         results = find_duplicates(chunks, threshold=min_similarity)
@@ -5952,13 +5755,10 @@ class CodeEmbeddingTool:
             {"file": "src/api.py", "line": 42, "detection_method": "decorator",
              "context": "@deprecated", "symbol": "old_endpoint"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="find_deprecated")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="find_deprecated")
+        result = self._require_buffer(buffer_id, "find_deprecated")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import re
         deprecated: list[dict[str, Any]] = []
@@ -6019,13 +5819,10 @@ class CodeEmbeddingTool:
             >>> result["type_errors"]
             [{"file": "src/main.py", "line": 10, "message": "SyntaxError: invalid syntax"}]
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="validate_changes")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="validate_changes")
+        result = self._require_buffer(buffer_id, "validate_changes")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import ast as _ast
         import re
@@ -6115,13 +5912,10 @@ class CodeEmbeddingTool:
             >>> result["hardcoded_secrets"]
             [{"file": "src/auth.py", "line": 12, "pattern": "api_key = 'abc123'", "severity": "high"}]
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="extract_configuration")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="extract_configuration")
+        result = self._require_buffer(buffer_id, "extract_configuration")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import re
         env_vars: list[dict[str, Any]] = []
@@ -6211,13 +6005,10 @@ class CodeEmbeddingTool:
             >>> result["missing_logs_in"][0]
             {"file": "src/critical.py", "symbol": "process_refund", "issue": "try/except without logging"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="analyze_logging_patterns")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="analyze_logging_patterns")
+        result = self._require_buffer(buffer_id, "analyze_logging_patterns")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import re
         levels = {"debug": 0, "info": 0, "warning": 0, "error": 0, "critical": 0}
@@ -6293,13 +6084,10 @@ class CodeEmbeddingTool:
             >>> result["suggestions"]
             ["Replace broad exception handlers with specific exception types"]
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="analyze_error_handling_patterns")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="analyze_error_handling_patterns")
+        result = self._require_buffer(buffer_id, "analyze_error_handling_patterns")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import re
         try_except_blocks = 0
@@ -6379,9 +6167,10 @@ class CodeEmbeddingTool:
             >>> result["features"][0]
             {"commit": "abc1234", "message": "feat: add retry logic to database calls"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="generate_changelog")
+        result = self._require_buffer(buffer_id, "generate_changelog")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         from gigacode import git_utils
         features: list[dict[str, Any]] = []
@@ -6452,13 +6241,10 @@ class CodeEmbeddingTool:
             {"symbol": "process_payment", "breaking": True, "parameters_added": ["currency"],
              "return_type_changed": False, "migration_guide": "Review changes to process_payment"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="detect_api_changes")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="detect_api_changes")
+        result = self._require_buffer(buffer_id, "detect_api_changes")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         # Current API surface
         current_api: list[dict[str, Any]] = []
@@ -6539,9 +6325,10 @@ class CodeEmbeddingTool:
             >>> result["commit_message"]
             "feat: add MFA support"
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="get_rollback_info")
+        result = self._require_buffer(buffer_id, "get_rollback_info", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         from gigacode import git_utils
         try:
@@ -6602,9 +6389,10 @@ class CodeEmbeddingTool:
             >>> result["risk_assessment"]
             "medium"
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="generate_change_template")
+        result = self._require_buffer(buffer_id, "generate_change_template", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         # Use semantic search to find relevant files
         search_result = self.semantic_search(buffer_id, request, top_k=10)
@@ -6671,13 +6459,10 @@ class CodeEmbeddingTool:
             {"method": "POST", "path": "/api/v1/payment", "handler": "process_payment",
              "is_async": True, "file": "src/api.py"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="map_api_endpoints")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="map_api_endpoints")
+        result = self._require_buffer(buffer_id, "map_api_endpoints")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import re
         endpoints: list[dict[str, Any]] = []
@@ -6750,13 +6535,10 @@ class CodeEmbeddingTool:
             >>> result["stale_data_risks"][0]
             {"file": "src/cache.py", "line": 42, "risk_level": "medium"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="analyze_cache_patterns")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="analyze_cache_patterns")
+        result = self._require_buffer(buffer_id, "analyze_cache_patterns")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import re
         caches_used: list[str] = []
@@ -6816,13 +6598,10 @@ class CodeEmbeddingTool:
             >>> result["shared_state"][0]
             {"name": "global_cache", "file": "src/cache.py", "modified_by": [], "protected_by": "none"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="analyze_thread_safety")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="analyze_thread_safety")
+        result = self._require_buffer(buffer_id, "analyze_thread_safety")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import re
         shared_state: list[dict[str, Any]] = []
@@ -6896,13 +6675,10 @@ class CodeEmbeddingTool:
             >>> result["unbounded_collections"][0]
             {"file": "src/collector.py", "line": 15, "symbol": "aggregate", "growth_reason": "append in loop without size limit"}
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="detect_memory_issues")
-
-        chunks = self._load_chunks(buffer_id)
-        if not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="detect_memory_issues")
+        result = self._require_buffer(buffer_id, "detect_memory_issues")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         import re
         circular_refs: list[dict[str, Any]] = []
@@ -7023,11 +6799,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, formatted_files, changes, and summary.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="auto_format"
-            )
+        result = self._require_buffer(buffer_id, "auto_format", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
         work_dir = info.get("buffer_dir", self.work_dir)
         return auto_format(
             work_dir=work_dir,
@@ -7067,11 +6842,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, issues, by_rule, fixed_count, unfixed_count.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="auto_lint"
-            )
+        result = self._require_buffer(buffer_id, "auto_lint", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
         work_dir = info.get("buffer_dir", self.work_dir)
         return auto_lint(
             work_dir=work_dir,
@@ -7115,11 +6889,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with formatting and linting sub-results, plus ready_to_commit.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="auto_polish"
-            )
+        result = self._require_buffer(buffer_id, "auto_polish", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
         work_dir = info.get("buffer_dir", self.work_dir)
         return auto_polish(
             work_dir=work_dir,
@@ -7156,11 +6929,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with formatting, linting, ready_to_commit, and pre_commit_warnings.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="polish_before_commit"
-            )
+        result = self._require_buffer(buffer_id, "polish_before_commit", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         # Run auto_polish (format + lint)
         polish_result = self.auto_polish(
@@ -7243,140 +7015,6 @@ class CodeEmbeddingTool:
 
     def __exit__(self, *args: Any) -> None:
         self.close()
-
-    # ------------------------------------------------------------------
-    # Async variants
-    # ------------------------------------------------------------------
-    async def semantic_search_async(
-        self,
-        buffer_id: str,
-        query: str,
-        top_k: int = 5,
-        offset: int = 0,
-        include_types: bool = False,
-        type_inference_method: str = "llm",
-    ) -> dict[str, Any]:
-        """Async semantic search via embeddings.
-
-        Delegates to the synchronous semantic_search in a thread pool.
-        """
-        import asyncio
-        return await asyncio.to_thread(
-            self.semantic_search,
-            buffer_id=buffer_id,
-            query=query,
-            top_k=top_k,
-            offset=offset,
-            include_types=include_types,
-            type_inference_method=type_inference_method,
-        )
-
-    async def write_code_async(
-        self,
-        buffer_id: str,
-        file: str,
-        start_line: int | str,
-        new_lines: list[str] | None = None,
-        end_line: int | None = None,
-    ) -> dict[str, Any]:
-        """Async write_code. Delegates to sync write_code in a thread pool."""
-        import asyncio
-        return await asyncio.to_thread(
-            self.write_code,
-            buffer_id=buffer_id,
-            file=file,
-            start_line=start_line,
-            new_lines=new_lines,
-            end_line=end_line,
-        )
-
-    async def search_batch_async(
-        self,
-        buffer_id: str,
-        queries: list[str],
-        top_k: int = 5,
-        include_types: bool = False,
-        type_inference_method: str = "llm",
-    ) -> dict[str, Any]:
-        """Async batch search. Delegates to sync search_batch in a thread pool."""
-        import asyncio
-        return await asyncio.to_thread(
-            self.search_batch,
-            buffer_id=buffer_id,
-            queries=queries,
-            top_k=top_k,
-            include_types=include_types,
-            type_inference_method=type_inference_method,
-        )
-
-    async def auto_format_async(
-        self,
-        buffer_id: str,
-        files: list[str] | None = None,
-        formatter: str = "black",
-        line_length: int = 88,
-        dry_run: bool = True,
-        exclude_patterns: list[str] | None = None,
-    ) -> dict[str, Any]:
-        """Async auto_format. Delegates to sync auto_format in a thread pool."""
-        import asyncio
-        return await asyncio.to_thread(
-            self.auto_format,
-            buffer_id=buffer_id,
-            files=files,
-            formatter=formatter,
-            line_length=line_length,
-            dry_run=dry_run,
-            exclude_patterns=exclude_patterns,
-        )
-
-    async def auto_lint_async(
-        self,
-        buffer_id: str,
-        files: list[str] | None = None,
-        select: list[str] | None = None,
-        ignore: list[str] | None = None,
-        auto_fix: bool = False,
-        dry_run: bool = True,
-        exclude_patterns: list[str] | None = None,
-    ) -> dict[str, Any]:
-        """Async auto_lint. Delegates to sync auto_lint in a thread pool."""
-        import asyncio
-        return await asyncio.to_thread(
-            self.auto_lint,
-            buffer_id=buffer_id,
-            files=files,
-            select=select,
-            ignore=ignore,
-            auto_fix=auto_fix,
-            dry_run=dry_run,
-            exclude_patterns=exclude_patterns,
-        )
-
-    async def auto_polish_async(
-        self,
-        buffer_id: str,
-        files: list[str] | None = None,
-        format_with: str = "black",
-        auto_fix_lints: bool = True,
-        line_length: int = 88,
-        ruff_select: list[str] | None = None,
-        exclude_patterns: list[str] | None = None,
-        dry_run: bool = True,
-    ) -> dict[str, Any]:
-        """Async auto_polish. Delegates to sync auto_polish in a thread pool."""
-        import asyncio
-        return await asyncio.to_thread(
-            self.auto_polish,
-            buffer_id=buffer_id,
-            files=files,
-            format_with=format_with,
-            auto_fix_lints=auto_fix_lints,
-            line_length=line_length,
-            ruff_select=ruff_select,
-            exclude_patterns=exclude_patterns,
-            dry_run=dry_run,
-        )
 
     # ------------------------------------------------------------------
     # Detailed Analysis (Features 39-40)
@@ -7546,9 +7184,10 @@ class CodeEmbeddingTool:
             >>> result["config_file"]
             "pyproject.toml"
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="lint_with_config")
+        result = self._require_buffer(buffer_id, "lint_with_config", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         # Discover config file
         if config_file is None:
@@ -7600,9 +7239,10 @@ class CodeEmbeddingTool:
             >>> result["config_file"]
             "pyproject.toml"
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="format_with_config")
+        result = self._require_buffer(buffer_id, "format_with_config", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         # Discover config file
         if config_file is None:
@@ -7649,13 +7289,10 @@ class CodeEmbeddingTool:
             Dict with status, task_id, iterations, tokens_used,
             duration_seconds, audit_trail, summary, and next_step.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="solve")
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="solve")
+        result = self._require_buffer(buffer_id, "solve")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             from gigacode.solver import Solver, SolveExecutor
@@ -7721,9 +7358,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, steps_undone, remaining_undo_count, and message.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="undo")
+        result = self._require_buffer(buffer_id, "undo", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         try:
             service = self._get_undo_redo_service(buffer_id)
@@ -7756,9 +7394,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, steps_redone, remaining_redo_count, and message.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="redo")
+        result = self._require_buffer(buffer_id, "redo", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         try:
             service = self._get_undo_redo_service(buffer_id)
@@ -7791,9 +7430,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, branch, parent, created timestamp, and message.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="create_branch")
+        result = self._require_buffer(buffer_id, "create_branch", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         try:
             service = self._get_undo_redo_service(buffer_id)
@@ -7825,9 +7465,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, branches list, and message.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="list_branches")
+        result = self._require_buffer(buffer_id, "list_branches", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         try:
             service = self._get_undo_redo_service(buffer_id)
@@ -7858,9 +7499,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, branch name, and message.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="checkout_branch")
+        result = self._require_buffer(buffer_id, "checkout_branch", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         try:
             service = self._get_undo_redo_service(buffer_id)
@@ -7905,17 +7547,10 @@ class CodeEmbeddingTool:
         if err is not None:
             return err
 
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="annotate_search_results"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="annotate_search_results"
-            )
+        result = self._require_buffer(buffer_id, "annotate_search_results")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         try:
             from gigacode.why_annotator import WhyAnnotator, AnnotationService, RelevanceExplainer
@@ -7984,11 +7619,10 @@ class CodeEmbeddingTool:
             Dict with status, risk_level, file_risks, dependency_risks,
             recommendations, and auto_actions.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="predict_conflicts"
-            )
+        result = self._require_buffer(buffer_id, "predict_conflicts", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         try:
             from gigacode.conflict_predictor import ConflictPredictor, ConflictPredictionService
@@ -8051,11 +7685,10 @@ class CodeEmbeddingTool:
                 operation="search_modified_only",
             )
 
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="search_modified_only"
-            )
+        result = self._require_buffer(buffer_id, "search_modified_only", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         try:
             from gigacode.diff_aware_search import DiffAwareSearch, DiffAwareSearchService
@@ -8130,11 +7763,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, buffer_id, profile, strategy_description.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="set_agent_profile"
-            )
+        result = self._require_buffer(buffer_id, "set_agent_profile", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         strategy = ChunkingStrategyFactory.get_strategy_by_name(profile)
 
@@ -8162,17 +7794,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with status, profile, total_chunks, strategy_description.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="chunk_with_profile"
-            )
-
-        chunks = self._load_chunks(buffer_id)
-        if chunks is None or not chunks:
-            return self._make_error_response(
-                "No chunks loaded", buffer_id=buffer_id, operation="chunk_with_profile"
-            )
+        result = self._require_buffer(buffer_id, "chunk_with_profile")
+        if isinstance(result, dict):
+            return result
+        info, chunks = result
 
         strategy = ChunkingStrategyFactory.get_strategy_by_name(profile)
         profile_enum = strategy.profile
@@ -8224,11 +7849,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with enhanced_query, profile, original_query.
         """
-        info = self._get_buffer_info(buffer_id)
-        if info is None:
-            return self._make_error_response(
-                "Unknown buffer_id", buffer_id=buffer_id, operation="adapt_search"
-            )
+        result = self._require_buffer(buffer_id, "adapt_search", require_chunks=False)
+        if isinstance(result, dict):
+            return result
+        info, _ = result
 
         try:
             profile_enum = AgentProfile(profile)
