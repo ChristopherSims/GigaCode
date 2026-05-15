@@ -26,6 +26,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from gigacode.constants import DEFAULT_HTTP_PORT
+
 logger = logging.getLogger(__name__)
 
 
@@ -145,7 +147,7 @@ def _run_stdlib(tool: Any, host: str, port: int) -> None:
 
 
 def run_server(
-    tool: Any, host: str = "127.0.0.1", port: int = 8765, use_fastapi: bool = True
+    tool: Any, host: str = "127.0.0.1", port: int = DEFAULT_HTTP_PORT, use_fastapi: bool = True
 ) -> None:
     """Start the HTTP server.
 
@@ -168,7 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="GigaCode HTTP agent server")
     parser.add_argument("--work-dir", "-w", default="./buffers", help="Buffer working directory")
     parser.add_argument("--host", default="127.0.0.1", help="Bind address (default 127.0.0.1)")
-    parser.add_argument("--port", "-p", type=int, default=8765, help="Port (default 8765)")
+    parser.add_argument("--port", "-p", type=int, default=DEFAULT_HTTP_PORT, help="Port (default 8765)")
     parser.add_argument("--device", "-d", default=None, help="torch device (cpu / cuda / auto)")
     parser.add_argument("--no-gpu", action="store_true", help="Disable GPU FAISS mirror")
     parser.add_argument("--no-fastapi", action="store_true", help="Force stdlib HTTPServer")

@@ -69,6 +69,19 @@ __all__ = [
     "DETECT_MEMORY_ISSUES_SCHEMA",
     "LINT_WITH_CONFIG_SCHEMA",
     "FORMAT_WITH_CONFIG_SCHEMA",
+    "SOLVE_SCHEMA",
+    "UNDO_SCHEMA",
+    "REDO_SCHEMA",
+    "CREATE_BRANCH_SCHEMA",
+    "LIST_BRANCHES_SCHEMA",
+    "CHECKOUT_BRANCH_SCHEMA",
+    "ANNOTATE_SEARCH_SCHEMA",
+    "PREDICT_CONFLICTS_SCHEMA",
+    "SEARCH_MODIFIED_ONLY_SCHEMA",
+    "GET_CHUNKING_STRATEGY_SCHEMA",
+    "SET_AGENT_PROFILE_SCHEMA",
+    "CHUNK_WITH_PROFILE_SCHEMA",
+    "ADAPT_SEARCH_SCHEMA",
     "ALL_SCHEMAS",
     "TOOL_CATEGORIES",
     "SchemaFormat",
@@ -2514,6 +2527,566 @@ FORMAT_WITH_CONFIG_SCHEMA: dict[str, Any] = {
     },
 }
 
+SOLVE_SCHEMA: dict[str, Any] = {
+    "name": "solve",
+    "description": (
+        "Automatically solve a coding task with a unified loop that "
+        "orchestrates search, read, plan, edit, test, and commit operations. "
+        "Returns an audit trail and completion status."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "task": {
+                "type": "string",
+                "description": "Natural language description of the task to solve.",
+            },
+            "max_iterations": {
+                "type": "integer",
+                "description": "Maximum number of solve loop iterations (default 10).",
+                "default": 10,
+            },
+        },
+        "required": ["buffer_id", "task"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "task_id": {"type": "string", "description": "Unique identifier for the solve task."},
+            "iterations": {"type": "integer", "description": "Number of iterations executed."},
+            "tokens_used": {"type": "integer", "description": "Total tokens consumed."},
+            "tokens_budget": {"type": "integer", "description": "Total token budget."},
+            "duration_seconds": {"type": "number", "description": "Elapsed time in seconds."},
+            "audit_trail": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "step": {"type": "integer"},
+                        "action": {"type": "string"},
+                        "status": {"type": "string"},
+                        "output": {"type": "object"},
+                        "tokens_used": {"type": "integer"},
+                        "error": {"type": ["string", "null"]},
+                    },
+                },
+                "description": "Step-by-step audit trail of the solve loop.",
+            },
+            "summary": {"type": "string", "description": "Human-readable summary of the result."},
+            "next_step": {"type": "string", "description": "Suggested next action for the agent."},
+        },
+        "required": ["status"],
+    },
+}
+
+UNDO_SCHEMA: dict[str, Any] = {
+    "name": "undo",
+    "description": "Undo the last N operations on a buffer, reverting edits in reverse order.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "steps": {
+                "type": "integer",
+                "description": "Number of operations to undo (default 1).",
+                "default": 1,
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "buffer_id": {"type": "string"},
+            "steps_undone": {"type": "integer", "description": "Number of operations actually undone."},
+            "remaining_undo_count": {"type": "integer", "description": "Operations remaining on undo stack."},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+REDO_SCHEMA: dict[str, Any] = {
+    "name": "redo",
+    "description": "Redo the last N undone operations on a buffer.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "steps": {
+                "type": "integer",
+                "description": "Number of operations to redo (default 1).",
+                "default": 1,
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "buffer_id": {"type": "string"},
+            "steps_redone": {"type": "integer", "description": "Number of operations actually redone."},
+            "remaining_redo_count": {"type": "integer", "description": "Operations remaining on redo stack."},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+CREATE_BRANCH_SCHEMA: dict[str, Any] = {
+    "name": "create_branch",
+    "description": "Create a named branch for experimental edits, preserving the current state.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "name": {
+                "type": "string",
+                "description": "Name for the new branch.",
+            },
+        },
+        "required": ["buffer_id", "name"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "buffer_id": {"type": "string"},
+            "branch": {"type": "string", "description": "Name of the created branch."},
+            "parent": {"type": "string", "description": "Parent branch name."},
+            "created": {"type": "string", "description": "ISO timestamp of branch creation."},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+LIST_BRANCHES_SCHEMA: dict[str, Any] = {
+    "name": "list_branches",
+    "description": "List all branches for a buffer with their parent and creation metadata.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "buffer_id": {"type": "string"},
+            "branches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "parent": {"type": "string"},
+                        "created": {"type": "string", "description": "ISO timestamp."},
+                        "description": {"type": "string"},
+                        "operations": {"type": "integer", "description": "Number of operations on this branch."},
+                        "current": {"type": "boolean", "description": "Whether this is the active branch."},
+                    },
+                },
+            },
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+CHECKOUT_BRANCH_SCHEMA: dict[str, Any] = {
+    "name": "checkout_branch",
+    "description": "Switch to a different branch on a buffer.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "name": {
+                "type": "string",
+                "description": "Name of the branch to switch to.",
+            },
+        },
+        "required": ["buffer_id", "name"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "buffer_id": {"type": "string"},
+            "branch": {"type": "string", "description": "Branch now checked out."},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+ANNOTATE_SEARCH_SCHEMA: dict[str, Any] = {
+    "name": "annotate_search_results",
+    "description": (
+        "Search and annotate results with 'why this matters' explanations. "
+        "Runs semantic search, then enriches each result with relevance reasons, "
+        "suggested next actions, and related files."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "query": {
+                "type": "string",
+                "description": "Natural language search query.",
+            },
+            "top_k": {
+                "type": "integer",
+                "description": "Maximum number of annotated results to return (default 5).",
+                "default": 5,
+            },
+        },
+        "required": ["buffer_id", "query"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "buffer_id": {"type": "string"},
+            "query": {"type": "string"},
+            "annotated_results": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "score": {"type": "number"},
+                        "snippet": {"type": "string"},
+                        "why": {"type": "string", "description": "Human-readable explanation of relevance."},
+                        "suggested_next_action": {"type": "string", "description": "Suggested action for this result."},
+                        "related_results": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Paths to related files.",
+                        },
+                    },
+                },
+                "description": "Annotated search results with explanations.",
+            },
+            "count": {"type": "integer"},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+PREDICT_CONFLICTS_SCHEMA: dict[str, Any] = {
+    "name": "predict_conflicts",
+    "description": (
+        "Predict potential merge conflicts by analyzing commits since embed time. "
+        "Reports risk level, file risks, dependency risks, and recommendations."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "buffer_id": {"type": "string"},
+            "embed_point": {"type": "string", "description": "Commit SHA and timestamp at embed time."},
+            "current_head": {"type": "string", "description": "Current HEAD SHA and timestamp."},
+            "time_since_embed_minutes": {"type": "integer"},
+            "commits_since_embed": {"type": "integer"},
+            "risk_level": {"type": "string", "enum": ["low", "medium", "high"]},
+            "file_risks": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "risk": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "reason": {"type": "string"},
+                        "is_in_dirty_queue": {"type": "boolean"},
+                        "suggested_action": {"type": "string"},
+                    },
+                },
+                "description": "Per-file conflict risk assessment.",
+            },
+            "dependency_risks": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "dependency": {"type": "string"},
+                        "file": {"type": "string"},
+                        "risk": {"type": "string", "enum": ["low", "medium", "high"]},
+                        "reason": {"type": "string"},
+                        "edits_depending_on_it": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                    },
+                },
+                "description": "Dependency-based conflict risks.",
+            },
+            "recommendations": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Actionable recommendations based on risk level.",
+            },
+            "auto_actions": {
+                "type": "object",
+                "description": "Suggested automatic actions (suggest_refresh, suggest_test, can_auto_merge).",
+            },
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+SEARCH_MODIFIED_ONLY_SCHEMA: dict[str, Any] = {
+    "name": "search_modified_only",
+    "description": (
+        "Search only modified files and their dependencies. "
+        "Scopes search to 'changes' (dirty files only), 'changes+deps' (dirty + deps), or 'all'."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "query": {
+                "type": "string",
+                "description": "Natural language search query.",
+            },
+            "scope": {
+                "type": "string",
+                "enum": ["changes", "changes+deps", "all"],
+                "description": "Search scope: 'changes' (dirty files only), 'changes+deps' (dirty + their deps), 'all' (entire codebase). Default: 'changes+deps'.",
+                "default": "changes+deps",
+            },
+            "top_k": {
+                "type": "integer",
+                "description": "Maximum number of results to return (default 10).",
+                "default": 10,
+            },
+        },
+        "required": ["buffer_id", "query"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "buffer_id": {"type": "string"},
+            "query": {"type": "string"},
+            "scope_used": {"type": "string", "enum": ["changes", "changes+deps", "all"]},
+            "files_searched": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Files included in the search scope.",
+            },
+            "files_skipped": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Files excluded from the search scope.",
+            },
+            "results": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file": {"type": "string"},
+                        "line": {"type": "integer"},
+                        "score": {"type": "number"},
+                        "snippet": {"type": "string"},
+                        "context": {
+                            "type": "object",
+                            "description": "Edit context: is_edited, edit_step, is_dependency_of.",
+                        },
+                    },
+                },
+                "description": "Search results scoped to modified files and dependencies.",
+            },
+            "performance": {
+                "type": "object",
+                "description": "Performance metrics: search_time_ms, chunks_searched, speedup vs full search.",
+            },
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+GET_CHUNKING_STRATEGY_SCHEMA: dict[str, Any] = {
+    "name": "get_chunking_strategy",
+    "description": (
+        "Get the chunking strategy for a given agent profile. "
+        "Returns include/exclude element lists, line limits, description, "
+        "and expected token savings percentage."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "profile": {
+                "type": "string",
+                "description": "Agent profile name: reviewer, debugger, architect, documenter, or generic. Default: generic.",
+                "default": "generic",
+            },
+        },
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "profile": {"type": "string", "description": "Profile name used."},
+            "include": {"type": "array", "items": {"type": "string"}, "description": "Elements to include in chunks."},
+            "exclude": {"type": "array", "items": {"type": "string"}, "description": "Elements to exclude from chunks."},
+            "max_lines": {"type": "integer", "description": "Maximum lines per chunk."},
+            "min_lines": {"type": "integer", "description": "Minimum lines per chunk."},
+            "description": {"type": "string", "description": "Human-readable strategy description."},
+            "expected_token_savings": {"type": "string", "description": "Expected token savings vs generic (e.g. '25%')."},
+        },
+        "required": ["status"],
+    },
+}
+
+SET_AGENT_PROFILE_SCHEMA: dict[str, Any] = {
+    "name": "set_agent_profile",
+    "description": (
+        "Set the agent profile for a buffer, affecting future chunking and "
+        "search behavior. The profile is stored in buffer metadata."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "profile": {
+                "type": "string",
+                "description": "Agent profile name: reviewer, debugger, architect, documenter, or generic. Default: generic.",
+                "default": "generic",
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "buffer_id": {"type": "string", "description": "Buffer handle."},
+            "profile": {"type": "string", "description": "Profile name that was set."},
+            "strategy_description": {"type": "string", "description": "Description of the associated chunking strategy."},
+        },
+        "required": ["status"],
+    },
+}
+
+CHUNK_WITH_PROFILE_SCHEMA: dict[str, Any] = {
+    "name": "chunk_with_profile",
+    "description": (
+        "Re-chunk the buffer's codebase using the specified agent profile. "
+        "Returns a summary of total chunks produced and the strategy used."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "profile": {
+                "type": "string",
+                "description": "Agent profile name: reviewer, debugger, architect, documenter, or generic. Default: generic.",
+                "default": "generic",
+            },
+        },
+        "required": ["buffer_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "profile": {"type": "string", "description": "Profile used for chunking."},
+            "total_chunks": {"type": "integer", "description": "Total number of chunks produced."},
+            "strategy_description": {"type": "string", "description": "Description of the chunking strategy applied."},
+        },
+        "required": ["status"],
+    },
+}
+
+ADAPT_SEARCH_SCHEMA: dict[str, Any] = {
+    "name": "adapt_search",
+    "description": (
+        "Enhance a search query based on agent profile context. "
+        "Appends profile-specific keywords to improve search relevance "
+        "for the task type (e.g. 'error bug exception' for debugger)."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "query": {
+                "type": "string",
+                "description": "Original search query to enhance.",
+            },
+            "profile": {
+                "type": "string",
+                "description": "Agent profile name: reviewer, debugger, architect, documenter, or generic. Default: generic.",
+                "default": "generic",
+            },
+        },
+        "required": ["buffer_id", "query"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["ok", "error"]},
+            "enhanced_query": {"type": "string", "description": "Query with profile-specific enhancements."},
+            "profile": {"type": "string", "description": "Profile used for enhancement."},
+            "original_query": {"type": "string", "description": "Original query before enhancement."},
+        },
+        "required": ["status"],
+    },
+}
+
 ALL_SCHEMAS: list[dict[str, Any]] = [
     EMBED_CODEBASE_SCHEMA,
     SEMANTIC_SEARCH_SCHEMA,
@@ -2569,6 +3142,19 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     DETECT_MEMORY_ISSUES_SCHEMA,
     LINT_WITH_CONFIG_SCHEMA,
     FORMAT_WITH_CONFIG_SCHEMA,
+    SOLVE_SCHEMA,
+    UNDO_SCHEMA,
+    REDO_SCHEMA,
+    CREATE_BRANCH_SCHEMA,
+    LIST_BRANCHES_SCHEMA,
+    CHECKOUT_BRANCH_SCHEMA,
+    ANNOTATE_SEARCH_SCHEMA,
+    PREDICT_CONFLICTS_SCHEMA,
+    SEARCH_MODIFIED_ONLY_SCHEMA,
+    GET_CHUNKING_STRATEGY_SCHEMA,
+    SET_AGENT_PROFILE_SCHEMA,
+    CHUNK_WITH_PROFILE_SCHEMA,
+    ADAPT_SEARCH_SCHEMA,
 ]
 
 # ---------------------------------------------------------------------------
@@ -2631,6 +3217,19 @@ _SCHEMA_CATEGORIES: dict[str, dict[str, Any]] = {
     "detect_memory_issues":      {"category": "analysis",    "tags": ["read-only", "fast"]},
     "lint_with_config":          {"category": "quality",     "tags": ["read-only", "medium"]},
     "format_with_config":        {"category": "quality",     "tags": ["write", "mutating", "medium"]},
+    "solve":                     {"category": "safety",      "tags": ["write", "mutating", "slow"]},
+    "undo":                      {"category": "editing",     "tags": ["write", "mutating", "fast"]},
+    "redo":                      {"category": "editing",     "tags": ["write", "mutating", "fast"]},
+    "create_branch":             {"category": "editing",     "tags": ["write", "mutating", "fast"]},
+    "list_branches":             {"category": "editing",     "tags": ["read-only", "fast"]},
+    "checkout_branch":           {"category": "editing",     "tags": ["write", "mutating", "fast"]},
+    "annotate_search_results":   {"category": "search",      "tags": ["read-only", "medium"]},
+    "predict_conflicts":         {"category": "safety",      "tags": ["read-only", "fast"]},
+    "search_modified_only":       {"category": "search",      "tags": ["read-only", "fast"]},
+    "get_chunking_strategy":     {"category": "search",      "tags": ["read-only", "fast"]},
+    "set_agent_profile":         {"category": "editing",     "tags": ["write", "mutating", "fast"]},
+    "chunk_with_profile":        {"category": "editing",     "tags": ["write", "mutating", "slow"]},
+    "adapt_search":              {"category": "search",      "tags": ["read-only", "fast"]},
 }
 
 # 2. Read-only + Side-effects — safety annotations
@@ -2689,6 +3288,19 @@ _SCHEMA_SIDE_EFFECTS: dict[str, dict[str, Any]] = {
     "detect_memory_issues":      {"read_only": True,  "side_effects": None},
     "lint_with_config":          {"read_only": True,  "side_effects": "Report-only by default. auto_fix=True will modify source files on disk."},
     "format_with_config":        {"read_only": False, "side_effects": "Reformats source files when dry_run=False. Use dry_run=True to preview."},
+    "solve":                     {"read_only": False, "side_effects": "May modify buffer contents via write_code operations within the solve loop."},
+    "undo":                      {"read_only": False, "side_effects": "Reverts previous in-buffer edits by restoring original content."},
+    "redo":                      {"read_only": False, "side_effects": "Re-applies previously undone in-buffer edits."},
+    "create_branch":             {"read_only": False, "side_effects": "Creates a new branch snapshot for the buffer."},
+    "list_branches":             {"read_only": True,  "side_effects": None},
+    "checkout_branch":           {"read_only": False, "side_effects": "Switches the active branch, changing which edits are visible."},
+    "annotate_search_results":   {"read_only": True,  "side_effects": None},
+    "predict_conflicts":         {"read_only": True,  "side_effects": None},
+    "search_modified_only":       {"read_only": True,  "side_effects": None},
+    "get_chunking_strategy":     {"read_only": True,  "side_effects": None},
+    "set_agent_profile":         {"read_only": False, "side_effects": "Stores profile name in buffer metadata, affecting future chunking and search behavior."},
+    "chunk_with_profile":        {"read_only": False, "side_effects": "Re-chunks the buffer's codebase using the specified profile, replacing existing chunk data."},
+    "adapt_search":              {"read_only": True,  "side_effects": None},
 }
 
 # 3. Shared error schema — documents the error/conflict response shape
@@ -2774,6 +3386,19 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
     "detect_memory_issues":      {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "unbounded_collections": [{"file": "src/collector.py", "line": 15, "growth_reason": "append in loop"}]}},
     "lint_with_config":          {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "config_file": "pyproject.toml", "issues": []}},
     "format_with_config":        {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "config_file": "pyproject.toml", "formatted_files": 2}},
+    "solve":                     {"input": {"buffer_id": "gcbuff-abc123", "task": "add retry logic to database calls"}, "output": {"status": "ok", "task_id": "a1b2c3d4", "iterations": 3, "summary": "Successfully completed task in 3 iterations"}},
+    "undo":                      {"input": {"buffer_id": "gcbuff-abc123", "steps": 1}, "output": {"status": "ok", "steps_undone": 1, "remaining_undo_count": 5}},
+    "redo":                      {"input": {"buffer_id": "gcbuff-abc123", "steps": 1}, "output": {"status": "ok", "steps_redone": 1, "remaining_redo_count": 2}},
+    "create_branch":             {"input": {"buffer_id": "gcbuff-abc123", "name": "experiment-v2"}, "output": {"status": "ok", "branch": "experiment-v2", "parent": "main"}},
+    "list_branches":             {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "branches": [{"name": "main", "current": True}, {"name": "experiment-v2", "current": False}]}},
+    "checkout_branch":           {"input": {"buffer_id": "gcbuff-abc123", "name": "experiment-v2"}, "output": {"status": "ok", "branch": "experiment-v2"}},
+    "annotate_search_results":   {"input": {"buffer_id": "gcbuff-abc123", "query": "database connection", "top_k": 5}, "output": {"status": "ok", "annotated_results": [{"file": "src/db.py", "why": "Called by 2 edited files", "suggested_next_action": "Check src/db.py to see how it's being used"}]}},
+    "predict_conflicts":         {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "risk_level": "low", "commits_since_embed": 0, "recommendations": ["Buffer state is clean; safe to commit"]}},
+    "search_modified_only":       {"input": {"buffer_id": "gcbuff-abc123", "query": "error handling", "scope": "changes+deps"}, "output": {"status": "ok", "scope_used": "changes+deps", "files_searched": ["src/db.py", "src/api.py"], "results": [{"file": "src/db.py", "score": 0.89}]}},
+    "get_chunking_strategy":     {"input": {"profile": "debugger"}, "output": {"status": "ok", "profile": "debugger", "include": ["function_signature", "error_paths", "imports"], "exclude": ["docstring_details", "vendor"], "max_lines": 80, "min_lines": 1, "description": "Minimal signatures with error paths for debugging", "expected_token_savings": "67%"}},
+    "set_agent_profile":         {"input": {"buffer_id": "gcbuff-abc123", "profile": "debugger"}, "output": {"status": "ok", "buffer_id": "gcbuff-abc123", "profile": "debugger", "strategy_description": "Minimal signatures with error paths for debugging"}},
+    "chunk_with_profile":        {"input": {"buffer_id": "gcbuff-abc123", "profile": "debugger"}, "output": {"status": "ok", "profile": "debugger", "total_chunks": 42, "strategy_description": "Minimal signatures with error paths for debugging"}},
+    "adapt_search":              {"input": {"buffer_id": "gcbuff-abc123", "query": "authentication", "profile": "debugger"}, "output": {"status": "ok", "enhanced_query": "authentication error bug exception fail", "profile": "debugger", "original_query": "authentication"}},
 }
 
 

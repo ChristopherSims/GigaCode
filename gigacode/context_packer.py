@@ -12,10 +12,9 @@ import logging
 import re
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from gigacode.constants import CHARS_PER_TOKEN
 
-# Approximate tokens per character for code
-_CHARS_PER_TOKEN = 4.0
+logger = logging.getLogger(__name__)
 
 
 __all__ = [
@@ -28,7 +27,7 @@ __all__ = [
 
 def _approx_token_count(text: str) -> int:
     """Fast approximate token count."""
-    return max(1, int(len(text) / _CHARS_PER_TOKEN))
+    return max(1, int(len(text) / CHARS_PER_TOKEN))
 
 
 def _exact_token_count(text: str) -> int:

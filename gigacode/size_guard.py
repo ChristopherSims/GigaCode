@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from gigacode.constants import DEFAULT_THRESHOLD_MB
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,7 +17,7 @@ __all__ = [
 def check_size(
     token_count: int,
     embedding_dim: int,
-    threshold_mb: float = 500.0,
+    threshold_mb: float = DEFAULT_THRESHOLD_MB,
 ) -> dict[str, object]:
     """Check whether the estimated buffer size exceeds a threshold.
 

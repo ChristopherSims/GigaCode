@@ -25,6 +25,10 @@ __all__ = [
     "AutoLintRequest",
     "AutoPolishRequest",
     "PolishBeforeCommitRequest",
+    # Request aliases (API naming conventions)
+    "FullContextRequest",
+    "SymbolMetadataRequest",
+    "BatchSearchRequest",
     # Response models
     "CallerInfo",
     "CalleeInfo",
@@ -53,90 +57,90 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 class GetReferencesRequest(BaseModel):
-    buffer_id: str
-    symbol: str
-    direction: str = Field("both", pattern="^(both|calls|called_by)$")
-    top_k: int = Field(50, ge=1, le=200)
-    expand_depth: Optional[int] = Field(None, ge=1, le=10)
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    symbol: str = Field(description="Symbol name to analyze.")
+    direction: str = Field("both", description="Reference direction: callers, callees, or both.", pattern="^(both|calls|called_by)$")
+    top_k: int = Field(50, description="Maximum number of results to return.", ge=1, le=200)
+    expand_depth: Optional[int] = Field(None, description="Depth to expand the reference graph.", ge=1, le=10)
 
 
 class GetFullContextRequest(BaseModel):
-    buffer_id: str
-    symbol: str
-    include: Optional[List[str]] = Field(None, description="Sections: definition, callers, callees, tests, related_code, type_hints, errors")
-    type_inference_method: str = Field("llm", pattern="^(llm|ast)$")
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    symbol: str = Field(description="Symbol name to analyze.")
+    include: Optional[List[str]] = Field(None, description="Components to include in context.")
+    type_inference_method: str = Field("llm", description="Type inference method: llm (accurate) or ast (fast).", pattern="^(llm|ast)$")
 
 
 class AnalyzeChangeRequest(BaseModel):
-    buffer_id: str
-    file: str
-    start_line: Optional[int] = Field(None, ge=1)
-    end_line: Optional[int] = Field(None, ge=1)
-    max_depth: int = Field(6, ge=1, le=20)
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    file: str = Field(description="File path within the buffer.")
+    start_line: Optional[int] = Field(None, description="Start line of the change.", ge=1)
+    end_line: Optional[int] = Field(None, description="End line of the change.", ge=1)
+    max_depth: int = Field(6, description="Maximum impact analysis depth.", ge=1, le=20)
 
 
 class GetTestCoverageRequest(BaseModel):
-    buffer_id: str
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
 
 
 class InferTypesRequest(BaseModel):
-    buffer_id: str
-    symbol: str
-    method: str = Field("llm", pattern="^(llm|ast)$")
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    symbol: str = Field(description="Symbol name to analyze.")
+    method: str = Field("llm", description="Type inference method: llm (accurate) or ast (fast).", pattern="^(llm|ast)$")
 
 
 class GetSymbolMetadataRequest(BaseModel):
-    buffer_id: str
-    symbol: str
-    include_types: bool = True
-    type_inference_method: str = Field("ast", pattern="^(llm|ast)$")
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    symbol: str = Field(description="Symbol name to analyze.")
+    include_types: bool = Field(True, description="Include type inference in results.")
+    type_inference_method: str = Field("ast", description="Type inference method: llm (accurate) or ast (fast).", pattern="^(llm|ast)$")
 
 
 class SearchBatchRequest(BaseModel):
-    buffer_id: str
-    queries: List[str] = Field(..., min_length=1, max_length=20)
-    top_k: int = Field(5, ge=1, le=50)
-    include_types: bool = False
-    type_inference_method: str = Field("llm", pattern="^(llm|ast)$")
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    queries: List[str] = Field(..., description="List of search queries to run.", min_length=1, max_length=20)
+    top_k: int = Field(5, description="Maximum number of results to return.", ge=1, le=50)
+    include_types: bool = Field(False, description="Include type inference in results.")
+    type_inference_method: str = Field("llm", description="Type inference method: llm (accurate) or ast (fast).", pattern="^(llm|ast)$")
 
 
 class AutoFormatRequest(BaseModel):
-    buffer_id: str
-    files: Optional[List[str]] = None
-    formatter: str = Field("black", pattern="^(black|ruff\\.format)$")
-    line_length: int = Field(88, ge=1, le=200)
-    skip_magic_trailing_comma: bool = False
-    dry_run: bool = True
-    exclude_patterns: Optional[List[str]] = None
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    files: Optional[List[str]] = Field(None, description="Specific files to analyze. If None, processes entire buffer.")
+    formatter: str = Field("black", description="Formatter to use: black or ruff.format.", pattern="^(black|ruff\\.format)$")
+    line_length: int = Field(88, description="Maximum line length for formatting.", ge=1, le=200)
+    skip_magic_trailing_comma: bool = Field(False, description="Skip Black's magic trailing comma feature.")
+    dry_run: bool = Field(True, description="Preview only without making changes.")
+    exclude_patterns: Optional[List[str]] = Field(None, description="Glob patterns to exclude.")
 
 
 class AutoLintRequest(BaseModel):
-    buffer_id: str
-    files: Optional[List[str]] = None
-    select: Optional[List[str]] = None
-    ignore: Optional[List[str]] = None
-    auto_fix: bool = False
-    dry_run: bool = True
-    exclude_patterns: Optional[List[str]] = None
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    files: Optional[List[str]] = Field(None, description="Specific files to analyze. If None, processes entire buffer.")
+    select: Optional[List[str]] = Field(None, description="Lint rule categories to check (e.g. E, F, W).")
+    ignore: Optional[List[str]] = Field(None, description="Lint rules to ignore.")
+    auto_fix: bool = Field(False, description="Automatically fix issues instead of just reporting.")
+    dry_run: bool = Field(True, description="Preview only without making changes.")
+    exclude_patterns: Optional[List[str]] = Field(None, description="Glob patterns to exclude.")
 
 
 class AutoPolishRequest(BaseModel):
-    buffer_id: str
-    files: Optional[List[str]] = None
-    format_with: str = Field("black", pattern="^(black|ruff\\.format)$")
-    auto_fix_lints: bool = True
-    line_length: int = Field(88, ge=1, le=200)
-    ruff_select: Optional[List[str]] = None
-    exclude_patterns: Optional[List[str]] = None
-    dry_run: bool = True
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    files: Optional[List[str]] = Field(None, description="Specific files to analyze. If None, processes entire buffer.")
+    format_with: str = Field("black", description="Formatter to use: black or ruff.format.", pattern="^(black|ruff\\.format)$")
+    auto_fix_lints: bool = Field(True, description="Automatically fix lint issues.")
+    line_length: int = Field(88, description="Maximum line length for formatting.", ge=1, le=200)
+    ruff_select: Optional[List[str]] = Field(None, description="Ruff rule categories to check.")
+    exclude_patterns: Optional[List[str]] = Field(None, description="Glob patterns to exclude.")
+    dry_run: bool = Field(True, description="Preview only without making changes.")
 
 
 class PolishBeforeCommitRequest(BaseModel):
-    buffer_id: str
-    files_to_commit: Optional[List[str]] = None
-    format_with: str = Field("black", pattern="^(black|ruff\\.format)$")
-    lint_with: str = "ruff"
-    check_only: bool = False
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    files_to_commit: Optional[List[str]] = Field(None, description="Specific files to polish before committing.")
+    format_with: str = Field("black", description="Formatter to use: black or ruff.format.", pattern="^(black|ruff\\.format)$")
+    lint_with: str = Field("ruff", description="Linter to use: ruff or flake8.")
+    check_only: bool = Field(False, description="Only check, do not apply fixes.")
 
 
 # ---------------------------------------------------------------------------
@@ -326,3 +330,12 @@ class PolishBeforeCommitResponse(BaseModel):
     ready_to_commit: bool = False
     pre_commit_warnings: List[str] = []
     summary: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Aliases (API naming conventions)
+# ---------------------------------------------------------------------------
+
+FullContextRequest = GetFullContextRequest
+SymbolMetadataRequest = GetSymbolMetadataRequest
+BatchSearchRequest = SearchBatchRequest

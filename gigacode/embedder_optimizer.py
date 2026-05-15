@@ -10,6 +10,7 @@ from typing import Any, Optional
 import numpy as np
 
 from gigacode.batch_embedder import BatchEmbedder
+from gigacode.constants import DEFAULT_BATCH_SIZE
 from gigacode.embedder import Embedder
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ class OptimizedEmbedder:
     def encode(
         self,
         texts: list[str],
-        batch_size: int = 64,
+        batch_size: int = DEFAULT_BATCH_SIZE,
         show_progress: bool = False,
         use_cache: bool = True,
     ) -> np.ndarray:

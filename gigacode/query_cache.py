@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from gigacode.constants import SIMILARITY_THRESHOLD
+
 if TYPE_CHECKING:
     from gigacode.embedder import Embedder
 
@@ -35,7 +37,7 @@ class QueryCache:
         self,
         maxsize: int = 128,
         embedder: Embedder | None = None,
-        similarity_threshold: float = 0.95,
+        similarity_threshold: float = SIMILARITY_THRESHOLD,
     ) -> None:
         """Initialize QueryCache.
 

@@ -70,13 +70,18 @@ from gigacode.tool_security import ToolSecurityLayer
 from gigacode.type_search import TypeSearcher
 from gigacode.type_inference_cache import TypeInferenceCache
 from gigacode.code_quality import auto_format, auto_lint, auto_polish
+from gigacode.constants import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_PROMETHEUS_PORT,
+    DEFAULT_THRESHOLD_MB,
+    MAX_DIRTY_BEFORE_AUTO_REBUILD,
+)
 from gigacode.reference_map import ReferenceMap
 from gigacode.execution_paths import trace_execution_paths
+from gigacode.agent_profile import AgentProfile, ChunkingStrategyFactory, AdaptiveChunker, ProfileAdapter, AgentProfileService
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("tool")
-
-_MAX_DIRTY_BEFORE_AUTO_REBUILD = 3
 
 
 class CodeEmbeddingTool:
@@ -98,12 +103,12 @@ class CodeEmbeddingTool:
         work_dir: str | Path,
         model_name: str | None = None,
         device: str | None = None,
-        threshold_mb: float = 500.0,
+        threshold_mb: float = DEFAULT_THRESHOLD_MB,
         use_gpu: bool = True,
         gpu_id: int = 0,
         max_buffers: int = 10,
         enable_prometheus: bool = False,
-        prometheus_port: int = 9090,
+        prometheus_port: int = DEFAULT_PROMETHEUS_PORT,
     ) -> None:
         """Initialize CodeEmbeddingTool.
 
@@ -261,6 +266,9 @@ class CodeEmbeddingTool:
         # Fallback storage when BufferManager unavailable (for tests / degraded mode)
         self._fallback_registry: dict[str, Any] = {}
         self._fallback_snapshot_managers: dict[str, Any] = {}
+
+        # Lazy-initialized profile adapter for agent profile operations
+        self._profile_adapter: ProfileAdapter | None = None
 
     # ------------------------------------------------------------------
     # Backward-compat properties for direct _registry / _snapshot_managers access
@@ -498,7 +506,7 @@ class CodeEmbeddingTool:
 
             # Embed chunks
             texts = [ch.text for ch in chunks]
-            embeddings = self._embedder.encode(texts, batch_size=64)
+            embeddings = self._embedder.encode(texts, batch_size=DEFAULT_BATCH_SIZE)
 
             # Create and cache indices via IndexManager
             self._index_manager.create_indices(buffer_id, embeddings, chunks)
@@ -2895,7 +2903,7 @@ class CodeEmbeddingTool:
             logger.warning(f"Failed to transition buffer {buffer_id} to DIRTY state")
 
         # Auto-rebuild if too many dirty files
-        if len(dirty) >= _MAX_DIRTY_BEFORE_AUTO_REBUILD:
+        if len(dirty) >= MAX_DIRTY_BEFORE_AUTO_REBUILD:
             self._rebuild_dirty(buffer_id)
 
         result = {
@@ -4004,7 +4012,7 @@ class CodeEmbeddingTool:
                 next_id += 1
             if file_chunks:
                 texts = [ch.text for ch in file_chunks]
-                emb = self._embedder.encode(texts, batch_size=64)
+                emb = self._embedder.encode(texts, batch_size=DEFAULT_BATCH_SIZE)
                 new_embeddings_list.append(emb)
 
         # Rebuild embeddings array
@@ -7616,3 +7624,627 @@ class CodeEmbeddingTool:
 
         result["config_file"] = config_file or "none found"
         return result
+
+    # ------------------------------------------------------------------
+    # Solve — unified automated loop
+    # ------------------------------------------------------------------
+    def solve(
+        self,
+        buffer_id: str,
+        task: str,
+        max_iterations: int = 10,
+    ) -> dict[str, Any]:
+        """Automatically solve a coding task with a unified loop.
+
+        Orchestrates search, read, plan, edit, test, and commit operations
+        with minimal human intervention. Returns an audit trail and
+        completion status.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            task: Natural language description of the task to solve.
+            max_iterations: Maximum number of solve loop iterations (default 10).
+
+        Returns:
+            Dict with status, task_id, iterations, tokens_used,
+            duration_seconds, audit_trail, summary, and next_step.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="solve")
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response("No chunks loaded", buffer_id=buffer_id, operation="solve")
+
+        try:
+            from gigacode.solver import Solver, SolveExecutor
+            from gigacode.intent_router import IntentRouter
+
+            intent_router = IntentRouter()
+            executor = SolveExecutor(
+                buffer_manager=self._buffer_manager,
+                search_service=self._search_service,
+                diff_engine=None,
+                intent_router=intent_router,
+            )
+            solver = Solver(executor=executor)
+            result = solver.solve(
+                buffer_id=buffer_id,
+                task=task,
+                max_iterations=max_iterations,
+            )
+            return {"status": "ok", **result.to_dict()}
+
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"Solve failed: {e}")
+            return self._make_error_response(
+                f"Solve failed: {e}",
+                buffer_id=buffer_id,
+                operation="solve",
+            )
+
+    # ------------------------------------------------------------------
+    # Undo / Redo with Branching
+    # ------------------------------------------------------------------
+    def _get_undo_redo_service(self, buffer_id: str):
+        """Get or create UndoRedoService for a buffer (lazy init).
+
+        Args:
+            buffer_id: Buffer handle.
+
+        Returns:
+            UndoRedoService instance for this buffer.
+        """
+        if not hasattr(self, "_undo_redo_services"):
+            self._undo_redo_services: dict[str, Any] = {}
+
+        if buffer_id not in self._undo_redo_services:
+            from gigacode.undo_redo import UndoRedoService, BranchedBufferManager
+
+            branched_mgr = BranchedBufferManager(buffer_manager=self._buffer_manager)
+            self._undo_redo_services[buffer_id] = UndoRedoService(
+                branched_buffer_manager=branched_mgr
+            )
+
+        return self._undo_redo_services[buffer_id]
+
+    def undo(self, buffer_id: str, steps: int = 1) -> dict[str, Any]:
+        """Undo the last N operations on a buffer.
+
+        Reverts edits in reverse order from the undo stack.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            steps: Number of operations to undo (default 1).
+
+        Returns:
+            Dict with status, steps_undone, remaining_undo_count, and message.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="undo")
+
+        try:
+            service = self._get_undo_redo_service(buffer_id)
+            service.undo(buffer_id, steps=steps)
+            stack = service.branched_buffer_manager._get_branch_manager(buffer_id).get_undo_stack()
+            return {
+                "status": "ok",
+                "buffer_id": buffer_id,
+                "steps_undone": steps,
+                "remaining_undo_count": len(stack.undo_stack),
+                "message": f"Undone {steps} operation(s)",
+            }
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"Undo failed: {e}")
+            return self._make_error_response(
+                f"Undo failed: {e}",
+                buffer_id=buffer_id,
+                operation="undo",
+            )
+
+    def redo(self, buffer_id: str, steps: int = 1) -> dict[str, Any]:
+        """Redo the last N undone operations on a buffer.
+
+        Re-applies previously undone edits from the redo stack.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            steps: Number of operations to redo (default 1).
+
+        Returns:
+            Dict with status, steps_redone, remaining_redo_count, and message.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="redo")
+
+        try:
+            service = self._get_undo_redo_service(buffer_id)
+            service.redo(buffer_id, steps=steps)
+            stack = service.branched_buffer_manager._get_branch_manager(buffer_id).get_undo_stack()
+            return {
+                "status": "ok",
+                "buffer_id": buffer_id,
+                "steps_redone": steps,
+                "remaining_redo_count": len(stack.redo_stack),
+                "message": f"Redone {steps} operation(s)",
+            }
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"Redo failed: {e}")
+            return self._make_error_response(
+                f"Redo failed: {e}",
+                buffer_id=buffer_id,
+                operation="redo",
+            )
+
+    def create_branch(self, buffer_id: str, name: str) -> dict[str, Any]:
+        """Create a named branch for experimental edits.
+
+        Preserves the current buffer state so you can switch back later.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            name: Name for the new branch.
+
+        Returns:
+            Dict with status, branch, parent, created timestamp, and message.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="create_branch")
+
+        try:
+            service = self._get_undo_redo_service(buffer_id)
+            result = service.branch(buffer_id, name)
+            return {
+                "status": "ok",
+                "buffer_id": buffer_id,
+                "branch": result.get("branch", name),
+                "parent": result.get("parent", "main"),
+                "created": result.get("created", ""),
+                "message": f"Created branch '{name}'",
+            }
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"Create branch failed: {e}")
+            return self._make_error_response(
+                f"Create branch failed: {e}",
+                buffer_id=buffer_id,
+                operation="create_branch",
+            )
+
+    def list_branches(self, buffer_id: str) -> dict[str, Any]:
+        """List all branches for a buffer.
+
+        Returns branch names, parents, creation timestamps, and the active branch.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with status, branches list, and message.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="list_branches")
+
+        try:
+            service = self._get_undo_redo_service(buffer_id)
+            branches = service.list_branches(buffer_id)
+            return {
+                "status": "ok",
+                "buffer_id": buffer_id,
+                "branches": branches,
+                "message": f"Found {len(branches)} branch(es)",
+            }
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"List branches failed: {e}")
+            return self._make_error_response(
+                f"List branches failed: {e}",
+                buffer_id=buffer_id,
+                operation="list_branches",
+            )
+
+    def checkout_branch(self, buffer_id: str, name: str) -> dict[str, Any]:
+        """Switch to a different branch on a buffer.
+
+        Changes which set of edits is active for the buffer.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            name: Name of the branch to switch to.
+
+        Returns:
+            Dict with status, branch name, and message.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response("Unknown buffer_id", buffer_id=buffer_id, operation="checkout_branch")
+
+        try:
+            service = self._get_undo_redo_service(buffer_id)
+            service.checkout(buffer_id, name)
+            return {
+                "status": "ok",
+                "buffer_id": buffer_id,
+                "branch": name,
+                "message": f"Checked out branch '{name}'",
+            }
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"Checkout branch failed: {e}")
+            return self._make_error_response(
+                f"Checkout branch failed: {e}",
+                buffer_id=buffer_id,
+                operation="checkout_branch",
+            )
+
+    # ------------------------------------------------------------------
+    # Why-Annotator — search with "why this matters" annotations
+    # ------------------------------------------------------------------
+    def annotate_search_results(
+        self,
+        buffer_id: str,
+        query: str,
+        top_k: int = 5,
+    ) -> dict[str, Any]:
+        """Search and annotate results with 'why this matters' explanations.
+
+        Runs semantic search, then enriches each result with relevance
+        reasons, suggested next actions, and related files.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            query: Natural language search query.
+            top_k: Maximum number of annotated results to return (default 5).
+
+        Returns:
+            Dict with status, annotated_results list, query, count, and message.
+        """
+        err = self._validate_search_params(query, top_k=top_k)
+        if err is not None:
+            return err
+
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="annotate_search_results"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="annotate_search_results"
+            )
+
+        try:
+            from gigacode.why_annotator import WhyAnnotator, AnnotationService, RelevanceExplainer
+
+            # Run semantic search first
+            search_result = self.semantic_search(buffer_id, query, top_k=top_k)
+            if search_result.get("status") != "ok":
+                return self._make_error_response(
+                    f"Search failed: {search_result.get('message', 'unknown error')}",
+                    buffer_id=buffer_id,
+                    operation="annotate_search_results",
+                )
+
+            matches = search_result.get("matches", [])
+
+            # Create annotator and annotate results
+            explainer = RelevanceExplainer(
+                dependency_graph=DependencyGraph(chunks),
+                buffer_manager=self._buffer_manager,
+                symbol_index=SymbolIndex(chunks),
+            )
+            annotation_service = AnnotationService(explainer=explainer)
+            annotator = WhyAnnotator(annotation_service=annotation_service)
+
+            # Get dirty files for edit context
+            dirty_files = list(info.get("dirty_queue", []))
+            edit_context = [e.get("file") for e in dirty_files if isinstance(e, dict)] if dirty_files else None
+
+            annotated = annotator.annotate_search_results(
+                buffer_id=buffer_id,
+                results=matches,
+                query=query,
+                edit_context=edit_context,
+            )
+
+            return {
+                "status": "ok",
+                "buffer_id": buffer_id,
+                "query": query,
+                "annotated_results": annotated,
+                "count": len(annotated),
+                "message": f"Annotated {len(annotated)} search result(s)",
+            }
+
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"Annotate search results failed: {e}")
+            return self._make_error_response(
+                f"Annotate search results failed: {e}",
+                buffer_id=buffer_id,
+                operation="annotate_search_results",
+            )
+
+    # ------------------------------------------------------------------
+    # Conflict Prediction
+    # ------------------------------------------------------------------
+    def predict_conflicts(self, buffer_id: str) -> dict[str, Any]:
+        """Predict potential merge conflicts by analyzing commits since embed time.
+
+        Reports risk level (low/medium/high), per-file risks, dependency risks,
+        and actionable recommendations.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+
+        Returns:
+            Dict with status, risk_level, file_risks, dependency_risks,
+            recommendations, and auto_actions.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="predict_conflicts"
+            )
+
+        try:
+            from gigacode.conflict_predictor import ConflictPredictor, ConflictPredictionService
+
+            chunks = self._load_chunks(buffer_id)
+            dep_graph = DependencyGraph(chunks) if chunks else DependencyGraph([])
+
+            predictor = ConflictPredictor(
+                buffer_manager=self._buffer_manager,
+                git_utils=GitUtils,
+                dependency_graph=dep_graph,
+            )
+            service = ConflictPredictionService(conflict_predictor=predictor)
+            result = service.predict_conflicts(buffer_id)
+            return {"status": "ok", "buffer_id": buffer_id, **result}
+
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"Predict conflicts failed: {e}")
+            return self._make_error_response(
+                f"Predict conflicts failed: {e}",
+                buffer_id=buffer_id,
+                operation="predict_conflicts",
+            )
+
+    # ------------------------------------------------------------------
+    # Diff-Aware Search
+    # ------------------------------------------------------------------
+    def search_modified_only(
+        self,
+        buffer_id: str,
+        query: str,
+        scope: str = "changes+deps",
+        top_k: int = 10,
+    ) -> dict[str, Any]:
+        """Search only modified files and their dependencies.
+
+        Scopes search to dirty files only, dirty files plus their
+        dependencies, or the entire codebase.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            query: Natural language search query.
+            scope: Search scope — 'changes' (dirty files only),
+                'changes+deps' (dirty + their deps), or 'all' (entire codebase).
+                Default: 'changes+deps'.
+            top_k: Maximum number of results to return (default 10).
+
+        Returns:
+            Dict with status, scope_used, files_searched, files_skipped,
+            results, and performance metrics.
+        """
+        err = self._validate_search_params(query, top_k=top_k)
+        if err is not None:
+            return err
+
+        if scope not in ("changes", "changes+deps", "all"):
+            return self._make_error_response(
+                f"scope must be 'changes', 'changes+deps', or 'all', got '{scope}'",
+                buffer_id=buffer_id,
+                operation="search_modified_only",
+            )
+
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="search_modified_only"
+            )
+
+        try:
+            from gigacode.diff_aware_search import DiffAwareSearch, DiffAwareSearchService
+
+            chunks = self._load_chunks(buffer_id)
+            dep_graph = DependencyGraph(chunks) if chunks else DependencyGraph([])
+
+            diff_aware = DiffAwareSearch(
+                search_service=self._search_service,
+                dependency_graph=dep_graph,
+                buffer_manager=self._buffer_manager,
+            )
+            service = DiffAwareSearchService(diff_aware_search=diff_aware)
+            result = service.search_since_last_edit(
+                buffer_id=buffer_id,
+                query=query,
+                scope=scope,
+                top_k=top_k,
+            )
+            return {"status": "ok", "buffer_id": buffer_id, **result}
+
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"Search modified only failed: {e}")
+            return self._make_error_response(
+                f"Search modified only failed: {e}",
+                buffer_id=buffer_id,
+                operation="search_modified_only",
+            )
+
+    # ------------------------------------------------------------------
+    # Agent profile methods
+    # ------------------------------------------------------------------
+
+    def get_chunking_strategy(self, profile: str = "generic") -> dict[str, Any]:
+        """Get the chunking strategy for a given agent profile.
+
+        Returns include/exclude element lists, line limits, description,
+        and expected token savings percentage.
+
+        Args:
+            profile: Agent profile name (reviewer, debugger, architect,
+                documenter, generic). Default: "generic".
+
+        Returns:
+            Dict with profile, include, exclude, max_lines, min_lines,
+            description, expected_token_savings.
+        """
+        strategy = ChunkingStrategyFactory.get_strategy_by_name(profile)
+
+        return {
+            "status": "ok",
+            "profile": strategy.profile.value,
+            "include": list(strategy.include_elements),
+            "exclude": list(strategy.exclude_elements),
+            "max_lines": strategy.max_lines,
+            "min_lines": strategy.min_lines,
+            "description": strategy.description,
+            "expected_token_savings": f"{strategy.expected_token_savings}%",
+        }
+
+    def set_agent_profile(self, buffer_id: str, profile: str = "generic") -> dict[str, Any]:
+        """Set the agent profile for a buffer.
+
+        Affects future chunking and search behavior. The profile name
+        is stored in the buffer's metadata.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            profile: Agent profile name (reviewer, debugger, architect,
+                documenter, generic). Default: "generic".
+
+        Returns:
+            Dict with status, buffer_id, profile, strategy_description.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="set_agent_profile"
+            )
+
+        strategy = ChunkingStrategyFactory.get_strategy_by_name(profile)
+
+        # Store profile in buffer metadata
+        self._registry[buffer_id]["profile"] = profile
+
+        return {
+            "status": "ok",
+            "buffer_id": buffer_id,
+            "profile": strategy.profile.value,
+            "strategy_description": strategy.description,
+        }
+
+    def chunk_with_profile(self, buffer_id: str, profile: str = "generic") -> dict[str, Any]:
+        """Re-chunk the buffer's codebase using the specified agent profile.
+
+        Creates an AdaptiveChunker with the existing chunker and applies
+        profile-specific chunking for each file.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            profile: Agent profile name (reviewer, debugger, architect,
+                documenter, generic). Default: "generic".
+
+        Returns:
+            Dict with status, profile, total_chunks, strategy_description.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="chunk_with_profile"
+            )
+
+        chunks = self._load_chunks(buffer_id)
+        if chunks is None or not chunks:
+            return self._make_error_response(
+                "No chunks loaded", buffer_id=buffer_id, operation="chunk_with_profile"
+            )
+
+        strategy = ChunkingStrategyFactory.get_strategy_by_name(profile)
+        profile_enum = strategy.profile
+
+        try:
+            adaptive_chunker = AdaptiveChunker(self._chunker)
+
+            total_chunks = 0
+            file_contents: dict[str, str] = {}
+            for chunk in chunks:
+                if chunk.file not in file_contents:
+                    file_contents[chunk.file] = chunk.text or ""
+                else:
+                    file_contents[chunk.file] += "\n" + (chunk.text or "")
+
+            for file_path, content in file_contents.items():
+                if content.strip():
+                    optimized = adaptive_chunker.chunk_with_profile(
+                        content, file_path, profile_enum
+                    )
+                    total_chunks += len(optimized)
+
+            return {
+                "status": "ok",
+                "profile": strategy.profile.value,
+                "total_chunks": total_chunks,
+                "strategy_description": strategy.description,
+            }
+        except (ValueError, RuntimeError) as e:
+            logger.warning(f"chunk_with_profile failed: {e}")
+            return self._make_error_response(
+                f"Chunk with profile failed: {e}",
+                buffer_id=buffer_id,
+                operation="chunk_with_profile",
+            )
+
+    def adapt_search(self, buffer_id: str, query: str, profile: str = "generic") -> dict[str, Any]:
+        """Enhance a search query based on agent profile context.
+
+        Appends profile-specific keywords to improve search relevance
+        for the task type.
+
+        Args:
+            buffer_id: Buffer handle returned by embed_codebase.
+            query: Original search query to enhance.
+            profile: Agent profile name (reviewer, debugger, architect,
+                documenter, generic). Default: "generic".
+
+        Returns:
+            Dict with enhanced_query, profile, original_query.
+        """
+        info = self._get_buffer_info(buffer_id)
+        if info is None:
+            return self._make_error_response(
+                "Unknown buffer_id", buffer_id=buffer_id, operation="adapt_search"
+            )
+
+        try:
+            profile_enum = AgentProfile(profile)
+        except ValueError:
+            profile_enum = AgentProfile.GENERIC
+
+        # Lazy-initialize profile adapter
+        if self._profile_adapter is None:
+            adaptive_chunker = AdaptiveChunker(self._chunker)
+            self._profile_adapter = ProfileAdapter(adaptive_chunker)
+
+        result = self._profile_adapter.adapt_search(query, profile_enum)
+
+        return {
+            "status": "ok",
+            "enhanced_query": result["query"],
+            "profile": result["profile"],
+            "original_query": query,
+        }

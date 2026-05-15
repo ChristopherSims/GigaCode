@@ -36,6 +36,29 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from gigacode.gigacode_tool import CodeEmbeddingTool
+from gigacode.pydantic_models import (
+    GetReferencesRequest,
+    AnalyzeChangeRequest,
+    InferTypesRequest,
+    AutoFormatRequest,
+    AutoLintRequest,
+    AutoPolishRequest,
+    PolishBeforeCommitRequest,
+    GetFullContextRequest as FullContextRequest,
+    GetSymbolMetadataRequest as SymbolMetadataRequest,
+    SearchBatchRequest as BatchSearchRequest,
+    GetTestCoverageRequest,
+    # Response models
+    GetReferencesResponse,
+    GetFullContextResponse,
+    AnalyzeChangeResponse,
+    GetTestCoverageResponse,
+    InferTypesResponse,
+    SymbolMetadataResponse,
+    SearchBatchResponse,
+    AutoPolishResponse,
+    PolishBeforeCommitResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -132,58 +155,6 @@ class DeleteBufferRequest(BaseModel):
 class CallRequest(BaseModel):
     tool: str = Field(description="Tool method name to invoke.")
     args: dict[str, Any] = Field(default_factory=dict, description="Keyword arguments for the tool method.")
-
-
-class BatchSearchRequest(BaseModel):
-    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    queries: List[str] = Field(description="List of search queries to run.")
-    top_k: int = Field(default=5, description="Maximum number of results to return.")
-    include_types: bool = Field(default=False, description="Include type inference in results.")
-    type_inference_method: str = Field(default="llm", description="Type inference method: llm (accurate) or ast (fast).")
-
-
-class InferTypesRequest(BaseModel):
-    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    symbol: str = Field(description="Symbol name to analyze.")
-    method: str = Field(default="llm", description="Type inference method: llm (accurate) or ast (fast).")
-
-
-class SymbolMetadataRequest(BaseModel):
-    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    symbol: str = Field(description="Symbol name to analyze.")
-    include_types: bool = Field(default=True, description="Include type inference in results.")
-    type_inference_method: str = Field(default="ast", description="Type inference method: llm (accurate) or ast (fast).")
-
-
-class GetReferencesRequest(BaseModel):
-    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    symbol: str = Field(description="Symbol name to analyze.")
-    direction: str = Field(default="both", description="Reference direction: callers, callees, or both.")
-    top_k: int = Field(default=50, description="Maximum number of results to return.")
-    expand_depth: Optional[int] = Field(default=None, description="Depth to expand the reference graph.")
-
-
-class FullContextRequest(BaseModel):
-    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    symbol: str = Field(description="Symbol name to analyze.")
-    include: Optional[List[str]] = Field(default=None, description="Components to include in context.")
-    type_inference_method: str = Field(default="llm", description="Type inference method: llm (accurate) or ast (fast).")
-
-
-class AnalyzeChangeRequest(BaseModel):
-    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    file: str = Field(description="File path within the buffer.")
-    start_line: Optional[int] = Field(default=None, description="Start line of the change.")
-    end_line: Optional[int] = Field(default=None, description="End line of the change.")
-    max_depth: int = Field(default=6, description="Maximum impact analysis depth.")
-
-
-class PolishBeforeCommitRequest(BaseModel):
-    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files_to_commit: Optional[List[str]] = Field(default=None, description="Specific files to polish before committing.")
-    format_with: str = Field(default="black", description="Formatter to use: black or ruff.format.")
-    lint_with: str = Field(default="ruff", description="Linter to use: ruff or flake8.")
-    check_only: bool = Field(default=False, description="Only check, do not apply fixes.")
 
 
 class TraceExecutionPathsRequest(BaseModel):
@@ -336,35 +307,73 @@ class BufferIdRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
 
 
-class AutoFormatRequest(BaseModel):
+
+
+class SolveRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files: Optional[List[str]] = Field(default=None, description="Specific files to analyze. If None, processes entire buffer.")
-    formatter: str = Field(default="black", description="Formatter to use: black or ruff.format.")
-    line_length: int = Field(default=88, description="Maximum line length for formatting.")
-    skip_magic_trailing_comma: bool = Field(default=False, description="Skip Black's magic trailing comma feature.")
-    dry_run: bool = Field(default=True, description="Preview only without making changes.")
-    exclude_patterns: Optional[List[str]] = Field(default=None, description="Glob patterns to exclude.")
+    task: str = Field(description="Natural language description of the task to solve.")
+    max_iterations: int = Field(default=10, description="Maximum number of solve loop iterations.")
 
 
-class AutoLintRequest(BaseModel):
+class UndoRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files: Optional[List[str]] = Field(default=None, description="Specific files to analyze. If None, processes entire buffer.")
-    select: Optional[List[str]] = Field(default=None, description="Lint rule categories to check (e.g. E, F, W).")
-    ignore: Optional[List[str]] = Field(default=None, description="Lint rules to ignore.")
-    auto_fix: bool = Field(default=False, description="Automatically fix issues instead of just reporting.")
-    dry_run: bool = Field(default=True, description="Preview only without making changes.")
-    exclude_patterns: Optional[List[str]] = Field(default=None, description="Glob patterns to exclude.")
+    steps: int = Field(default=1, description="Number of operations to undo.")
 
 
-class AutoPolishRequest(BaseModel):
+class RedoRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files: Optional[List[str]] = Field(default=None, description="Specific files to analyze. If None, processes entire buffer.")
-    format_with: str = Field(default="black", description="Formatter to use: black or ruff.format.")
-    auto_fix_lints: bool = Field(default=True, description="Automatically fix lint issues.")
-    line_length: int = Field(default=88, description="Maximum line length for formatting.")
-    ruff_select: Optional[List[str]] = Field(default=None, description="Ruff rule categories to check.")
-    exclude_patterns: Optional[List[str]] = Field(default=None, description="Glob patterns to exclude.")
-    dry_run: bool = Field(default=True, description="Preview only without making changes.")
+    steps: int = Field(default=1, description="Number of operations to redo.")
+
+
+class CreateBranchRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    name: str = Field(description="Name for the new branch.")
+
+
+class ListBranchesRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+
+
+class CheckoutBranchRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    name: str = Field(description="Name of the branch to switch to.")
+
+
+class AnnotateSearchRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    query: str = Field(description="Natural language search query.")
+    top_k: int = Field(default=5, description="Maximum number of annotated results to return.")
+
+
+class PredictConflictsRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+
+
+class SearchModifiedOnlyRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    query: str = Field(description="Natural language search query.")
+    scope: str = Field(default="changes+deps", description="Search scope: changes, changes+deps, or all.")
+    top_k: int = Field(default=10, description="Maximum number of results to return.")
+
+
+class GetChunkingStrategyRequest(BaseModel):
+    profile: str = Field(default="generic", description="Agent profile name: reviewer, debugger, architect, documenter, or generic.")
+
+
+class SetAgentProfileRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    profile: str = Field(default="generic", description="Agent profile name: reviewer, debugger, architect, documenter, or generic.")
+
+
+class ChunkWithProfileRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    profile: str = Field(default="generic", description="Agent profile name: reviewer, debugger, architect, documenter, or generic.")
+
+
+class AdaptSearchRequest(BaseModel):
+    buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
+    query: str = Field(description="Original search query to enhance.")
+    profile: str = Field(default="generic", description="Agent profile name: reviewer, debugger, architect, documenter, or generic.")
 
 
 # ---------------------------------------------------------------------------
@@ -547,7 +556,7 @@ def create_app(tool: Any) -> FastAPI:
     # ------------------------------------------------------------------
     # Additional Endpoints
     # ------------------------------------------------------------------
-    @app.post("/search/batch")
+    @app.post("/search/batch", response_model=SearchBatchResponse)
     async def batch_search(req: BatchSearchRequest) -> dict[str, Any]:
         """Run multiple semantic search queries in a single call."""
         result = tool.search_batch(
@@ -558,7 +567,7 @@ def create_app(tool: Any) -> FastAPI:
             raise HTTPException(status_code=400, detail=result)
         return result
 
-    @app.post("/types/infer")
+    @app.post("/types/infer", response_model=InferTypesResponse)
     async def infer_types(req: InferTypesRequest) -> dict[str, Any]:
         """Infer types for code at a specific location using AST or LLM."""
         result = tool.infer_types(req.buffer_id, req.symbol, method=req.method)
@@ -566,7 +575,7 @@ def create_app(tool: Any) -> FastAPI:
             raise HTTPException(status_code=400, detail=result)
         return result
 
-    @app.post("/symbols/metadata")
+    @app.post("/symbols/metadata", response_model=SymbolMetadataResponse)
     async def symbol_metadata(req: SymbolMetadataRequest) -> dict[str, Any]:
         """Get detailed metadata for a symbol: complexity, callers, types, docstring."""
         result = tool.get_symbol_metadata(
@@ -577,7 +586,7 @@ def create_app(tool: Any) -> FastAPI:
             raise HTTPException(status_code=400, detail=result)
         return result
 
-    @app.post("/references")
+    @app.post("/references", response_model=GetReferencesResponse)
     async def get_references(req: GetReferencesRequest) -> dict[str, Any]:
         """Get callers, callees, and related references for a symbol."""
         result = tool.get_references(
@@ -588,7 +597,7 @@ def create_app(tool: Any) -> FastAPI:
             raise HTTPException(status_code=400, detail=result)
         return result
 
-    @app.post("/context/full")
+    @app.post("/context/full", response_model=GetFullContextResponse)
     async def get_full_context(req: FullContextRequest) -> dict[str, Any]:
         """Get full context for a symbol: definition, callers, tests, types, errors."""
         result = tool.get_full_context(
@@ -599,7 +608,7 @@ def create_app(tool: Any) -> FastAPI:
             raise HTTPException(status_code=400, detail=result)
         return result
 
-    @app.post("/impact/analyze-change")
+    @app.post("/impact/analyze-change", response_model=AnalyzeChangeResponse)
     async def analyze_change(req: AnalyzeChangeRequest) -> dict[str, Any]:
         """Analyze the impact of a code change before editing."""
         result = tool.analyze_change(
@@ -610,15 +619,15 @@ def create_app(tool: Any) -> FastAPI:
             raise HTTPException(status_code=400, detail=result)
         return result
 
-    @app.post("/tests/coverage")
-    async def get_test_coverage(req: BufferIdRequest) -> dict[str, Any]:
+    @app.post("/tests/coverage", response_model=GetTestCoverageResponse)
+    async def get_test_coverage(req: GetTestCoverageRequest) -> dict[str, Any]:
         """Map source files to test coverage with line ranges and test names."""
         result = tool.get_test_coverage(req.buffer_id)
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
 
-    @app.post("/quality/polish-before-commit")
+    @app.post("/quality/polish-before-commit", response_model=PolishBeforeCommitResponse)
     async def polish_before_commit(req: PolishBeforeCommitRequest) -> dict[str, Any]:
         """Run format + lint + impact checks before committing."""
         result = tool.polish_before_commit(
@@ -727,7 +736,7 @@ def create_app(tool: Any) -> FastAPI:
             raise HTTPException(status_code=400, detail=result)
         return result
 
-    @app.post("/quality/polish")
+    @app.post("/quality/polish", response_model=AutoPolishResponse)
     async def auto_polish_endpoint(req: AutoPolishRequest) -> dict[str, Any]:
         """Combined format + lint in a single call."""
         result = tool.auto_polish(
@@ -886,6 +895,117 @@ def create_app(tool: Any) -> FastAPI:
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
+
+    # ------------------------------------------------------------------
+    # Solve, Undo/Redo, Branching, Annotate, Conflict Prediction, Diff-Aware Search
+    # ------------------------------------------------------------------
+    @app.post("/solve")
+    async def solve(req: SolveRequest) -> dict[str, Any]:
+        """Automatically solve a coding task with a unified loop."""
+        result = tool.solve(req.buffer_id, req.task, max_iterations=req.max_iterations)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/undo")
+    async def undo(req: UndoRequest) -> dict[str, Any]:
+        """Undo the last N operations on a buffer."""
+        result = tool.undo(req.buffer_id, steps=req.steps)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/redo")
+    async def redo(req: RedoRequest) -> dict[str, Any]:
+        """Redo the last N undone operations on a buffer."""
+        result = tool.redo(req.buffer_id, steps=req.steps)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/branch/create")
+    async def create_branch(req: CreateBranchRequest) -> dict[str, Any]:
+        """Create a named branch for experimental edits."""
+        result = tool.create_branch(req.buffer_id, req.name)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/branch/list")
+    async def list_branches(req: ListBranchesRequest) -> dict[str, Any]:
+        """List all branches for a buffer."""
+        result = tool.list_branches(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/branch/checkout")
+    async def checkout_branch(req: CheckoutBranchRequest) -> dict[str, Any]:
+        """Switch to a different branch on a buffer."""
+        result = tool.checkout_branch(req.buffer_id, req.name)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/search/annotate")
+    async def annotate_search_results(req: AnnotateSearchRequest) -> dict[str, Any]:
+        """Search and annotate results with 'why this matters' explanations."""
+        result = tool.annotate_search_results(req.buffer_id, req.query, top_k=req.top_k)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/conflict/predict")
+    async def predict_conflicts(req: PredictConflictsRequest) -> dict[str, Any]:
+        """Predict potential merge conflicts by analyzing commits since embed time."""
+        result = tool.predict_conflicts(req.buffer_id)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/search/modified")
+    async def search_modified_only(req: SearchModifiedOnlyRequest) -> dict[str, Any]:
+        """Search only modified files and their dependencies."""
+        result = tool.search_modified_only(req.buffer_id, req.query, scope=req.scope, top_k=req.top_k)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    # ------------------------------------------------------------------
+    # Agent Profile
+    # ------------------------------------------------------------------
+    @app.post("/profile/strategy")
+    async def get_chunking_strategy(req: GetChunkingStrategyRequest) -> dict[str, Any]:
+        """Get chunking strategy for a given agent profile."""
+        result = tool.get_chunking_strategy(profile=req.profile)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/profile/set")
+    async def set_agent_profile(req: SetAgentProfileRequest) -> dict[str, Any]:
+        """Set agent profile for a buffer, affecting future chunking and search."""
+        result = tool.set_agent_profile(req.buffer_id, profile=req.profile)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/profile/chunk")
+    async def chunk_with_profile(req: ChunkWithProfileRequest) -> dict[str, Any]:
+        """Re-chunk the buffer's codebase using the specified agent profile."""
+        result = tool.chunk_with_profile(req.buffer_id, profile=req.profile)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
+    @app.post("/profile/adapt-search")
+    async def adapt_search(req: AdaptSearchRequest) -> dict[str, Any]:
+        """Enhance a search query based on agent profile context."""
+        result = tool.adapt_search(req.buffer_id, req.query, profile=req.profile)
+        if result.get("status") != "ok":
+            raise HTTPException(status_code=400, detail=result)
+        return result
+
     # ------------------------------------------------------------------
     @app.post("/call")
     async def call(req: CallRequest) -> dict[str, Any]:

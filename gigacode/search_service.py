@@ -20,6 +20,7 @@ try:
 except ImportError:
     HAS_SKLEARN = False
 
+from gigacode.constants import DEFAULT_TOP_K, SIMILARITY_THRESHOLD
 from gigacode.embedder import Embedder
 from gigacode.index_manager import IndexManager
 from gigacode.intent_cache import IntentCache
@@ -159,7 +160,7 @@ class SearchService:
         # Semantic cache for query embeddings with paraphrase detection
         self._semantic_query_cache = SemanticQueryCache(
             max_entries=500,
-            similarity_threshold=0.95,
+            similarity_threshold=SIMILARITY_THRESHOLD,
             embedder=embedder,
         )
 
@@ -174,7 +175,7 @@ class SearchService:
         self,
         buffer_id: str,
         query: str,
-        top_k: int = 5,
+        top_k: int = DEFAULT_TOP_K,
         include_types: bool = False,
         type_inference_method: str = "llm",
     ) -> SearchResponse | dict[str, Any]:
@@ -377,7 +378,7 @@ class SearchService:
         self,
         buffer_id: str,
         query: str,
-        top_k: int = 5,
+        top_k: int = DEFAULT_TOP_K,
         semantic_weight: float = 0.6,
     ) -> SearchResponse | dict[str, Any]:
         """Perform hybrid search (semantic + lexical).
@@ -666,7 +667,7 @@ class SearchService:
         self,
         buffer_id: str,
         query: str,
-        top_k: int = 5,
+        top_k: int = DEFAULT_TOP_K,
     ) -> SearchResponse | dict[str, Any]:
         """Search for functions/classes by name.
 

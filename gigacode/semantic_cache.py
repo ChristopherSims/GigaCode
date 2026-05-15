@@ -14,6 +14,8 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
+from gigacode.constants import SIMILARITY_THRESHOLD
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,7 +58,7 @@ class SemanticQueryCache:
     def __init__(
         self,
         max_entries: int = 1000,
-        similarity_threshold: float = 0.95,
+        similarity_threshold: float = SIMILARITY_THRESHOLD,
         embedder: Optional[Any] = None,
     ):
         """Initialize semantic cache.

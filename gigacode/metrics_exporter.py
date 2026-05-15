@@ -10,6 +10,8 @@ import logging
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from gigacode.constants import DEFAULT_PROMETHEUS_PORT
+
 try:
     from prometheus_client import (
         CONTENT_TYPE_LATEST,
@@ -50,7 +52,7 @@ class PrometheusMetricsExporter:
         exporter.stop()
     """
 
-    def __init__(self, port: int = 9090, addr: str = "0.0.0.0"):
+    def __init__(self, port: int = DEFAULT_PROMETHEUS_PORT, addr: str = "0.0.0.0"):
         """Initialize Prometheus metrics exporter.
 
         Args:
@@ -272,7 +274,7 @@ _exporter: PrometheusMetricsExporter | None = None
 _exporter_lock = threading.Lock()
 
 
-def get_prometheus_exporter(port: int = 9090) -> PrometheusMetricsExporter:
+def get_prometheus_exporter(port: int = DEFAULT_PROMETHEUS_PORT) -> PrometheusMetricsExporter:
     """Get or create global Prometheus metrics exporter.
 
     Args:
@@ -296,7 +298,7 @@ def get_prometheus_exporter(port: int = 9090) -> PrometheusMetricsExporter:
     return _exporter
 
 
-def configure_prometheus(port: int = 9090, start_server: bool = True) -> PrometheusMetricsExporter:
+def configure_prometheus(port: int = DEFAULT_PROMETHEUS_PORT, start_server: bool = True) -> PrometheusMetricsExporter:
     """Configure and optionally start Prometheus metrics export.
 
     Args:

@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 from gigacode.buffer_state import BufferState, BufferStateTransition
 from gigacode.chunker import CodeChunk, chunk_file, chunk_text
+from gigacode.constants import DEFAULT_THRESHOLD_MB, MAX_DIRTY_BEFORE_AUTO_REBUILD
 from gigacode.json_logger import StructuredJsonLogger
 from gigacode.size_guard import check_size
 from gigacode.snapshot_manager import SnapshotManager
@@ -32,8 +33,6 @@ from gigacode.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("buffer_manager")
-
-_MAX_DIRTY_BEFORE_AUTO_REBUILD = 3
 
 
 __all__ = [
@@ -63,7 +62,7 @@ class BufferManager:
         work_dir: Path,
         state_manager: StateManager,
         embedding_dim: int,
-        threshold_mb: float = 500.0,
+        threshold_mb: float = DEFAULT_THRESHOLD_MB,
         audit_logger: Optional["AuditLogger"] = None,
         user_id: str = "default",
     ) -> None:
@@ -1181,7 +1180,7 @@ class BufferManager:
             return {"status": "ok", "rebuilt": False}
 
         dirty_files = info.get("dirty_files", {})
-        if len(dirty_files) >= _MAX_DIRTY_BEFORE_AUTO_REBUILD:
+        if len(dirty_files) >= MAX_DIRTY_BEFORE_AUTO_REBUILD:
             if index_manager:
                 index_manager._rebuild_files(buffer_id, list(dirty_files.keys()))
                 dirty_files.clear()

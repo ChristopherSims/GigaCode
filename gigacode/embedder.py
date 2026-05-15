@@ -18,6 +18,8 @@ from typing import Any
 
 import numpy as np
 
+from gigacode.constants import DEFAULT_BATCH_SIZE
+
 logger = logging.getLogger(__name__)
 
 # Prefer code-specific models; fallback to general MiniLM
@@ -73,7 +75,7 @@ class Embedder:
     def embedding_dim(self) -> int:
         return self._embedding_dim
 
-    def encode(self, texts: list[str], batch_size: int = 64) -> np.ndarray:
+    def encode(self, texts: list[str], batch_size: int = DEFAULT_BATCH_SIZE) -> np.ndarray:
         """Embed texts and L2-normalize so dot-product == cosine similarity.
 
         Args:

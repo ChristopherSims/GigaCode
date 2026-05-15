@@ -20,6 +20,7 @@ from typing import Any
 import numpy as np
 
 from gigacode.chunker import CodeChunk
+from gigacode.constants import SIMILARITY_THRESHOLD
 from gigacode.embedder import Embedder
 from gigacode.gpu_index import GpuIndex
 from gigacode.incremental_indexer import IncrementalIndexManager
@@ -87,7 +88,7 @@ class IndexManager:
         self._query_cache = QueryCache(
             maxsize=256,
             embedder=self._embedder,
-            similarity_threshold=0.95,
+            similarity_threshold=SIMILARITY_THRESHOLD,
         )
 
         # Incremental indexing manager for efficient updates
