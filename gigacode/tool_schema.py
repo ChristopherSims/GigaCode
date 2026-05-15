@@ -592,7 +592,7 @@ LOOK_FOR_FILE_SCHEMA: dict[str, Any] = {
                 "type": "string",
                 "description": (
                     "File name, relative path, or path fragment to look for. "
-                    "Examples: 'gigacode_tool.py', 'src/gigacode_tool.py', 'gigacode'"
+                    "Examples: 'gigacode_tool.py', 'gigacode'"
                 ),
             },
         },

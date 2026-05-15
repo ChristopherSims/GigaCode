@@ -1,8 +1,3 @@
-# Known Issue<br>
-**missing tools schemas for autodetection**<br>
-I know tools are missing schemas and agents arent picking up the usage unless you specify it explicitly<br> 
-Adding tool detection now (maybe expect a release on thursday/friday 5/15)
-
 # Foreword
 Noticed AI is slow at searching/parsing code so I made this.
 AI agents searching for code snippits is blazingly fast now with this tool/skill.
@@ -25,7 +20,7 @@ After releasing this tool I have noticed that some AI Agents now include semanti
 
 GigaCode is optimized for AI agent loops—fast chunking, sub-millisecond search on GPU, and surgical index updates on edit. Designed as a local-only tool that runs on your machine with no network exposure.
 
-**Version 0.5.1** — Agent intelligence, token-saving, and unified task loops
+**Version 0.6.1** — Agent intelligence, token-saving, and unified task loops
 
 ## Key Features
 

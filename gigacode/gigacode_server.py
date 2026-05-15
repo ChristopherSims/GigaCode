@@ -4,7 +4,7 @@ Tries FastAPI + Uvicorn first for async concurrency.  Falls back to the
 stdlib HTTPServer if dependencies are missing.
 
 Usage:
-    python -m src.gigacode_server --work-dir ./buffers --port 8765
+    python -m gigacode.gigacode_server --work-dir ./buffers --port 8765
 
 Or import and embed your own codebase first:
 
