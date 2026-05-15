@@ -1,4 +1,4 @@
-"""Tests for src.size_guard."""
+"""Tests for gigacode.size_guard."""
 
 from __future__ import annotations
 

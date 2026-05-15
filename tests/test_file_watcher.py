@@ -1,4 +1,4 @@
-"""Tests for src.file_watcher."""
+"""Tests for gigacode.file_watcher."""
 
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types

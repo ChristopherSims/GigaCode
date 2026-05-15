@@ -1,4 +1,4 @@
-"""Tests for src.context_packer."""
+"""Tests for gigacode.context_packer."""
 
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types

@@ -1,4 +1,4 @@
-"""Tests for src.metadata_store."""
+"""Tests for gigacode.metadata_store."""
 
 from __future__ import annotations
 

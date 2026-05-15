@@ -1,4 +1,4 @@
-"""Tests for src.hybrid_search."""
+"""Tests for gigacode.hybrid_search."""
 
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types

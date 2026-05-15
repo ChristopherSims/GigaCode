@@ -10,8 +10,8 @@ language-aware refactoring across any supported programming language:
 - Visibility modifiers
 
 Usage:
-    python src/agent_skill.py example.py
-    python src/agent_skill.py example.js --language javascript
+    python -m gigacode.gigacode_skill example.py
+    python -m gigacode.gigacode_skill example.js --language javascript
 
 Output:
     example_gigacode_edited.py

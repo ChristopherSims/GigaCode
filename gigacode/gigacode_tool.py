@@ -4878,23 +4878,6 @@ class CodeEmbeddingTool:
                 operation="get_test_coverage",
             )
 
-    @staticmethod
-    def _is_test_file(file_path: str, language: str = "python") -> bool:
-        """Check if a file is a test file."""
-        import re
-        basename = Path(file_path).name
-        patterns = {
-            "python": [r"^test_.*\.py$", r".*_test\.py$"],
-            "javascript": [r".*\.(test|spec)\.(js|ts|jsx|tsx)$"],
-            "rust": [r".*_test\.rs$"],
-            "go": [r".*_test\.go$"],
-            "java": [r".*Test\.java$"],
-        }
-        for pattern in patterns.get(language, []):
-            if re.match(pattern, basename):
-                return True
-        return False
-
     # ------------------------------------------------------------------
     # Dependency Graph
     # ------------------------------------------------------------------

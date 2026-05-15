@@ -1,4 +1,4 @@
-"""Tests for src.diff_engine."""
+"""Tests for gigacode.diff_engine."""
 
 from __future__ import annotations
 

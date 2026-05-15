@@ -4,10 +4,10 @@ Exposes all GigaCode tools via MCP so Claude Desktop, Cursor, and other
 MCP-compatible agents can use them natively.
 
 Usage (stdio transport — for Claude Desktop):
-    python -m src.mcp_server --work-dir ./buffers
+    python -m gigacode.mcp_server --work-dir ./buffers
 
 Usage (HTTP-SSE transport):
-    python -m src.mcp_server --work-dir ./buffers --transport sse --port 8766
+    python -m gigacode.mcp_server --work-dir ./buffers --transport sse --port 8766
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Tests for src.lexical_index."""
+"""Tests for gigacode.lexical_index."""
 
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types

@@ -1,4 +1,4 @@
-"""Tests for src.duplicate_detector."""
+"""Tests for gigacode.duplicate_detector."""
 
 # CRITICAL: Initialize sklearn FIRST before any gigacode imports
 import types
