@@ -545,7 +545,7 @@ def create_app(tool: Any) -> FastAPI:
         return result
 
     # ------------------------------------------------------------------
-    # New Feature Endpoints (Phase 1)
+    # Additional Endpoints
     # ------------------------------------------------------------------
     @app.post("/search/batch")
     async def batch_search(req: BatchSearchRequest) -> dict[str, Any]:
@@ -631,7 +631,7 @@ def create_app(tool: Any) -> FastAPI:
         return result
 
     # ------------------------------------------------------------------
-    # Phase 3: Advanced Analysis
+    # Advanced Analysis
     # ------------------------------------------------------------------
     @app.post("/execution-paths")
     async def trace_execution_paths(req: TraceExecutionPathsRequest) -> dict[str, Any]:
@@ -741,7 +741,7 @@ def create_app(tool: Any) -> FastAPI:
         return result
 
     # ------------------------------------------------------------------
-    # Phase 4: Advanced Analysis & Configuration
+    # Advanced Analysis & Configuration
     # ------------------------------------------------------------------
     @app.post("/performance/hotspots")
     async def find_performance_hotspots(req: FindPerformanceHotspotsRequest) -> dict[str, Any]:

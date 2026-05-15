@@ -1,6 +1,6 @@
 """Incremental reference map with lazy on-demand construction.
 
-Three-phase strategy:
+Three-step strategy:
 1. Lazy/On-Demand: Build direct caller/callee neighborhood on first query, cache it.
 2. Incremental Update on File Changes: Invalidate affected subgraph on file changes.
 3. Background Fill: Asynchronously expand the call graph after serving first query.
@@ -45,13 +45,13 @@ class ReferenceNeighborhood:
 class ReferenceMap:
     """Incremental call graph with lazy on-demand construction.
 
-    Phase 1 (Lazy): On first query for a symbol, build only its direct
+    Step 1 (Lazy): On first query for a symbol, build only its direct
     caller/callee neighborhood from chunks. Cache results.
 
-    Phase 2 (Incremental): On file changes, invalidate only the
+    Step 2 (Incremental): On file changes, invalidate only the
     subgraph for symbols defined in or referenced by changed files.
 
-    Phase 3 (Background): After serving the initial query, mark the
+    Step 3 (Background): After serving the initial query, mark the
     neighborhood as expandable. A caller can trigger background fill
     to expand to unvisited symbols.
     """
@@ -99,7 +99,7 @@ class ReferenceMap:
     ) -> dict[str, Any]:
         """Get caller/callee references for a symbol.
 
-        Phase 1: Lazy on-demand. Builds neighborhood on first query, caches it.
+        Step 1: Lazy on-demand. Builds neighborhood on first query, caches it.
 
         Args:
             symbol: Symbol name to find references for.
@@ -119,7 +119,7 @@ class ReferenceMap:
             result_dict["cached"] = True
             return {"status": "ok", **result_dict}
 
-        # Phase 1: Build neighborhood on demand
+        # Step 1: Build neighborhood on demand
         neighborhood = self._build_neighborhood(symbol, direction, top_k)
 
         if neighborhood is None:
@@ -142,7 +142,7 @@ class ReferenceMap:
         return {"status": "ok", **result_dict}
 
     def invalidate_file(self, file: str) -> int:
-        """Phase 2: Invalidate all cached entries related to a changed file.
+        """Step 2: Invalidate all cached entries related to a changed file.
 
         Removes neighborhoods for symbols defined in the file and
         symbols that call into the file.
@@ -189,7 +189,7 @@ class ReferenceMap:
         max_depth: int = 3,
         direction: str = "both",
     ) -> dict[str, Any]:
-        """Phase 3: Background fill - expand neighborhood to deeper levels.
+        """Step 3: Background fill - expand neighborhood to deeper levels.
 
         Explores callers of callers and callees of callees up to max_depth.
         Returns the expanded neighborhood.

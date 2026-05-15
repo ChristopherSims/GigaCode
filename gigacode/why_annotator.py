@@ -1,5 +1,5 @@
 """
-Phase 9: "Why This Matters" Annotations
+"Why This Matters" Annotations
 
 Enriches search results with contextual explanations of why each result
 is relevant, reducing manual interpretation and improving decision-making.

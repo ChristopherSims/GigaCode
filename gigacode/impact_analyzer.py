@@ -1,4 +1,4 @@
-"""Dependency risk analysis on edit — Phase 4.
+"""Dependency risk analysis on edit.
 
 Before commit, analyze how many upstream callers and dependent files
 are affected by dirty changes.  Computes a risk score from call-chain

@@ -1,5 +1,5 @@
 """
-Phase 6: Diff-Aware Search
+Diff-Aware Search
 
 Smart search that focuses on modified files and their dependencies,
 avoiding irrelevant results from unrelated parts of codebase.

@@ -1,4 +1,4 @@
-"""OpenTelemetry metrics exporter with Prometheus HTTP endpoint (Phase 7).
+"""OpenTelemetry metrics exporter with Prometheus HTTP endpoint.
 
 Exposes collected metrics via HTTP endpoint in Prometheus format.
 Supports real-time metrics scraping from monitoring systems (Prometheus, Grafana).

@@ -1,4 +1,4 @@
-"""Formal JSON schemas for the GigaCode agent tool interface (Phase 6.1).
+"""Formal JSON schemas for the GigaCode agent tool interface.
 
 These schemas can be used with:
 - OpenAI function calling
@@ -1279,7 +1279,7 @@ GET_REFERENCES_SCHEMA: dict[str, Any] = {
             "top_k": {"type": "integer", "description": "Max references per direction. Default: 50.", "default": 50},
             "expand_depth": {
                 "type": ["integer", "null"],
-                "description": "If set, expand call chain to this depth (Phase 3 fill).",
+                "description": "If set, expand call chain to this depth (on-demand fill).",
             },
         },
         "required": ["buffer_id", "symbol"],

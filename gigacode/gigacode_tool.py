@@ -186,7 +186,7 @@ class CodeEmbeddingTool:
             )
 
             logger.info(
-                "Phase 4 integration: BufferManager, IndexManager, SearchService initialized"
+                "Integration: BufferManager, IndexManager, SearchService initialized"
             )
         except (ImportError, ModuleNotFoundError) as e:
             # Optional dependencies (sklearn for SearchService) may be missing
@@ -231,13 +231,13 @@ class CodeEmbeddingTool:
         # Multi-buffer orchestration manager (aliases and virtual buffers)
         self._multi_buffer_manager = MultiBufferManager(self.work_dir)
 
-        # Phase 4-10: Initialize optional enhanced capabilities
+        # Initialize optional enhanced capabilities
         try:
             self.setup_phases_4_10()
         except Exception as e:
             logger.warning(f"Phases 4-10 setup incomplete (optional): {e}")
 
-        # Phase 7: Prometheus metrics export via HTTP endpoint
+        # Prometheus metrics export via HTTP endpoint
         self._prometheus_exporter = None
         if enable_prometheus:
             try:
@@ -366,7 +366,7 @@ class CodeEmbeddingTool:
         return tool_validation.validate_search_params(query, top_k=top_k, max_results=max_results)
 
     # ------------------------------------------------------------------
-    # Unified diff helper (Feature 9: Return the Diff)
+    # Unified diff helper: Return the Diff
     # ------------------------------------------------------------------
     @staticmethod
     def _compute_unified_diff(
@@ -402,7 +402,7 @@ class CodeEmbeddingTool:
         return "".join(diff_lines)
 
     # ------------------------------------------------------------------
-    # Phase 5: Response adapters (delegated to response_adapters module)
+    # Response adapters (delegated to response_adapters module)
     # ------------------------------------------------------------------
     @staticmethod
     def _adapt_search_response(
@@ -582,7 +582,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Semantic search via embeddings.
 
-        Delegates to SearchService when available (Phase 5), otherwise uses monolithic implementation.
+        Delegates to SearchService when available, otherwise uses monolithic implementation.
 
         Args:
             buffer_id: Buffer ID to search
@@ -608,7 +608,7 @@ class CodeEmbeddingTool:
                 operation="semantic_search",
             )
 
-        # Phase 5: Delegate to SearchService
+        # Delegate to SearchService
         if self._search_service:
             try:
                 result = self._search_service.semantic_search(
@@ -916,7 +916,7 @@ class CodeEmbeddingTool:
                 "Unknown buffer_id", buffer_id=buffer_id, operation="hybrid_search"
             )
 
-        # Phase 5: Delegate to SearchService
+        # Delegate to SearchService
         if self._search_service:
             try:
                 result = self._search_service.hybrid_search(
@@ -1371,7 +1371,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Find all callers/callees for a symbol using the incremental reference map.
 
-        Uses a three-phase incremental strategy:
+        Uses a three-step incremental strategy:
         1. Lazy/On-Demand: Build only the direct neighborhood on first query.
         2. Cached: Subsequent queries return cached results instantly.
         3. Optional expansion: Set expand_depth to trace deeper call chains.
@@ -1381,7 +1381,7 @@ class CodeEmbeddingTool:
             symbol: Symbol name to find references for.
             direction: "both" (default), "calls" (callees), or "called_by" (callers).
             top_k: Maximum references per direction (default: 50).
-            expand_depth: If set, expand neighborhood to this depth (Phase 3 fill).
+            expand_depth: If set, expand neighborhood to this depth.
 
         Returns:
             Dict with symbol, file, line, callers, callees, direction, cached.
@@ -1409,7 +1409,7 @@ class CodeEmbeddingTool:
             ref_map = ReferenceMap(chunks)
             result = ref_map.get_references(symbol, direction=direction, top_k=top_k)
 
-            # Phase 3: Expand if requested
+            # Expand if requested
             if expand_depth is not None and expand_depth > 1:
                 result = ref_map.expand_neighborhood(
                     symbol, max_depth=expand_depth, direction=direction
@@ -2847,7 +2847,7 @@ class CodeEmbeddingTool:
         except ValueError as e:
             return {"status": "error", "message": f"Invalid file path: {e}"}
 
-        # Phase 2: Detect 3-way merge conflicts before allowing write
+        # Detect 3-way merge conflicts before allowing write
         snapshot_mgr = self._get_snapshot_manager(buffer_id)
         if snapshot_mgr is not None:
             # Get current buffer lines (before modification)
@@ -2920,7 +2920,7 @@ class CodeEmbeddingTool:
             },
         )
 
-        # Phase 7: Record operation metrics
+        # Record operation metrics
         elapsed = time.perf_counter() - t0
         if self._prometheus_exporter:
             self._prometheus_exporter.record_operation(
@@ -3030,9 +3030,9 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Commit buffer changes to disk with 3-way merge conflict handling and crash recovery.
 
-        Phase 3: Uses SnapshotManager for merge conflicts.
-        Phase 4: Wraps with StateManager transactions for crash recovery.
-        Phase 4b: Optional dependency-impact pre-check warns on high blast-radius.
+        Uses SnapshotManager for merge conflicts.
+        Wraps with StateManager transactions for crash recovery.
+        Optional dependency-impact pre-check warns on high blast-radius.
 
         - If both buffer and disk modified: returns "conflict" status instead of aborting
         - Rebuilds embeddings before writing
@@ -3076,7 +3076,7 @@ class CodeEmbeddingTool:
                 "transaction_id": None,
             }
 
-        # Phase 4b: Dependency risk analysis pre-check
+        # Dependency risk analysis pre-check
         impact_result: dict[str, Any] | None = None
         if check_impact and not dry_run:
             chunks = self._load_chunks(buffer_id)
@@ -3120,7 +3120,7 @@ class CodeEmbeddingTool:
                 except (ValueError, RuntimeError) as e:
                     logger.warning(f"Impact pre-check failed for commit: {e}")
 
-        # Phase 4: Begin transaction for crash recovery
+        # Begin transaction for crash recovery
         transaction_id = None
         if not dry_run:
             transaction_id = self._state_manager.start_transaction(
@@ -3137,7 +3137,7 @@ class CodeEmbeddingTool:
             if not dry_run:
                 self._rebuild_files(buffer_id, list(dirty.keys()))
 
-            # Phase 3: Use SnapshotManager for 3-way merge conflict handling
+            # Use SnapshotManager for 3-way merge conflict handling
             snapshot_mgr = self._get_snapshot_manager(buffer_id)
             if snapshot_mgr is None:
                 if transaction_id:
@@ -3237,7 +3237,7 @@ class CodeEmbeddingTool:
                     except ValueError:
                         logger.warning(f"Failed to transition buffer {buffer_id} to READY state")
 
-                # Phase 4: Commit transaction (WAL is updated)
+                # Commit transaction (WAL is updated)
                 self._state_manager.commit_transaction(transaction_id)
                 self._state_manager.save_registry()
 
@@ -3276,7 +3276,7 @@ class CodeEmbeddingTool:
                     },
                 )
 
-            # Phase 7: Record operation metrics for Prometheus
+            # Record operation metrics for Prometheus
             elapsed = time.perf_counter() - t0
             if self._prometheus_exporter:
                 self._prometheus_exporter.record_operation(
@@ -3289,7 +3289,7 @@ class CodeEmbeddingTool:
             return result
 
         except (OSError, ValueError, RuntimeError) as e:
-            # Phase 4: Rollback on any error
+            # Rollback on any error
             if transaction_id:
                 json_logger.error(
                     operation="commit",
@@ -3300,7 +3300,7 @@ class CodeEmbeddingTool:
             raise
 
     # ------------------------------------------------------------------
-    # Phase 3: Automated Test-After-Edit Feedback Loop
+    # Automated Test-After-Edit Feedback Loop
     # ------------------------------------------------------------------
     def run_impacted_tests(
         self,
@@ -3406,7 +3406,7 @@ class CodeEmbeddingTool:
         return summary.to_dict()
 
     # ------------------------------------------------------------------
-    # Phase 4: Dependency Risk Analysis on Edit
+    # Dependency Risk Analysis on Edit
     # ------------------------------------------------------------------
     def analyze_impact(
         self,
@@ -3510,7 +3510,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Analyze impact of a proposed change before editing.
 
-        Feature 4: Before editing, know what breaks. Uses the reference map
+        Before editing, know what breaks. Uses the reference map
         and impact analyzer to report direct callers, test coverage, and
         dependent symbols.
 
@@ -3611,7 +3611,7 @@ class CodeEmbeddingTool:
             )
 
     # ------------------------------------------------------------------
-    # Phase 5: Execution Sandbox
+    # Execution Sandbox
     # ------------------------------------------------------------------
     def execute_in_context(
         self,
@@ -4217,7 +4217,7 @@ class CodeEmbeddingTool:
 
         self._save_registry()
 
-        # Update health tracker (Phase 6)
+        # Update health tracker
         self._health_tracker.update_buffer_state(buffer_id, new_state)
 
         # Log state change
@@ -4367,7 +4367,7 @@ class CodeEmbeddingTool:
         return get_metrics().dump_metrics()
 
     # ------------------------------------------------------------------
-    # Phase 6: State-Based Access Control
+    # State-Based Access Control
     # ------------------------------------------------------------------
     def _check_state_for_operation(
         self, buffer_id: str, operation_type: OperationType
@@ -4479,7 +4479,7 @@ class CodeEmbeddingTool:
         return self._check_state_for_operation(buffer_id, OperationType.REBUILD)
 
     # ------------------------------------------------------------------
-    # Phase 7: RBAC, Audit Logging, and Rate Limiting
+    # RBAC, Audit Logging, and Rate Limiting
     # ------------------------------------------------------------------
 
     def set_user(self, user_id: str, role: str = "analyst") -> User:
@@ -4810,7 +4810,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Get test coverage map for the codebase.
 
-        Feature 7: Maps each source file to the test functions that cover it.
+        Maps each source file to the test functions that cover it.
         Coverage is determined by symbol reference analysis: a test file
         covers a source file's symbols if it imports or calls them.
 
@@ -4896,7 +4896,7 @@ class CodeEmbeddingTool:
         return False
 
     # ------------------------------------------------------------------
-    # Phase 5: Dependency Graph
+    # Dependency Graph
     # ------------------------------------------------------------------
     def trace_call_chain(
         self,
@@ -5004,7 +5004,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Trace all execution paths through a symbol using AST branch detection.
 
-        Feature 10: For complex logic, know all execution branches before editing.
+        For complex logic, know all execution branches before editing.
         Follows function calls through the call graph up to max_depth.
 
         Args:
@@ -5065,7 +5065,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Get dependency graph visualization data (nodes + edges).
 
-        Feature 11: Visualize relationships; understand architecture at a glance.
+        Visualize relationships; understand architecture at a glance.
         When symbol is provided, scopes the graph around that symbol using ReferenceMap.
         When symbol is None, returns the full dependency graph.
 
@@ -5188,7 +5188,7 @@ class CodeEmbeddingTool:
             )
 
     # ------------------------------------------------------------------
-    # Phase 6: Dead Code Detection
+    # Dead Code Detection
     # ------------------------------------------------------------------
     def find_dead_code(
         self,
@@ -5221,7 +5221,7 @@ class CodeEmbeddingTool:
             )
 
     # ------------------------------------------------------------------
-    # Phase 7: TODO/FIXME Tracker
+    # TODO/FIXME Tracker
     # ------------------------------------------------------------------
     def extract_todos(
         self,
@@ -5249,7 +5249,7 @@ class CodeEmbeddingTool:
             return self._make_error_response(str(e), buffer_id=buffer_id, operation="extract_todos")
 
     # ------------------------------------------------------------------
-    # Phase 8: Code Quality Scoring
+    # Code Quality Scoring
     # ------------------------------------------------------------------
     def score_code_quality(
         self,
@@ -5288,7 +5288,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Detect code smells across the buffer with severity filtering.
 
-        Feature 13: Automatically flag refactoring opportunities.
+        Automatically flag refactoring opportunities.
         Detects: long functions, deep nesting, missing docstrings, complex logic, too many parameters.
 
         Args:
@@ -5436,7 +5436,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Scan for security vulnerabilities using pattern-based detection.
 
-        Feature 15: Catch security issues before they reach production.
+        Catch security issues before they reach production.
         Detects: eval/exec usage, shell injection, SQL injection, hardcoded secrets,
         unsafe pickle/yaml, broad except, wildcard imports.
 
@@ -5527,7 +5527,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Suggest safe refactorings for a symbol with risk assessment.
 
-        Feature 21: AI suggests safe refactorings before you make changes.
+        AI suggests safe refactorings before you make changes.
         Analyzes: extract method opportunities, branch simplification, duplicate calls,
         missing type hints, deep nesting guard clauses.
 
@@ -5647,7 +5647,7 @@ class CodeEmbeddingTool:
         return {"status": "ok", "symbol": symbol, "suggestions": suggestions}
 
     # ------------------------------------------------------------------
-    # Phase 4: Remaining Advanced Features
+    # Remaining Advanced Features
     # ------------------------------------------------------------------
     def find_performance_hotspots(
         self,
@@ -5655,7 +5655,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Detect performance hotspots: N+1 queries, inefficient loops, unbounded growth, resource leaks.
 
-        Feature 14: Identify performance-critical code for optimization.
+        Identify performance-critical code for optimization.
         Uses regex pattern matching to detect common anti-patterns and nested loops.
 
         Args:
@@ -5745,7 +5745,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Auto-generate documentation from code analysis.
 
-        Feature 16: Generate accurate docstrings from AST + type info.
+        Generate accurate docstrings from AST + type info.
         Parses function signatures, extracts type hints, and finds usage examples in test files.
         Supports Google, NumPy, and Sphinx docstring styles.
 
@@ -5883,7 +5883,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Find similar code patterns using semantic + syntactic matching.
 
-        Feature 18: Find duplicate logic for consolidation.
+        Find duplicate logic for consolidation.
         Combines MinHash/LSH syntactic matching with semantic embedding search.
 
         Args:
@@ -5937,7 +5937,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Detect usage of deprecated functions and APIs.
 
-        Feature 20: Identify code that uses outdated APIs.
+        Identify code that uses outdated APIs.
         Searches for @deprecated decorators, DeprecationWarning usage,
         deprecated comments, and warnings.warn("deprecated...") patterns.
 
@@ -6005,7 +6005,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Validate changes before committing with static analysis + import resolution.
 
-        Feature 22: Pre-commit validation without running full test suite.
+        Pre-commit validation without running full test suite.
         Checks: Python syntax errors, import resolution, test impact prediction.
 
         Args:
@@ -6103,7 +6103,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Extract configuration: environment variables, config files, hardcoded secrets, defaults.
 
-        Feature 27: Understand what needs to be configured; detect hardcoded secrets.
+        Understand what needs to be configured; detect hardcoded secrets.
         Parses os.environ.get(), os.getenv(), config file references, and secret patterns.
 
         Args:
@@ -6198,7 +6198,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Analyze logging patterns: levels, consistency, gaps.
 
-        Feature 29: Ensure consistent logging for debugging/monitoring.
+        Ensure consistent logging for debugging/monitoring.
         Counts log levels, detects try/except blocks without logging, and finds format inconsistencies.
 
         Args:
@@ -6280,7 +6280,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Analyze error handling patterns: broad catches, missing finally, silent failures.
 
-        Feature 30: Ensure robust error handling; prevent silent failures.
+        Ensure robust error handling; prevent silent failures.
         Detects bare except, broad Exception catches, missing finally for resources, and silent pass statements.
 
         Args:
@@ -6367,7 +6367,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Generate changelog from git history with semantic categorization.
 
-        Feature 26: Auto-generate release notes from code changes.
+        Auto-generate release notes from code changes.
         Parses git log and categorizes commits into features, bugfixes, and breaking changes.
 
         Args:
@@ -6440,7 +6440,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Detect API-breaking changes between commits.
 
-        Feature 25: Detect breaking changes that would affect consumers.
+        Detect breaking changes that would affect consumers.
         Compares current API surface (public symbols + signatures) against a previous commit.
 
         Args:
@@ -6526,7 +6526,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Get rollback information for a file using git history.
 
-        Feature 23: Understand what changed and why—helps with debugging regressions.
+        Understand what changed and why—helps with debugging regressions.
         Returns the last commit that touched the file and a diff to revert.
 
         Args:
@@ -6588,7 +6588,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Generate a change plan template for a natural language request.
 
-        Feature 24: AI creates a plan before making changes.
+        AI creates a plan before making changes.
         Uses semantic search to find relevant files, then impact analysis for risk assessment.
 
         Args:
@@ -6657,7 +6657,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Map all API endpoints from FastAPI and Flask decorators.
 
-        Feature 32: Know all exposed endpoints; find security issues.
+        Know all exposed endpoints; find security issues.
         Parses @app.get/post/put/delete/patch decorators and Flask @app.route patterns.
 
         Args:
@@ -6739,7 +6739,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Analyze cache usage patterns: invalidation logic, stale data risks.
 
-        Feature 33: Prevent stale cache bugs.
+        Prevent stale cache bugs.
         Detects cache libraries, invalidation triggers, and cache writes without matching invalidation.
 
         Args:
@@ -6807,7 +6807,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Analyze thread safety: shared mutable state, race conditions, deadlock risks.
 
-        Feature 34: Catch concurrency bugs early.
+        Catch concurrency bugs early.
         Detects unprotected shared state, non-atomic mutations, and multiple-lock patterns.
 
         Args:
@@ -6886,7 +6886,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Detect memory issues: circular references, unbounded collections, resource leaks.
 
-        Feature 35: Identify memory issues in long-running processes.
+        Identify memory issues in long-running processes.
         Detects: self-referential patterns, loops with append but no size limit,
         open() calls without with/context or .close().
 
@@ -6961,7 +6961,7 @@ class CodeEmbeddingTool:
         }
 
     # ------------------------------------------------------------------
-    # Phase 9: Progress Streaming (helper)
+    # Progress Streaming (helper)
     # ------------------------------------------------------------------
     def _create_progress_reporter(
         self,
@@ -6971,7 +6971,7 @@ class CodeEmbeddingTool:
         return ProgressReporter(phases)
 
     # ------------------------------------------------------------------
-    # Phase 10: Multi-turn Conversation Memory
+    # Multi-turn Conversation Memory
     # ------------------------------------------------------------------
     def remember(
         self,
@@ -7152,7 +7152,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Format, lint, and validate before committing.
 
-        Feature 43: Workflow: Write -> Format -> Lint -> Commit readiness check.
+        Workflow: Write -> Format -> Lint -> Commit readiness check.
         Delegates to auto_polish + adds commit-readiness warnings.
 
         Args:
@@ -7254,7 +7254,7 @@ class CodeEmbeddingTool:
         self.close()
 
     # ------------------------------------------------------------------
-    # Async variants (Phase 1)
+    # Async variants
     # ------------------------------------------------------------------
     async def semantic_search_async(
         self,
@@ -7400,7 +7400,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Deep lint analysis with detailed aggregation by file/severity/rule. Report-only, no auto-fix.
 
-        Feature 39: Organize lint results for full-buffer analysis.
+        Organize lint results for full-buffer analysis.
         Delegates to auto_lint with auto_fix=False, then reorganizes results.
 
         Args:
@@ -7471,7 +7471,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Deep format analysis with detailed change tracking across codebase.
 
-        Feature 40: Understand exactly what changed across the codebase.
+        Understand exactly what changed across the codebase.
         Delegates to auto_format, then enriches with aggregate statistics.
 
         Args:
@@ -7535,7 +7535,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Lint using project configuration (ruff.toml, pyproject.toml, .flake8).
 
-        Feature 41: Config-aware linting respects project-specific rules.
+        Config-aware linting respects project-specific rules.
         Auto-discovers config files in the work directory if not specified.
 
         Args:
@@ -7589,7 +7589,7 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any]:
         """Format using project configuration (pyproject.toml, .black, ruff.toml).
 
-        Feature 42: Config-aware formatting respects project-specific style.
+        Config-aware formatting respects project-specific style.
         Auto-discovers config files in the work directory if not specified.
 
         Args:

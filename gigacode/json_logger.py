@@ -1,4 +1,4 @@
-"""Structured JSON logging for GigaCode (Phase 6.3).
+"""Structured JSON logging for GigaCode.
 
 Provides JSON-formatted logging with consistent structure across all operations.
 Each log entry includes: timestamp, level, operation, buffer_id, elapsed_time, and details.

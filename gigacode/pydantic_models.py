@@ -1,6 +1,6 @@
 """Pydantic request/response models for GigaCode API.
 
-Full typed models for Phase 2 request/response validation.
+Full typed models for request/response validation.
 Complements the existing tool_schema.py JSON schemas with
 Pydantic models that can be used for FastAPI dependency injection,
 OpenAPI schema generation, and runtime validation.

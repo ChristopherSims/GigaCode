@@ -1,5 +1,5 @@
 """
-Phase 4: Intent-Based Action Router
+Intent-Based Action Router
 
 Analyzes user intent and recommends optimal sequence of actions
 to minimize token usage and iterations.

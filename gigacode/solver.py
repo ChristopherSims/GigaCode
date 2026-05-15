@@ -1,5 +1,5 @@
 """
-Phase 5: solve() Unified Loop
+solve() Unified Loop
 
 Automated unified loop for agent-driven code task completion.
 Orchestrates search, read, plan, edit, test, and commit operations

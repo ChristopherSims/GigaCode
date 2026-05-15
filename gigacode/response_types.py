@@ -51,7 +51,7 @@ class SearchMatch:
     semantic_rank: Optional[int] = None
     lexical_rank: Optional[int] = None
     rrf_score: Optional[float] = None
-    # Type inference fields (Feature 3: Type Info in Search Results)
+    # Type inference fields
     signature: Optional[str] = None
     parameter_types: Optional[list[dict[str, str]]] = None
     return_type: Optional[str] = None

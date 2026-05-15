@@ -52,7 +52,7 @@ class SearchMatch:
     name: str | None
     score: float
     text: str | None = None
-    # Type inference fields (Feature 3)
+    # Type inference fields
     signature: str | None = None
     parameter_types: list[dict[str, str]] | None = None
     return_type: str | None = None
@@ -970,7 +970,7 @@ class SearchService:
             }
 
     # =========================================================================
-    # Streaming Search (Phase 2: Incremental Result Disclosure)
+    # Streaming Search: Incremental Result Disclosure
     # =========================================================================
 
     def semantic_search_streaming(
@@ -982,9 +982,9 @@ class SearchService:
     ) -> dict[str, Any]:
         """Perform semantic search with progressive result disclosure.
 
-        Phase 1 (signatures): Return just function/class signatures.
-        Phase 2 (details): Expand to signatures + docstrings + first 5 lines.
-        Phase 3 (full): Expand to complete chunk text.
+        Step 1 (signatures): Return just function/class signatures.
+        Step 2 (details): Expand to signatures + docstrings + first 5 lines.
+        Step 3 (full): Expand to complete chunk text.
 
         This saves tokens by only returning the level of detail needed.
 

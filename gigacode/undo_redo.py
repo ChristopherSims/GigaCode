@@ -1,5 +1,5 @@
 """
-Phase 10: Undo Stack with Branching
+Undo Stack with Branching
 
 Provides surgical undo/redo with git-like branching for experimental work.
 Users can try different approaches and switch between them without full rollback.

@@ -147,8 +147,8 @@ def trace_execution_paths(
 ) -> list[ExecutionPath]:
     """Trace all execution paths through a symbol.
 
-    Phase 1: Extract branches and calls from the symbol's chunk.
-    Phase 2: Follow each call to its definition and repeat up to max_depth.
+    Step 1: Extract branches and calls from the symbol's chunk.
+    Step 2: Follow each call to its definition and repeat up to max_depth.
 
     Args:
         chunks: List of CodeChunk objects.

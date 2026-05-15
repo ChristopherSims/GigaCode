@@ -1,4 +1,4 @@
-"""Runtime schema generation from CodeEmbeddingTool introspection (Phase 6.1).
+"""Runtime schema generation from CodeEmbeddingTool introspection.
 
 Automatically generates JSON schemas from function signatures and docstrings.
 Used to detect schema drift and validate that tool_schema.py matches implementation.
