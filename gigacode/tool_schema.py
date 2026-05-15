@@ -70,8 +70,12 @@ __all__ = [
     "LINT_WITH_CONFIG_SCHEMA",
     "FORMAT_WITH_CONFIG_SCHEMA",
     "ALL_SCHEMAS",
+    "TOOL_CATEGORIES",
     "get_schema",
     "get_all_schemas",
+    "get_schemas_by_category",
+    "get_read_only_tools",
+    "get_write_tools",
     "to_openai_functions",
     "to_mcp_tools",
 ]
@@ -2561,6 +2565,274 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
     FORMAT_WITH_CONFIG_SCHEMA,
 ]
 
+# ---------------------------------------------------------------------------
+# AI Discoverability Enrichment (auto-applied at import time)
+# ---------------------------------------------------------------------------
+
+# 1. Category + Tags — tool categorization for AI filtering
+_SCHEMA_CATEGORIES: dict[str, dict[str, Any]] = {
+    "embed_codebase":            {"category": "indexing",    "tags": ["write", "slow", "setup"]},
+    "semantic_search":           {"category": "search",      "tags": ["read-only", "fast"]},
+    "hybrid_search":             {"category": "search",      "tags": ["read-only", "fast"]},
+    "search_for":                {"category": "search",      "tags": ["read-only", "fast"]},
+    "search_symbols":            {"category": "search",      "tags": ["read-only", "fast"]},
+    "cluster_code":              {"category": "search",      "tags": ["read-only", "slow"]},
+    "find_duplicates":           {"category": "search",      "tags": ["read-only", "slow"]},
+    "pack_context":              {"category": "search",      "tags": ["read-only", "fast"]},
+    "reload_codebase":           {"category": "indexing",    "tags": ["write", "slow"]},
+    "check_codebase":            {"category": "indexing",    "tags": ["read-only", "fast"]},
+    "list_buffers":              {"category": "indexing",    "tags": ["read-only", "fast"]},
+    "delete_buffer":             {"category": "indexing",    "tags": ["write", "destructive"]},
+    "read_code":                 {"category": "navigation",  "tags": ["read-only", "fast"]},
+    "look_for_file":             {"category": "navigation",  "tags": ["read-only", "fast"]},
+    "write_code":                {"category": "editing",     "tags": ["write", "mutating", "slow"]},
+    "diff":                      {"category": "editing",     "tags": ["read-only", "fast"]},
+    "discard":                   {"category": "editing",     "tags": ["write", "destructive"]},
+    "commit":                    {"category": "editing",     "tags": ["write", "mutating", "slow"]},
+    "infer_types":               {"category": "analysis",    "tags": ["read-only", "medium"]},
+    "get_symbol_metadata":       {"category": "navigation",  "tags": ["read-only", "fast"]},
+    "search_batch":              {"category": "search",      "tags": ["read-only", "slow"]},
+    "auto_format":               {"category": "quality",     "tags": ["write", "mutating", "medium"]},
+    "auto_lint":                 {"category": "quality",     "tags": ["read-only", "medium"]},
+    "auto_polish":               {"category": "quality",     "tags": ["write", "mutating", "medium"]},
+    "get_references":            {"category": "navigation",  "tags": ["read-only", "fast"]},
+    "get_full_context":          {"category": "navigation",  "tags": ["read-only", "medium"]},
+    "analyze_change":            {"category": "safety",      "tags": ["read-only", "medium"]},
+    "get_test_coverage":         {"category": "navigation",  "tags": ["read-only", "medium"]},
+    "polish_before_commit":      {"category": "quality",     "tags": ["write", "mutating", "medium"]},
+    "trace_execution_paths":     {"category": "analysis",    "tags": ["read-only", "medium"]},
+    "get_dependency_graph":      {"category": "analysis",    "tags": ["read-only", "medium"]},
+    "detect_code_smells":        {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "scan_security":             {"category": "security",    "tags": ["read-only", "fast"]},
+    "suggest_refactorings":      {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "lint_buffer":               {"category": "quality",     "tags": ["read-only", "medium"]},
+    "format_buffer":             {"category": "quality",     "tags": ["read-only", "medium"]},
+    "find_performance_hotspots": {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "generate_documentation":    {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "find_similar_patterns":     {"category": "search",      "tags": ["read-only", "medium"]},
+    "find_deprecated":           {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "validate_changes":          {"category": "safety",      "tags": ["read-only", "medium"]},
+    "extract_configuration":     {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "analyze_logging_patterns":  {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "analyze_error_handling_patterns": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "generate_changelog":        {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "detect_api_changes":        {"category": "safety",      "tags": ["read-only", "fast"]},
+    "get_rollback_info":         {"category": "safety",      "tags": ["read-only", "fast"]},
+    "generate_change_template":  {"category": "safety",      "tags": ["read-only", "medium"]},
+    "map_api_endpoints":         {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "analyze_cache_patterns":    {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "analyze_thread_safety":     {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "detect_memory_issues":      {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "lint_with_config":          {"category": "quality",     "tags": ["read-only", "medium"]},
+    "format_with_config":        {"category": "quality",     "tags": ["write", "mutating", "medium"]},
+}
+
+# 2. Read-only + Side-effects — safety annotations
+_SCHEMA_SIDE_EFFECTS: dict[str, dict[str, Any]] = {
+    "embed_codebase":            {"read_only": False, "side_effects": "Creates a new buffer with embedded code; allocates GPU/CPU memory for embeddings index."},
+    "semantic_search":           {"read_only": True,  "side_effects": None},
+    "hybrid_search":             {"read_only": True,  "side_effects": None},
+    "search_for":                {"read_only": True,  "side_effects": None},
+    "search_symbols":            {"read_only": True,  "side_effects": None},
+    "cluster_code":              {"read_only": True,  "side_effects": None},
+    "find_duplicates":           {"read_only": True,  "side_effects": None},
+    "pack_context":              {"read_only": True,  "side_effects": None},
+    "reload_codebase":           {"read_only": False, "side_effects": "Re-embeds changed files; updates embeddings index in-place."},
+    "check_codebase":            {"read_only": True,  "side_effects": None},
+    "list_buffers":              {"read_only": True,  "side_effects": None},
+    "delete_buffer":             {"read_only": False, "side_effects": "Permanently deletes the buffer and its embeddings from disk. Cannot be undone."},
+    "read_code":                 {"read_only": True,  "side_effects": None},
+    "look_for_file":             {"read_only": True,  "side_effects": None},
+    "write_code":                {"read_only": False, "side_effects": "Modifies the in-buffer source snapshot. Changes are not written to disk until commit()."},
+    "diff":                      {"read_only": True,  "side_effects": None},
+    "discard":                   {"read_only": False, "side_effects": "Discards in-buffer changes, reverting to the last committed state."},
+    "commit":                    {"read_only": False, "side_effects": "Writes all in-buffer changes to disk files. Irreversible — use dry_run=True first."},
+    "infer_types":               {"read_only": True,  "side_effects": None},
+    "get_symbol_metadata":       {"read_only": True,  "side_effects": None},
+    "search_batch":              {"read_only": True,  "side_effects": None},
+    "auto_format":               {"read_only": False, "side_effects": "Reformats source files on disk when dry_run=False. Use dry_run=True to preview."},
+    "auto_lint":                 {"read_only": True,  "side_effects": "Report-only by default. auto_fix=True will modify source files on disk."},
+    "auto_polish":               {"read_only": False, "side_effects": "Formats and lints files on disk when dry_run=False. Use dry_run=True to preview."},
+    "get_references":            {"read_only": True,  "side_effects": None},
+    "get_full_context":          {"read_only": True,  "side_effects": None},
+    "analyze_change":            {"read_only": True,  "side_effects": None},
+    "get_test_coverage":         {"read_only": True,  "side_effects": None},
+    "polish_before_commit":      {"read_only": False, "side_effects": "Formats and lints files when check_only=False. Use check_only=True for preview."},
+    "trace_execution_paths":     {"read_only": True,  "side_effects": None},
+    "get_dependency_graph":      {"read_only": True,  "side_effects": None},
+    "detect_code_smells":        {"read_only": True,  "side_effects": None},
+    "scan_security":             {"read_only": True,  "side_effects": None},
+    "suggest_refactorings":      {"read_only": True,  "side_effects": None},
+    "lint_buffer":               {"read_only": True,  "side_effects": None},
+    "format_buffer":             {"read_only": True,  "side_effects": None},
+    "find_performance_hotspots": {"read_only": True,  "side_effects": None},
+    "generate_documentation":    {"read_only": True,  "side_effects": None},
+    "find_similar_patterns":     {"read_only": True,  "side_effects": None},
+    "find_deprecated":           {"read_only": True,  "side_effects": None},
+    "validate_changes":          {"read_only": True,  "side_effects": None},
+    "extract_configuration":     {"read_only": True,  "side_effects": None},
+    "analyze_logging_patterns":  {"read_only": True,  "side_effects": None},
+    "analyze_error_handling_patterns": {"read_only": True, "side_effects": None},
+    "generate_changelog":        {"read_only": True,  "side_effects": None},
+    "detect_api_changes":        {"read_only": True,  "side_effects": None},
+    "get_rollback_info":         {"read_only": True,  "side_effects": None},
+    "generate_change_template":  {"read_only": True,  "side_effects": None},
+    "map_api_endpoints":         {"read_only": True,  "side_effects": None},
+    "analyze_cache_patterns":    {"read_only": True,  "side_effects": None},
+    "analyze_thread_safety":     {"read_only": True,  "side_effects": None},
+    "detect_memory_issues":      {"read_only": True,  "side_effects": None},
+    "lint_with_config":          {"read_only": True,  "side_effects": "Report-only by default. auto_fix=True will modify source files on disk."},
+    "format_with_config":        {"read_only": False, "side_effects": "Reformats source files when dry_run=False. Use dry_run=True to preview."},
+}
+
+# 3. Shared error schema — documents the error/conflict response shape
+_SHARED_ERROR_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "description": "Error response returned when status is 'error' or 'conflict'.",
+    "properties": {
+        "status": {"type": "string", "enum": ["error", "conflict"], "description": "Error or conflict status."},
+        "message": {"type": "string", "description": "Human-readable error description."},
+        "operation": {"type": "string", "description": "The tool operation that failed."},
+        "buffer_id": {"type": "string", "description": "Buffer handle, if applicable."},
+    },
+    "required": ["status", "message"],
+}
+
+# 4. Composition hints — which tools delegate to or compose other tools
+_SCHEMA_COMPOSITION: dict[str, dict[str, Any]] = {
+    "search_batch":             {"delegates_to": ["semantic_search"]},
+    "auto_polish":              {"composed_of": ["auto_format", "auto_lint"]},
+    "polish_before_commit":     {"composed_of": ["auto_polish", "get_test_coverage", "analyze_change"]},
+    "get_full_context":         {"composed_of": ["get_references", "get_symbol_metadata", "get_test_coverage", "infer_types"]},
+    "lint_buffer":              {"delegates_to": ["auto_lint"]},
+    "format_buffer":            {"delegates_to": ["auto_format"]},
+    "lint_with_config":         {"delegates_to": ["auto_lint"]},
+    "format_with_config":       {"delegates_to": ["auto_format"]},
+    "get_dependency_graph":     {"delegates_to": ["get_references"]},
+    "generate_change_template": {"composed_of": ["semantic_search", "analyze_change"]},
+}
+
+# 5. Examples — JSON Schema examples keyword for few-shot prompting
+_SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
+    "embed_codebase":            {"input": {"path": "./src", "pattern": "*.py"}, "output": {"status": "ok", "buffer_id": "gcbuff-abc123", "token_count": 4500}},
+    "semantic_search":           {"input": {"buffer_id": "gcbuff-abc123", "query": "authentication middleware", "top_k": 5}, "output": {"status": "ok", "results": [{"file": "src/auth.py", "start_line": 10, "score": 0.92}]}},
+    "hybrid_search":             {"input": {"buffer_id": "gcbuff-abc123", "query": "payment processing", "top_k": 5}, "output": {"status": "ok", "results": [{"file": "src/pay.py", "start_line": 1, "score": 0.88}]}},
+    "search_for":                {"input": {"buffer_id": "gcbuff-abc123", "literal": "def authenticate"}, "output": {"status": "ok", "results": [{"file": "src/auth.py", "start_line": 15}]}},
+    "search_symbols":            {"input": {"buffer_id": "gcbuff-abc123", "name": "authenticate"}, "output": {"status": "ok", "results": [{"file": "src/auth.py", "name": "authenticate", "type": "function"}]}},
+    "cluster_code":              {"input": {"buffer_id": "gcbuff-abc123", "n_clusters": 5}, "output": {"status": "ok", "clusters": [{"label": "authentication", "files": ["src/auth.py"]}]}},
+    "find_duplicates":           {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "duplicates": [{"files": ["src/a.py", "src/b.py"], "similarity": 0.92}]}},
+    "pack_context":              {"input": {"buffer_id": "gcbuff-abc123", "query": "database connection", "max_tokens": 4000}, "output": {"status": "ok", "packed_lines": 120, "truncated": False}},
+    "reload_codebase":           {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "re_embedded_files": 3}},
+    "check_codebase":            {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "dirty_files": ["src/auth.py"]}},
+    "list_buffers":              {"input": {}, "output": {"status": "ok", "buffers": [{"buffer_id": "gcbuff-abc123", "files": 12}]}},
+    "delete_buffer":             {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok"}},
+    "read_code":                 {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"}, "output": {"status": "ok", "lines": ["def authenticate(user, pwd):", "    ..."], "start_line": 1}},
+    "look_for_file":             {"input": {"buffer_id": "gcbuff-abc123", "glob": "**/auth*.py"}, "output": {"status": "ok", "files": ["src/auth.py", "tests/test_auth.py"]}},
+    "write_code":                {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py", "start_line": 1, "new_lines": ["def authenticate(token):", "    ..."]}, "output": {"status": "ok", "changed_lines": 2, "diff": "--- a/src/auth.py\n+++ b/src/auth.py\n@@ -1,2 +1,2 @@"}},
+    "diff":                      {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "changed_files": [{"file": "src/auth.py", "dirty": True}]}},
+    "discard":                   {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"}, "output": {"status": "ok"}},
+    "commit":                    {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "dry_run": True, "written_files": ["src/auth.py"]}},
+    "infer_types":               {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py", "start_line": 1, "end_line": 20, "method": "llm"}, "output": {"status": "ok", "variables": {"user": {"type": "str", "confidence": 0.95}}, "return_type": "bool"}},
+    "get_symbol_metadata":       {"input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate"}, "output": {"status": "ok", "file": "src/auth.py", "line": 10, "cyclomatic_complexity": 4, "called_by_count": 8}},
+    "search_batch":              {"input": {"buffer_id": "gcbuff-abc123", "queries": ["auth middleware", "database query"]}, "output": {"status": "ok", "results": {"auth middleware": [{"file": "src/auth.py", "score": 0.9}]}}},
+    "auto_format":               {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "formatted_files": 2, "already_formatted": 10}},
+    "auto_lint":                 {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "issues": [{"file": "src/auth.py", "code": "E501", "message": "line too long"}]}},
+    "auto_polish":               {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "formatting": {"formatted_files": 2}, "linting": {"issues": 3}}},
+    "get_references":            {"input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate", "direction": "both"}, "output": {"status": "ok", "callers": [{"symbol": "login", "file": "src/api.py"}], "callees": [{"symbol": "verify_token", "file": "src/auth.py"}]}},
+    "get_full_context":          {"input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate"}, "output": {"status": "ok", "definition": {"file": "src/auth.py", "lines": 20}, "callers": 8, "tests": ["test_auth"]}},
+    "analyze_change":            {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py", "start_line": 10, "end_line": 20}, "output": {"status": "ok", "risk_level": "medium", "affected_symbols": ["authenticate"], "direct_callers": 5}},
+    "get_test_coverage":         {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "coverage": {"src/auth.py": {"(10, 25)": ["test_auth"]}}}},
+    "polish_before_commit":      {"input": {"buffer_id": "gcbuff-abc123", "check_only": True}, "output": {"status": "ok", "ready_to_commit": True, "pre_commit_warnings": []}},
+    "trace_execution_paths":     {"input": {"buffer_id": "gcbuff-abc123", "symbol": "handle_request", "max_depth": 3}, "output": {"status": "ok", "paths": [{"path": ["handle_request -> validate -> check_auth"], "branches": 3, "calls": ["validate", "check_auth"]}]}},
+    "get_dependency_graph":      {"input": {"buffer_id": "gcbuff-abc123", "symbol": "process_payment", "depth": 2}, "output": {"status": "ok", "nodes": [{"id": "process_payment", "label": "process_payment", "type": "function", "file": "src/pay.py"}], "edges": [{"from": "process_payment", "to": "validate_card", "type": "calls"}]}},
+    "detect_code_smells":        {"input": {"buffer_id": "gcbuff-abc123", "types": ["long_function", "deep_nesting"]}, "output": {"status": "ok", "smells": [{"file": "src/auth.py", "line": 42, "type": "long_function", "severity": "medium", "suggestion": "Consider extracting methods."}]}},
+    "scan_security":             {"input": {"buffer_id": "gcbuff-abc123", "severity_min": "high"}, "output": {"status": "ok", "vulnerabilities": [{"file": "src/db.py", "line": 42, "type": "sql_injection", "severity": "high", "fix_suggestion": "Use parameterized queries"}]}},
+    "suggest_refactorings":      {"input": {"buffer_id": "gcbuff-abc123", "symbol": "process_payment"}, "output": {"status": "ok", "suggestions": [{"type": "extract_method", "lines": "10-60", "benefit": "Reduce complexity", "risk": "medium"}]}},
+    "lint_buffer":               {"input": {"buffer_id": "gcbuff-abc123", "group_by": "severity"}, "output": {"status": "ok", "total_issues": 17, "by_severity": {"error": 5, "warning": 12, "info": 3}}},
+    "format_buffer":             {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "formatted_files": 3, "total_lines_added": 12, "total_lines_removed": 8}},
+    "find_performance_hotspots": {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "hotspots": [{"file": "src/db.py", "line": 42, "type": "n_plus_one", "severity": "high", "suggestion": "Use select_related"}]}},
+    "generate_documentation":    {"input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate", "style": "google"}, "output": {"status": "ok", "docstring": '"""authenticate documentation."""', "type_hints": {"user": "str"}, "examples": []}},
+    "find_similar_patterns":     {"input": {"buffer_id": "gcbuff-abc123", "code_snippet": "def validate(x):\\n    return x is not None"}, "output": {"status": "ok", "semantic_matches": [{"file": "src/validators.py", "line": 15, "score": 0.89}]}},
+    "find_deprecated":           {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "deprecated": [{"file": "src/api.py", "line": 42, "detection_method": "decorator", "symbol": "old_endpoint"}]}},
+    "validate_changes":          {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "type_errors": [], "broken_imports": [], "safe_to_commit": True}},
+    "extract_configuration":     {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "env_vars": [{"name": "DATABASE_URL", "used_in": "src/db.py:5", "required": True, "default": None}], "hardcoded_secrets": []}},
+    "analyze_logging_patterns":  {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "total_logs": 142, "levels": {"debug": 30, "info": 80, "warning": 25, "error": 7, "critical": 0}}},
+    "analyze_error_handling_patterns": {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "try_except_blocks": 42, "broad_catches": [{"file": "src/db.py", "line": 42, "catches": "Exception"}]}},
+    "generate_changelog":        {"input": {"buffer_id": "gcbuff-abc123", "since_commit": "v1.0.0"}, "output": {"status": "ok", "features": [{"commit": "abc1234", "message": "feat: add retry logic"}], "bugfixes": []}},
+    "detect_api_changes":        {"input": {"buffer_id": "gcbuff-abc123", "since_commit": "v1.0.0"}, "output": {"status": "ok", "current_api_surface": 25, "changes": [{"symbol": "process_payment", "breaking": True}]}},
+    "get_rollback_info":         {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"}, "output": {"status": "ok", "last_working_commit": "abc1234", "commit_message": "feat: add MFA support"}},
+    "generate_change_template":  {"input": {"buffer_id": "gcbuff-abc123", "request": "add retry logic to database calls"}, "output": {"status": "ok", "files_to_modify": ["src/db.py"], "risk_assessment": "medium"}},
+    "map_api_endpoints":         {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "endpoints": [{"method": "POST", "path": "/api/v1/payment", "handler": "process_payment", "is_async": True}]}},
+    "analyze_cache_patterns":    {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "caches_used": ["redis", "lru_cache"], "stale_data_risks": []}},
+    "analyze_thread_safety":     {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "shared_state": [{"name": "global_cache", "protected_by": "none"}], "race_conditions": []}},
+    "detect_memory_issues":      {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "unbounded_collections": [{"file": "src/collector.py", "line": 15, "growth_reason": "append in loop"}]}},
+    "lint_with_config":          {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "config_file": "pyproject.toml", "issues": []}},
+    "format_with_config":        {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "config_file": "pyproject.toml", "formatted_files": 2}},
+}
+
+
+def _enrich_all_schemas() -> None:
+    """Apply AI discoverability metadata to all schemas at import time.
+
+    Adds: category, tags, read_only, side_effects, error_schema,
+    delegates_to/composed_of (for wrappers), and input/output examples.
+    """
+    for schema in ALL_SCHEMAS:
+        name = schema["name"]
+
+        # 1. Category + Tags
+        cat = _SCHEMA_CATEGORIES.get(name, {"category": "uncategorized", "tags": []})
+        schema["category"] = cat["category"]
+        schema["tags"] = cat["tags"]
+
+        # 2. Read-only + Side-effects
+        se = _SCHEMA_SIDE_EFFECTS.get(name, {"read_only": True, "side_effects": None})
+        schema["read_only"] = se["read_only"]
+        schema["side_effects"] = se["side_effects"]
+
+        # 3. Error schema
+        schema["error_schema"] = _SHARED_ERROR_SCHEMA
+
+        # 4. Composition hints (only for wrapper tools)
+        comp = _SCHEMA_COMPOSITION.get(name)
+        if comp:
+            schema.update(comp)
+
+        # 5. Examples (JSON Schema examples keyword)
+        ex = _SCHEMA_EXAMPLES.get(name)
+        if ex:
+            if "input_schema" in schema:
+                schema["input_schema"]["examples"] = [ex["input"]]
+            if "output_schema" in schema:
+                schema["output_schema"]["examples"] = [ex["output"]]
+
+
+# Apply enrichment on import
+_enrich_all_schemas()
+
+# ---------------------------------------------------------------------------
+# Access helpers
+# ---------------------------------------------------------------------------
+
+# Categories for filtering
+TOOL_CATEGORIES = sorted(set(s["category"] for s in ALL_SCHEMAS))
+
+
+def get_schemas_by_category(category: str) -> list[dict[str, Any]]:
+    """Return all schemas matching a category (e.g. 'search', 'quality', 'safety')."""
+    return [s for s in ALL_SCHEMAS if s.get("category") == category]
+
+
+def get_read_only_tools() -> list[dict[str, Any]]:
+    """Return all schemas for tools that have no side effects (safe to call freely)."""
+    return [s for s in ALL_SCHEMAS if s.get("read_only") is True]
+
+
+def get_write_tools() -> list[dict[str, Any]]:
+    """Return all schemas for tools that modify files or buffers."""
+    return [s for s in ALL_SCHEMAS if s.get("read_only") is False]
+
+
 def get_schema(name: str) -> dict[str, Any] | None:
     """Return a single tool schema by name, or None if not found."""
     for schema in ALL_SCHEMAS:
@@ -2575,32 +2847,59 @@ def get_all_schemas() -> list[dict[str, Any]]:
 
 
 def to_openai_functions() -> list[dict[str, Any]]:
-    """Convert schemas to OpenAI function-calling format."""
+    """Convert schemas to OpenAI function-calling format.
+
+    Includes category, tags, read_only, side_effects, and composition hints
+    as top-level metadata alongside the standard function definition.
+    """
     functions: list[dict[str, Any]] = []
     for schema in ALL_SCHEMAS:
-        functions.append(
-            {
-                "type": "function",
-                "function": {
-                    "name": schema["name"],
-                    "description": schema["description"],
-                    "parameters": schema["input_schema"],
-                },
-            }
-        )
+        func: dict[str, Any] = {
+            "type": "function",
+            "function": {
+                "name": schema["name"],
+                "description": schema["description"],
+                "parameters": schema["input_schema"],
+            },
+        }
+        # Attach enriched metadata (ignored by OpenAI API but useful for local routing)
+        func["category"] = schema.get("category", "uncategorized")
+        func["tags"] = schema.get("tags", [])
+        func["read_only"] = schema.get("read_only", True)
+        func["side_effects"] = schema.get("side_effects")
+        if "delegates_to" in schema:
+            func["delegates_to"] = schema["delegates_to"]
+        if "composed_of" in schema:
+            func["composed_of"] = schema["composed_of"]
+        functions.append(func)
     return functions
 
 
 
 def to_mcp_tools() -> list[dict[str, Any]]:
-    """Convert schemas to MCP tool format."""
+    """Convert schemas to MCP tool format.
+
+    Includes enriched metadata as annotations per the MCP spec.
+    """
     tools: list[dict[str, Any]] = []
     for schema in ALL_SCHEMAS:
-        tools.append(
-            {
-                "name": schema["name"],
-                "description": schema["description"],
-                "inputSchema": schema["input_schema"],
-            }
-        )
+        tool: dict[str, Any] = {
+            "name": schema["name"],
+            "description": schema["description"],
+            "inputSchema": schema["input_schema"],
+        }
+        # MCP annotations for safety and categorization
+        tool["annotations"] = {
+            "category": schema.get("category", "uncategorized"),
+            "tags": schema.get("tags", []),
+            "readOnlyHint": schema.get("read_only", True),
+            "sideEffects": schema.get("side_effects"),
+        }
+        if "delegates_to" in schema:
+            tool["annotations"]["delegatesTo"] = schema["delegates_to"]
+        if "composed_of" in schema:
+            tool["annotations"]["composedOf"] = schema["composed_of"]
+        if "error_schema" in schema:
+            tool["errorSchema"] = schema["error_schema"]
+        tools.append(tool)
     return tools
