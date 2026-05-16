@@ -38,4 +38,7 @@ htmlcov/
 # Docs / plans
 .hermes/
 *.md
+!README.md
+!CHANGELOG.md
+!tools.md
 droid-wiki/
