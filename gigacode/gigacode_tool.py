@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -234,6 +235,7 @@ class CodeEmbeddingTool:
             self._lexical_cache: dict[str, Any] = LRUDict(max_size=max_buffers)
             self._query_cache: Any = _QueryCache()
         self._audit_log_path = self.work_dir / "audit.jsonl"
+        self._async_wrapper_lock = threading.Lock()
 
         # Type inference cache (session-scoped, write-invalidated)
         self._type_inference_cache = TypeInferenceCache()
@@ -286,6 +288,10 @@ class CodeEmbeddingTool:
     def __getattr__(self, name: str):
         """Auto-generate async wrapper methods on first access."""
         if name in self._ASYNC_WRAPPERS and not name.startswith("_"):
+            cached_wrapper = self.__dict__.get(name)
+            if cached_wrapper is not None:
+                return cached_wrapper
+
             sync_name = name.removesuffix("_async")
             sync_method = getattr(self.__class__, sync_name, None)
             if sync_method is not None:
@@ -300,9 +306,14 @@ class CodeEmbeddingTool:
                 _async_wrapper.__qualname__ = f"{self.__class__.__qualname__}.{name}"
                 _async_wrapper.__doc__ = f"Async version of {sync_name}. Delegates to the synchronous method in a thread pool."
 
-                # Cache on the instance so __getattr__ isn't called again
-                setattr(self, name, _async_wrapper)
-                return _async_wrapper
+                with self._async_wrapper_lock:
+                    cached_wrapper = self.__dict__.get(name)
+                    if cached_wrapper is not None:
+                        return cached_wrapper
+
+                    # Cache on the instance so __getattr__ isn't called again
+                    setattr(self, name, _async_wrapper)
+                    return _async_wrapper
 
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
