@@ -115,11 +115,12 @@ def _make_handler(tool: Any) -> type:
             try:
                 result = method(**args)
             except TypeError as exc:
-                self._send_json(400, {"error": f"Invalid arguments for {tool_name}: {exc}"})
+                logger.warning("Invalid arguments for %s: %s", tool_name, exc)
+                self._send_json(400, {"error": f"Invalid arguments for {tool_name}"})
                 return
             except (ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
                 logger.exception("Tool %s failed", tool_name)
-                self._send_json(500, {"error": f"Tool execution failed: {exc}"})
+                self._send_json(500, {"error": f"Tool execution failed: {tool_name}"})
                 return
 
             self._send_json(200, {"status": "ok", "result": result})

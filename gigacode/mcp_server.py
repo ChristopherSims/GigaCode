@@ -84,7 +84,10 @@ async def _run_stdio(tool: Any) -> None:
         except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
             logger.exception("MCP tool %s failed", name)
             return [
-                TextContent(type="text", text=json.dumps({"status": "error", "message": str(exc)}))
+                TextContent(
+                    type="text",
+                    text=json.dumps({"status": "error", "message": f"Tool execution failed: {name}"}),
+                )
             ]
         return [TextContent(type="text", text=_result_to_text(result))]
 
@@ -163,7 +166,10 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
         except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
             logger.exception("MCP tool %s failed", name)
             return [
-                TextContent(type="text", text=json.dumps({"status": "error", "message": str(exc)}))
+                TextContent(
+                    type="text",
+                    text=json.dumps({"status": "error", "message": f"Tool execution failed: {name}"}),
+                )
             ]
         return [TextContent(type="text", text=_result_to_text(result))]
 

@@ -397,7 +397,10 @@ def create_app(tool: Any) -> FastAPI:
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):
         logger.exception("Unhandled error in %s", request.url.path)
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": "Internal server error"},
+        )
 
     # ------------------------------------------------------------------
     # Health & schemas
@@ -1032,8 +1035,10 @@ def create_app(tool: Any) -> FastAPI:
         try:
             result = method(**req.args)
         except TypeError as exc:
+            logger.warning("Invalid arguments for %s: %s", req.tool, exc)
             raise HTTPException(
-                status_code=400, detail={"status": "error", "message": str(exc)}
+                status_code=400,
+                detail={"status": "error", "message": f"Invalid arguments for {req.tool}"},
             ) from exc
         if isinstance(result, dict) and result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
