@@ -614,9 +614,23 @@ class BufferManager:
 
         self._save_registry()
         self._snapshot_managers.pop(buffer_id, None)
-        shutil.rmtree(info["buffer_dir"], ignore_errors=True)
+        cleanup_message = None
+        try:
+            shutil.rmtree(info["buffer_dir"])
+        except FileNotFoundError:
+            cleanup_message = "Buffer directory was already removed."
+        except OSError as exc:
+            logger.warning("Failed to remove buffer directory for %s: %s", buffer_id, exc)
+            cleanup_message = f"Buffer directory cleanup failed: {type(exc).__name__}"
 
         self._audit_log(operation="delete_buffer", buffer_id=buffer_id, status="ok")
+
+        if cleanup_message is not None:
+            return {
+                "status": "ok",
+                "message": f"Deleted buffer {buffer_id}",
+                "cleanup_message": cleanup_message,
+            }
 
         return {"status": "ok", "message": f"Deleted buffer {buffer_id}"}
 
