@@ -1841,14 +1841,18 @@ GENERATE_DOCUMENTATION_SCHEMA: dict[str, Any] = {
 
 FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
     "name": "find_similar_patterns",
-    "description": "Find similar code patterns using semantic + syntactic matching.",
+    "description": "Find similar code patterns using semantic + syntactic matching. Optionally group matches into clusters to identify pattern families and refactoring opportunities.",
     "input_schema": {
         "type": "object",
         "properties": {
             "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
             "code_snippet": {"type": "string", "description": "Code snippet to find similar patterns for."},
             "min_similarity": {"type": "number", "description": "Minimum Jaccard similarity threshold (0.0-1.0).", "default": 0.7},
-            "top_k": {"type": "integer", "description": "Maximum number of results to return.", "default": 10},
+            "top_k": {"type": "integer", "description": "Maximum number of results to return before clustering.", "default": 10},
+            "cluster": {"type": "boolean", "description": "Enable clustering mode: group similar patterns into clusters. Default: false.", "default": False},
+            "clustering_method": {"type": "string", "enum": ["agglomerative", "kmeans", "spectral"], "description": "Clustering algorithm: agglomerative (hierarchical), kmeans (partition-based), spectral (graph-based). Default: agglomerative.", "default": "agglomerative"},
+            "cluster_threshold": {"type": "number", "description": "Similarity threshold for forming clusters (0.0-1.0). Only used when cluster=true. Default: 0.8.", "default": 0.8},
+            "expected_clusters": {"type": ["integer", "null"], "description": "Expected number of clusters (for kmeans). If null, auto-detected. Only used with kmeans clustering."},
         },
         "required": ["buffer_id", "code_snippet"],
     },
@@ -1856,8 +1860,40 @@ FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
         "type": "object",
         "properties": {
             "status": {"type": "string"},
+            "cluster_mode": {"type": "boolean", "description": "Whether clustering was applied."},
+            "clusters": {
+                "type": "array",
+                "description": "Code pattern clusters (only when cluster=true).",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "cluster_id": {"type": "integer", "description": "Unique cluster identifier."},
+                        "size": {"type": "integer", "description": "Number of code blocks in this cluster."},
+                        "avg_similarity": {"type": "number", "description": "Average similarity of members within this cluster (0.0-1.0)."},
+                        "compactness": {"type": "number", "description": "How tightly grouped cluster members are (0.0-1.0, higher is better)."},
+                        "example_file": {"type": "string", "description": "Example file containing a cluster member."},
+                        "example_line": {"type": "integer", "description": "Line number of example member."},
+                        "members": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "file": {"type": "string"},
+                                    "start_line": {"type": "integer"},
+                                    "end_line": {"type": "integer"},
+                                    "similarity": {"type": "number", "description": "How similar this member is to the cluster (0.0-1.0)."},
+                                },
+                            },
+                            "description": "Code blocks belonging to this cluster.",
+                        },
+                        "refactoring_opportunity": {"type": "string", "description": "Suggested refactoring approach (e.g., extract_method, create_helper)."},
+                    },
+                    "required": ["cluster_id", "size", "avg_similarity", "members"],
+                },
+            },
             "syntactic_matches": {
                 "type": "array",
+                "description": "Syntactic matches (only when cluster=false).",
                 "items": {
                     "type": "object",
                     "properties": {
@@ -1868,6 +1904,7 @@ FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
             },
             "semantic_matches": {
                 "type": "array",
+                "description": "Semantic matches (only when cluster=false).",
                 "items": {
                     "type": "object",
                     "properties": {
@@ -1878,6 +1915,8 @@ FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
                 },
             },
             "snippet_length": {"type": "integer"},
+            "clustering_method": {"type": "string", "description": "Clustering algorithm used (only when cluster=true)."},
+            "quality": {"type": "number", "description": "Overall clustering quality (0.0-1.0, higher is better). Only when cluster=true."},
         },
         "required": ["status"],
     },
@@ -3370,7 +3409,7 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
     "format_buffer":             {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "formatted_files": 3, "total_lines_added": 12, "total_lines_removed": 8}},
     "find_performance_hotspots": {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "hotspots": [{"file": "src/db.py", "line": 42, "type": "n_plus_one", "severity": "high", "suggestion": "Use select_related"}]}},
     "generate_documentation":    {"input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate", "style": "google"}, "output": {"status": "ok", "docstring": '"""authenticate documentation."""', "type_hints": {"user": "str"}, "examples": []}},
-    "find_similar_patterns":     {"input": {"buffer_id": "gcbuff-abc123", "code_snippet": "def validate(x):\\n    return x is not None"}, "output": {"status": "ok", "semantic_matches": [{"file": "src/validators.py", "line": 15, "score": 0.89}]}},
+    "find_similar_patterns":     {"input": {"buffer_id": "gcbuff-abc123", "code_snippet": "def validate(x):\\n    return x is not None", "cluster": True}, "output": {"status": "ok", "cluster_mode": True, "clusters": [{"cluster_id": 1, "size": 3, "avg_similarity": 0.88, "compactness": 0.92, "example_file": "src/validators.py", "example_line": 15, "members": [{"file": "src/validators.py", "start_line": 15, "end_line": 16, "similarity": 0.91}, {"file": "src/checks.py", "start_line": 42, "end_line": 43, "similarity": 0.87}], "refactoring_opportunity": "extract_method"}], "clustering_method": "agglomerative", "quality": 0.85}},
     "find_deprecated":           {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "deprecated": [{"file": "src/api.py", "line": 42, "detection_method": "decorator", "symbol": "old_endpoint"}]}},
     "validate_changes":          {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "type_errors": [], "broken_imports": [], "safe_to_commit": True}},
     "extract_configuration":     {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "env_vars": [{"name": "DATABASE_URL", "used_in": "src/db.py:5", "required": True, "default": None}], "hardcoded_secrets": []}},
