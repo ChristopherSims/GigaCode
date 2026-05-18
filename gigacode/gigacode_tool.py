@@ -2795,7 +2795,13 @@ class CodeEmbeddingTool:
 
         # Validate file path to prevent traversal attacks
         try:
-            buffer_root = Path(info.get("buffer_dir", self.work_dir))
+            buffer_dir = info.get("buffer_dir")
+            if not buffer_dir:
+                return {
+                    "status": "error",
+                    "message": f"Buffer metadata missing buffer_dir for {buffer_id}",
+                }
+            buffer_root = Path(buffer_dir)
             validate_buffer_path(file, buffer_root)
         except ValueError as e:
             return {"status": "error", "message": f"Invalid file path: {e}"}
