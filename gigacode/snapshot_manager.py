@@ -7,6 +7,7 @@ and reading lines on-demand from disk. Supports 3-way merge for conflict detecti
 import hashlib
 import json
 import logging
+import difflib
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -404,25 +405,24 @@ class SnapshotDiffer:
             - ('+', idx, line) for added lines
             - ('-', idx, None) for deleted lines
         """
-        # Simple implementation: could use difflib for more sophisticated diffs
-        diffs = []
-        old_set = set(enumerate(old_lines))
-        new_set = set(enumerate(new_lines))
+        diffs: list[tuple[str, int, Optional[str]]] = []
+        matcher = difflib.SequenceMatcher(a=old_lines, b=new_lines)
 
-        # Find common lines
-        common = old_set & new_set
-        added = new_set - old_set
-        deleted = old_set - new_set
-
-        # This is simplified - a real diff would preserve line order
-        for idx, line in sorted(common):
-            diffs.append(("=", idx, line))
-
-        for idx, line in sorted(added):
-            diffs.append(("+", idx, line))
-
-        for idx, _ in sorted(deleted):
-            diffs.append(("-", idx, None))
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "equal":
+                for old_idx, new_idx in zip(range(i1, i2), range(j1, j2)):
+                    diffs.append(("=", new_idx, new_lines[new_idx]))
+            elif tag == "delete":
+                for old_idx in range(i1, i2):
+                    diffs.append(("-", old_idx, None))
+            elif tag == "insert":
+                for new_idx in range(j1, j2):
+                    diffs.append(("+", new_idx, new_lines[new_idx]))
+            elif tag == "replace":
+                for old_idx in range(i1, i2):
+                    diffs.append(("-", old_idx, None))
+                for new_idx in range(j1, j2):
+                    diffs.append(("+", new_idx, new_lines[new_idx]))
 
         return diffs
 
