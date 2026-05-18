@@ -225,7 +225,9 @@ class TestCacheInvalidation:
             cache_stats1 = tool._query_cache.stats()
             assert "size" in cache_stats1
 
-            write_result = tool.write_code(buffer_id, "module.py", "def add(a, b, c): return a + b + c\n")
+            write_result = tool.write_code(
+                buffer_id, "module.py", "def add(a, b, c): return a + b + c\n"
+            )
             assert write_result.get("status") == "ok"
 
             cache_stats2 = tool._query_cache.stats()

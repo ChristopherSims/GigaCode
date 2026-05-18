@@ -102,7 +102,9 @@ def _install_sentence_transformers_shim() -> None:
                 seed = abs(hash(text)) % (2**32)
                 rng = np.random.default_rng(seed)
                 rows.append(rng.random(self._embedding_dim, dtype=np.float32))
-            result = np.vstack(rows) if rows else np.zeros((0, self._embedding_dim), dtype=np.float32)
+            result = (
+                np.vstack(rows) if rows else np.zeros((0, self._embedding_dim), dtype=np.float32)
+            )
             return result if convert_to_numpy else result.tolist()
 
     shim.SentenceTransformer = SentenceTransformer
