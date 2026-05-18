@@ -80,7 +80,7 @@ async def _run_stdio(tool: Any) -> None:
                 )
             ]
         try:
-            result = method(**arguments)
+            result = await asyncio.to_thread(method, **arguments)
         except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
             logger.exception("MCP tool %s failed", name)
             return [
@@ -159,7 +159,7 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
                 )
             ]
         try:
-            result = method(**arguments)
+            result = await asyncio.to_thread(method, **arguments)
         except (TypeError, ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
             logger.exception("MCP tool %s failed", name)
             return [
