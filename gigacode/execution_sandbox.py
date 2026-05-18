@@ -4,6 +4,10 @@ Provides a restricted environment for AI agents to:
 - Run Python/JS snippets with stdout/stderr capture
 - Inject the buffer root into sys.path for codebase imports
 - Enforce timeouts and AST-based security whitelisting
+
+JavaScript execution is best-effort only and relies on pattern checks rather
+than a full sandboxed runtime. It should not be treated as a hardened security
+boundary.
 """
 
 from __future__ import annotations
@@ -412,7 +416,11 @@ class SandboxExecutor:
         code: str,
         timeout: int = 30,
     ) -> ExecutionResult:
-        """Run JavaScript via Node.js if available."""
+        """Run JavaScript via Node.js if available.
+
+        This path uses pattern-based screening only and is intentionally treated
+        as a best-effort convenience feature, not a hardened sandbox.
+        """
         # Simple text-based security scan
         lower = code.lower()
         violations: list[str] = []
