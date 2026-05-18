@@ -219,6 +219,10 @@ class FindSimilarPatternsRequest(BaseModel):
     code_snippet: str = Field(description="Code snippet to find similar patterns for.")
     min_similarity: float = Field(default=0.7, description="Minimum similarity threshold (0.0-1.0).")
     top_k: int = Field(default=10, description="Maximum number of results to return.")
+    cluster: bool = Field(default=False, description="Group similar matches into clusters.")
+    clustering_method: str = Field(default="agglomerative", description="Clustering method to apply.")
+    cluster_threshold: float = Field(default=0.8, description="Cluster grouping threshold (0.0-1.0).")
+    expected_clusters: Optional[int] = Field(default=None, description="Preferred number of clusters when the method uses it.")
 
 
 class FindDeprecatedRequest(BaseModel):
@@ -772,7 +776,16 @@ def create_app(tool: Any) -> FastAPI:
     @app.post("/search/similar-patterns")
     def find_similar_patterns(req: FindSimilarPatternsRequest) -> dict[str, Any]:
         """Find similar code patterns using semantic + syntactic matching."""
-        result = tool.find_similar_patterns(req.buffer_id, req.code_snippet, min_similarity=req.min_similarity, top_k=req.top_k)
+        result = tool.find_similar_patterns(
+            req.buffer_id,
+            req.code_snippet,
+            min_similarity=req.min_similarity,
+            top_k=req.top_k,
+            cluster=req.cluster,
+            clustering_method=req.clustering_method,
+            cluster_threshold=req.cluster_threshold,
+            expected_clusters=req.expected_clusters,
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result

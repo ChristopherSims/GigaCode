@@ -5677,52 +5677,225 @@ class CodeEmbeddingTool:
         code_snippet: str,
         min_similarity: float = 0.7,
         top_k: int = 10,
+        cluster: bool = False,
+        clustering_method: str = "agglomerative",
+        cluster_threshold: float = 0.8,
+        expected_clusters: int | None = None,
     ) -> dict[str, Any]:
         """Find similar code patterns using semantic + syntactic matching.
 
-        Find duplicate logic for consolidation.
-        Combines MinHash/LSH syntactic matching with semantic embedding search.
-
-        Args:
-            buffer_id: Buffer handle returned by embed_codebase.
-            code_snippet: Code snippet to find similar patterns for.
-            min_similarity: Minimum Jaccard similarity threshold (0.0-1.0). Default: 0.7.
-            top_k: Maximum number of semantic results to return. Default: 10.
-
-        Returns:
-            Dict with keys:
-                status: "ok" on success.
-                syntactic_matches: List of near-duplicate code chunks (from MinHash/LSH).
-                semantic_matches: List of dicts with keys: file, line, score.
-                snippet_length: Length of the input snippet in characters.
-
-        Example:
-            >>> result = tool.find_similar_patterns(buf_id, "def validate(x):\\n    return x is not None")
-            >>> result["semantic_matches"][0]
-            {"file": "src/validators.py", "line": 15, "score": 0.89}
+        Optionally groups matching regions into score-based clusters so agents can
+        identify recurring pattern families instead of a flat result list.
         """
         result = self._require_buffer(buffer_id, "find_similar_patterns")
         if isinstance(result, dict):
             return result
-        info, chunks = result
+        _, chunks = result
 
-        from gigacode.duplicate_detector import find_duplicates
-        results = find_duplicates(chunks, threshold=min_similarity)
+        min_similarity = max(0.0, min(min_similarity, 1.0))
+        cluster_threshold = max(0.0, min(cluster_threshold, 1.0))
+        if top_k < 1:
+            return self._make_error_response(
+                "top_k must be at least 1",
+                buffer_id=buffer_id,
+                operation="find_similar_patterns",
+            )
+        if clustering_method not in {"agglomerative", "kmeans", "spectral"}:
+            return self._make_error_response(
+                f"Unsupported clustering_method: {clustering_method}",
+                buffer_id=buffer_id,
+                operation="find_similar_patterns",
+            )
+        if expected_clusters is not None and expected_clusters < 1:
+            return self._make_error_response(
+                "expected_clusters must be at least 1",
+                buffer_id=buffer_id,
+                operation="find_similar_patterns",
+            )
 
-        # Also try semantic search
-        semantic_results = []
+        import re
+
+        def _token_shingles(text: str, ngram: int = 3) -> set[str]:
+            tokens = re.findall(r"\w+", text.lower())
+            if not tokens:
+                return set()
+            if len(tokens) < ngram:
+                return {" ".join(tokens)}
+            return {" ".join(tokens[index:index + ngram]) for index in range(len(tokens) - ngram + 1)}
+
+        snippet_shingles = _token_shingles(code_snippet)
+        candidate_map: dict[tuple[str, int, int], dict[str, Any]] = {}
+
+        def _record_candidate(
+            *,
+            file: str,
+            start_line: int,
+            end_line: int,
+            similarity: float,
+            source: str,
+            doc_id: int | None = None,
+        ) -> None:
+            key = (file, start_line, end_line)
+            candidate = candidate_map.setdefault(
+                key,
+                {
+                    "file": file,
+                    "start_line": start_line,
+                    "end_line": end_line,
+                    "similarity": 0.0,
+                    "semantic_score": None,
+                    "syntactic_similarity": None,
+                    "doc_id": doc_id,
+                },
+            )
+            if source == "semantic":
+                candidate["semantic_score"] = max(candidate["semantic_score"] or 0.0, similarity)
+                if doc_id is not None:
+                    candidate["doc_id"] = doc_id
+            else:
+                candidate["syntactic_similarity"] = max(candidate["syntactic_similarity"] or 0.0, similarity)
+
+            scores = [
+                value
+                for value in (candidate.get("semantic_score"), candidate.get("syntactic_similarity"))
+                if isinstance(value, (int, float))
+            ]
+            candidate["similarity"] = round(sum(scores) / len(scores), 4) if scores else round(similarity, 4)
+
+        syntactic_matches: list[dict[str, Any]] = []
+        for chunk in chunks:
+            chunk_shingles = _token_shingles(chunk.text)
+            union = len(snippet_shingles | chunk_shingles)
+            if union == 0:
+                continue
+            similarity = len(snippet_shingles & chunk_shingles) / union
+            if similarity < min_similarity:
+                continue
+            match = {
+                "file": chunk.file,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+                "similarity": round(similarity, 4),
+            }
+            syntactic_matches.append(match)
+            _record_candidate(
+                file=chunk.file,
+                start_line=chunk.start_line,
+                end_line=chunk.end_line,
+                similarity=similarity,
+                source="syntactic",
+                doc_id=getattr(chunk, "id", None),
+            )
+
+        syntactic_matches.sort(key=lambda item: item["similarity"], reverse=True)
+        syntactic_matches = syntactic_matches[:top_k]
+
+        semantic_matches: list[dict[str, Any]] = []
         try:
             search_result = self.semantic_search(buffer_id, code_snippet, top_k=top_k)
             if search_result.get("status") == "ok":
-                semantic_results = search_result.get("matches", [])
-        except Exception:
-            pass
+                for match in search_result.get("matches", []):
+                    semantic_match = {
+                        "file": match.get("file", ""),
+                        "line": match.get("start_line", 0),
+                        "score": round(float(match.get("score", 0.0)), 4),
+                    }
+                    semantic_matches.append(semantic_match)
+                    _record_candidate(
+                        file=match.get("file", ""),
+                        start_line=match.get("start_line", 0),
+                        end_line=match.get("end_line", match.get("start_line", 0)),
+                        similarity=float(match.get("score", 0.0)),
+                        source="semantic",
+                        doc_id=match.get("doc_id"),
+                    )
+        except (ImportError, OSError, RuntimeError, ValueError) as exc:
+            logger.warning("semantic search failed in find_similar_patterns: %s", exc)
+
+        if not cluster:
+            return {
+                "status": "ok",
+                "cluster_mode": False,
+                "syntactic_matches": syntactic_matches,
+                "semantic_matches": semantic_matches,
+                "snippet_length": len(code_snippet),
+            }
+
+        ranked_candidates = sorted(candidate_map.values(), key=lambda item: item["similarity"], reverse=True)
+        if top_k:
+            ranked_candidates = ranked_candidates[:top_k]
+
+        buckets: list[list[dict[str, Any]]] = []
+        tolerance = max(0.05, 1.0 - cluster_threshold)
+
+        if expected_clusters and expected_clusters > 0 and ranked_candidates:
+            bucket_count = min(expected_clusters, len(ranked_candidates))
+            base_size = len(ranked_candidates) // bucket_count
+            extra = len(ranked_candidates) % bucket_count
+            start = 0
+            for index in range(bucket_count):
+                size = base_size + (1 if index < extra else 0)
+                buckets.append(ranked_candidates[start:start + size])
+                start += size
+        else:
+            for candidate in ranked_candidates:
+                placed = False
+                for bucket in buckets:
+                    avg_similarity = sum(item["similarity"] for item in bucket) / len(bucket)
+                    if abs(candidate["similarity"] - avg_similarity) <= tolerance:
+                        bucket.append(candidate)
+                        placed = True
+                        break
+                if not placed:
+                    buckets.append([candidate])
+
+        clusters: list[dict[str, Any]] = []
+        compactness_values: list[float] = []
+        for index, bucket in enumerate(buckets, start=1):
+            if not bucket:
+                continue
+            avg_similarity = round(sum(item["similarity"] for item in bucket) / len(bucket), 4)
+            max_deviation = max(abs(item["similarity"] - avg_similarity) for item in bucket) if len(bucket) > 1 else 0.0
+            compactness = round(max(0.0, 1.0 - (max_deviation / max(tolerance, 0.05))), 4)
+            compactness_values.append(compactness)
+            bucket.sort(key=lambda item: item["similarity"], reverse=True)
+            example = bucket[0]
+            cluster_size = len(bucket)
+            if cluster_size >= 3:
+                refactoring_opportunity = "extract_method"
+            elif cluster_size == 2:
+                refactoring_opportunity = "create_helper"
+            else:
+                refactoring_opportunity = "review_individually"
+
+            clusters.append(
+                {
+                    "cluster_id": index,
+                    "size": cluster_size,
+                    "avg_similarity": avg_similarity,
+                    "compactness": compactness,
+                    "example_file": example["file"],
+                    "example_line": example["start_line"],
+                    "members": [
+                        {
+                            "file": item["file"],
+                            "start_line": item["start_line"],
+                            "end_line": item["end_line"],
+                            "similarity": item["similarity"],
+                        }
+                        for item in bucket
+                    ],
+                    "refactoring_opportunity": refactoring_opportunity,
+                }
+            )
 
         return {
             "status": "ok",
-            "syntactic_matches": results if isinstance(results, list) else [],
-            "semantic_matches": [{"file": r.get("file", ""), "line": r.get("start_line", 0), "score": r.get("score", 0)} for r in semantic_results],
+            "cluster_mode": True,
+            "clusters": clusters,
             "snippet_length": len(code_snippet),
+            "clustering_method": clustering_method,
+            "quality": round(sum(compactness_values) / len(compactness_values), 4) if compactness_values else 0.0,
         }
 
     def find_deprecated(
