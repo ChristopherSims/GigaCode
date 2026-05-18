@@ -864,7 +864,7 @@ Set the agent profile for a buffer, affecting future chunking and search behavio
 
 ### `undo`
 
-Undo the last N operations on a buffer, reverting edits in reverse order.
+Undo the last N tracked operations on a buffer, reverting edits in reverse order.
 
 - **Category:** editing
 - **Tags:** write, mutating, fast
@@ -894,7 +894,7 @@ Undo the last N operations on a buffer, reverting edits in reverse order.
 
 ### `write_code`
 
-Replace a range of lines in a buffered file and re-embed the changed region. The file is marked dirty until commit is called.
+Replace a range of lines in a buffered file and re-embed the changed region. The file is marked dirty until commit is called. Successful writes return an `operation_id` used for internal undo/redo tracking.
 
 - **Category:** editing
 - **Tags:** write, mutating, slow
@@ -920,6 +920,7 @@ Replace a range of lines in a buffered file and re-embed the changed region. The
 ```json
 {
   "status": "ok",
+  "operation_id": "op-12345",
   "changed_lines": 2,
   "diff": "--- a/src/auth.py\n+++ b/src/auth.py\n@@ -1,2 +1,2 @@"
 }

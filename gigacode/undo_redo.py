@@ -1,7 +1,7 @@
 """
 Undo Stack with Branching
 
-Provides surgical undo/redo with git-like branching for experimental work.
+Provides stack-based undo/redo with git-like branching for experimental work.
 Users can try different approaches and switch between them without full rollback.
 
 Key features:
@@ -93,18 +93,17 @@ class UndoRedoStack:
             self.undo_stack.pop(0)
 
     def undo(self) -> Optional[UndoableOperation]:
-        """Pop from undo stack and push reverse to redo stack."""
+        """Pop from undo stack and move the operation to redo stack."""
         if not self.undo_stack:
             return None
 
         operation = self.undo_stack.pop()
-        reverse_op = operation.reverse()
-        self.redo_stack.append(reverse_op)
+        self.redo_stack.append(operation)
 
         return operation
 
     def redo(self) -> Optional[UndoableOperation]:
-        """Pop from redo stack and push to undo stack."""
+        """Pop from redo stack and move the operation back to undo stack."""
         if not self.redo_stack:
             return None
 
@@ -351,7 +350,55 @@ class BranchedBufferManager:
             self.branch_managers[buffer_id] = BranchManager()
         return self.branch_managers[buffer_id]
 
-    def undo(self, buffer_id: str, steps: int = 1) -> None:
+    @staticmethod
+    def _split_content(content: Optional[str]) -> List[str]:
+        """Convert stored file content into write_code-compatible lines."""
+        if not content:
+            return []
+        return content.splitlines()
+
+    def _apply_operation_content(
+        self,
+        buffer_id: str,
+        operation: UndoableOperation,
+        content: Optional[str],
+    ) -> None:
+        """Apply stored full-file content for an operation."""
+        if not operation.file or not hasattr(self.buffer_manager, "write_code"):
+            return
+
+        self.buffer_manager.write_code(
+            buffer_id,
+            operation.file,
+            1,
+            self._split_content(content),
+            end_line=None,
+        )
+
+    def record_write(
+        self,
+        buffer_id: str,
+        file: str,
+        original_content: str,
+        new_content: str,
+        description: str,
+    ) -> str:
+        """Record a write_code operation for later undo/redo."""
+        branch_mgr = self._get_branch_manager(buffer_id)
+        stack = branch_mgr.get_undo_stack()
+        operation = UndoableOperation(
+            id=str(uuid.uuid4()),
+            operation_type=OperationType.WRITE_CODE,
+            timestamp=datetime.now(),
+            file=file,
+            original_content=original_content,
+            new_content=new_content,
+            description=description,
+        )
+        stack.push(operation)
+        return operation.id
+
+    def undo(self, buffer_id: str, steps: int = 1) -> int:
         """
         Undo last N operations.
 
@@ -361,45 +408,51 @@ class BranchedBufferManager:
         """
         branch_mgr = self._get_branch_manager(buffer_id)
         stack = branch_mgr.get_undo_stack()
+        undone = 0
 
         for _ in range(steps):
             operation = stack.undo()
             if not operation:
                 break
 
-            # Apply reverse operation
             if operation.operation_type == OperationType.WRITE_CODE:
-                if hasattr(self.buffer_manager, "write_code"):
-                    original_lines = (
-                        operation.original_content.splitlines()
-                        if isinstance(operation.original_content, str)
-                        else list(operation.original_content or [])
-                    )
-                    self.buffer_manager.write_code(
-                        buffer_id,
-                        operation.file,
-                        1,
-                        original_lines,
-                        end_line=None,
-                    )
+                self._apply_operation_content(buffer_id, operation, operation.original_content)
+                undone += 1
 
         log_metric(
             "branched_buffer.undo",
             {
                 "buffer": buffer_id,
-                "steps": steps,
+                "steps": undone,
             },
         )
 
-    def redo(self, buffer_id: str, steps: int = 1) -> None:
+        return undone
+
+    def redo(self, buffer_id: str, steps: int = 1) -> int:
         """Redo last N undone operations."""
         branch_mgr = self._get_branch_manager(buffer_id)
         stack = branch_mgr.get_undo_stack()
+        redone = 0
 
         for _ in range(steps):
             operation = stack.redo()
             if not operation:
                 break
+
+            if operation.operation_type == OperationType.WRITE_CODE:
+                self._apply_operation_content(buffer_id, operation, operation.new_content)
+                redone += 1
+
+        log_metric(
+            "branched_buffer.redo",
+            {
+                "buffer": buffer_id,
+                "steps": redone,
+            },
+        )
+
+        return redone
 
     def branch(
         self,
@@ -466,13 +519,30 @@ class UndoRedoService:
         """Initialize service."""
         self.branched_buffer_manager = branched_buffer_manager
 
-    def undo(self, buffer_id: str, steps: int = 1) -> None:
+    def undo(self, buffer_id: str, steps: int = 1) -> int:
         """Undo operations."""
-        self.branched_buffer_manager.undo(buffer_id, steps)
+        return self.branched_buffer_manager.undo(buffer_id, steps)
 
-    def redo(self, buffer_id: str, steps: int = 1) -> None:
+    def redo(self, buffer_id: str, steps: int = 1) -> int:
         """Redo operations."""
-        self.branched_buffer_manager.redo(buffer_id, steps)
+        return self.branched_buffer_manager.redo(buffer_id, steps)
+
+    def record_write(
+        self,
+        buffer_id: str,
+        file: str,
+        original_content: str,
+        new_content: str,
+        description: str,
+    ) -> str:
+        """Record a write operation for undo/redo."""
+        return self.branched_buffer_manager.record_write(
+            buffer_id=buffer_id,
+            file=file,
+            original_content=original_content,
+            new_content=new_content,
+            description=description,
+        )
 
     def branch(
         self,

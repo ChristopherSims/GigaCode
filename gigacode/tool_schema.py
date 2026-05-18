@@ -681,6 +681,7 @@ WRITE_CODE_SCHEMA: dict[str, Any] = {
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "file": {"type": "string"},
+            "operation_id": {"type": "string", "description": "Tracked operation ID for undo/redo history."},
             "changed_lines": {"type": "integer"},
             "replaced_lines": {"type": "integer"},
             "total_lines": {"type": "integer"},
@@ -3385,7 +3386,7 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
     "delete_buffer":             {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok"}},
     "read_code":                 {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"}, "output": {"status": "ok", "lines": ["def authenticate(user, pwd):", "    ..."], "start_line": 1}},
     "look_for_file":             {"input": {"buffer_id": "gcbuff-abc123", "glob": "**/auth*.py"}, "output": {"status": "ok", "files": ["src/auth.py", "tests/test_auth.py"]}},
-    "write_code":                {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py", "start_line": 1, "new_lines": ["def authenticate(token):", "    ..."]}, "output": {"status": "ok", "changed_lines": 2, "diff": "--- a/src/auth.py\n+++ b/src/auth.py\n@@ -1,2 +1,2 @@"}},
+    "write_code":                {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py", "start_line": 1, "new_lines": ["def authenticate(token):", "    ..."]}, "output": {"status": "ok", "operation_id": "op-12345", "changed_lines": 2, "diff": "--- a/src/auth.py\n+++ b/src/auth.py\n@@ -1,2 +1,2 @@"}},
     "diff":                      {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "changed_files": [{"file": "src/auth.py", "dirty": True}]}},
     "discard":                   {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"}, "output": {"status": "ok"}},
     "commit":                    {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "dry_run": True, "written_files": ["src/auth.py"]}},

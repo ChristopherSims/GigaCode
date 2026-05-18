@@ -2891,6 +2891,19 @@ class CodeEmbeddingTool:
             "diff": self._compute_unified_diff(old_lines, new_file_lines, file),
         }
 
+        try:
+            service = self._get_undo_redo_service(buffer_id)
+            operation_id = service.record_write(
+                buffer_id=buffer_id,
+                file=file,
+                original_content="\n".join(old_lines),
+                new_content="\n".join(new_file_lines),
+                description=f"Modified {file}",
+            )
+            result["operation_id"] = operation_id
+        except (ImportError, RuntimeError, ValueError) as e:
+            logger.warning(f"Failed to record undo operation for write_code: {e}")
+
         # Audit log successful write
         self._security.log_success(
             operation="write_code",
@@ -7577,14 +7590,14 @@ class CodeEmbeddingTool:
 
         try:
             service = self._get_undo_redo_service(buffer_id)
-            service.undo(buffer_id, steps=steps)
+            steps_undone = service.undo(buffer_id, steps=steps)
             stack = service.branched_buffer_manager._get_branch_manager(buffer_id).get_undo_stack()
             return {
                 "status": "ok",
                 "buffer_id": buffer_id,
-                "steps_undone": steps,
+                "steps_undone": steps_undone,
                 "remaining_undo_count": len(stack.undo_stack),
-                "message": f"Undone {steps} operation(s)",
+                "message": f"Undone {steps_undone} operation(s)",
             }
         except (ImportError, RuntimeError, ValueError) as e:
             logger.warning(f"Undo failed: {e}")
@@ -7613,14 +7626,14 @@ class CodeEmbeddingTool:
 
         try:
             service = self._get_undo_redo_service(buffer_id)
-            service.redo(buffer_id, steps=steps)
+            steps_redone = service.redo(buffer_id, steps=steps)
             stack = service.branched_buffer_manager._get_branch_manager(buffer_id).get_undo_stack()
             return {
                 "status": "ok",
                 "buffer_id": buffer_id,
-                "steps_redone": steps,
+                "steps_redone": steps_redone,
                 "remaining_redo_count": len(stack.redo_stack),
-                "message": f"Redone {steps} operation(s)",
+                "message": f"Redone {steps_redone} operation(s)",
             }
         except (ImportError, RuntimeError, ValueError) as e:
             logger.warning(f"Redo failed: {e}")
