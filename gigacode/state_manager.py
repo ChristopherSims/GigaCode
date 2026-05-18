@@ -73,12 +73,14 @@ class FileLocker:
 
     def acquire(self, timeout: float = 10.0) -> bool:
         """Acquire exclusive lock on file."""
+        from filelock import Timeout
+
         try:
             self._file_lock.acquire(timeout=timeout)
             self.is_locked = True
             logger.debug(f"Acquired lock on {self.file_path}")
             return True
-        except Exception as e:
+        except Timeout as e:
             logger.error(f"Failed to acquire lock: {e}")
             return False
 
@@ -90,7 +92,7 @@ class FileLocker:
             self._file_lock.release()
             self.is_locked = False
             logger.debug(f"Released lock on {self.file_path}")
-        except Exception as e:
+        except RuntimeError as e:
             logger.error(f"Failed to release lock: {e}")
 
     def __enter__(self):

@@ -17,7 +17,7 @@ try:
             _sk.__spec__ = _spec
             sys.modules["sklearn"].__spec__ = _spec
     del _sk
-except Exception:
+except (ImportError, AttributeError, KeyError, TypeError, ValueError):
     pass
 
 import os
