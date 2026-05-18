@@ -20,6 +20,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from gigacode.server_dispatch import resolve_tool_method
+
 logger = logging.getLogger(__name__)
 
 
@@ -69,7 +71,7 @@ async def _run_stdio(tool: Any) -> None:
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-        method = getattr(tool, name, None)
+        method = resolve_tool_method(tool, name)
         if method is None:
             return [
                 TextContent(
@@ -148,7 +150,7 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-        method = getattr(tool, name, None)
+        method = resolve_tool_method(tool, name)
         if method is None:
             return [
                 TextContent(

@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from gigacode.constants import DEFAULT_HTTP_PORT
+from gigacode.server_dispatch import resolve_tool_method
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +107,8 @@ def _make_handler(tool: Any) -> type:
                 self._send_json(400, {"error": "Missing or invalid 'tool' field"})
                 return
 
-            method = getattr(tool, tool_name, None)
-            if method is None or not callable(method):
+            method = resolve_tool_method(tool, tool_name)
+            if method is None:
                 self._send_json(400, {"error": f"Unknown tool: {tool_name}"})
                 return
 
