@@ -32,6 +32,7 @@ pydantic>=2.13.0
 
 # Optional utilities
 watchdog>=6.0.0
+prometheus-client>=0.22.0
 
 # MCP (optional)
 mcp>=1.27.1
