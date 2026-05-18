@@ -670,6 +670,13 @@ class CodeEmbeddingTool:
         if err is not None:
             return err
 
+        if offset < 0:
+            return self._make_error_response(
+                "offset must be greater than or equal to 0",
+                buffer_id=buffer_id,
+                operation="semantic_search",
+            )
+
         # Validate type_inference_method
         if type_inference_method not in ("llm", "ast"):
             return self._make_error_response(
@@ -972,6 +979,13 @@ class CodeEmbeddingTool:
         err = self._validate_search_params(query, top_k=top_k)
         if err is not None:
             return err
+
+        if offset < 0:
+            return self._make_error_response(
+                "offset must be greater than or equal to 0",
+                buffer_id=buffer_id,
+                operation="hybrid_search",
+            )
 
         result = self._require_buffer(buffer_id, "hybrid_search", require_chunks=False)
         if isinstance(result, dict):

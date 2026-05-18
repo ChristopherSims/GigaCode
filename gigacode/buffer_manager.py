@@ -640,6 +640,8 @@ class BufferManager:
         if snapshot_mgr is None:
             return {"status": "error", "message": "Snapshot not available."}
 
+        start_line = max(1, start_line)
+
         if file is not None:
             if file not in snapshot_mgr.manifest.files:
                 return {"status": "error", "message": f"File not in buffer: {file}"}
@@ -649,6 +651,7 @@ class BufferManager:
                 return {"status": "error", "message": f"Failed to read file: {file}"}
 
             end = end_line if end_line is not None else len(lines) + 1
+            end = max(start_line, end)
             selected = lines[start_line - 1 : end - 1]
             result = {
                 "status": "ok",
@@ -683,6 +686,7 @@ class BufferManager:
                 )
                 continue
             end = end_line if end_line is not None else len(lines) + 1
+            end = max(start_line, end)
             result_dict[fname] = lines[start_line - 1 : end - 1]
 
         final_result = {"status": "ok", "files": result_dict}

@@ -92,7 +92,7 @@ class SearchRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     query: str = Field(description="Natural language search query.")
     top_k: int = Field(default=5, description="Maximum number of results to return.")
-    offset: int = Field(default=0, description="Offset for paginating results.")
+    offset: int = Field(default=0, ge=0, description="Offset for paginating results.")
     include_types: bool = Field(default=False, description="Include type inference in results.")
     type_inference_method: str = Field(default="llm", description="Type inference method: llm (accurate) or ast (fast).")
 
@@ -101,7 +101,7 @@ class HybridSearchRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     query: str = Field(description="Natural language search query.")
     top_k: int = Field(default=5, description="Maximum number of results to return.")
-    offset: int = Field(default=0, description="Offset for paginating results.")
+    offset: int = Field(default=0, ge=0, description="Offset for paginating results.")
     semantic_weight: float = Field(default=1.0, description="Weight for semantic similarity.")
     lexical_weight: float = Field(default=1.0, description="Weight for lexical (keyword) matching.")
 
@@ -122,8 +122,8 @@ class SymbolSearchRequest(BaseModel):
 class ReadRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     file: Optional[str] = Field(default=None, description="File path within the buffer.")
-    start_line: int = Field(default=1, description="Start line number (1-indexed).")
-    end_line: Optional[int] = Field(default=None, description="End line number. If None, reads to end of file.")
+    start_line: int = Field(default=1, ge=1, description="Start line number (1-indexed).")
+    end_line: Optional[int] = Field(default=None, ge=1, description="End line number. If None, reads to end of file.")
 
 
 class LookForFileRequest(BaseModel):
