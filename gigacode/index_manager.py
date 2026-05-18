@@ -288,9 +288,10 @@ class IndexManager:
             Status dict.
         """
         buffer_dir = self.work_dir / f"{buffer_id}.gcbuff"
-        buffer_dir.mkdir(parents=True, exist_ok=True)
 
         try:
+            buffer_dir.mkdir(parents=True, exist_ok=True)
+
             # Save chunks
             chunks_path = buffer_dir / "chunks.json"
             chunks_data = [
