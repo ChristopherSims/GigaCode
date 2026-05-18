@@ -5,6 +5,30 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-05-18
+
+### Added
+
+- **`write_code()` operation tracking** — successful writes now return an `operation_id`, and public write operations are recorded for undo/redo history.
+- **Focused undo/redo regression coverage** — added integration coverage for tracked `write_code` operations and basic undo/redo flow.
+- **Early FAISS/SWIG warning suppression for test runs** — added repository-level pytest startup filtering so third-party SWIG deprecation noise does not overwhelm test output on supported interpreters.
+
+### Changed
+
+- **Undo/redo semantics clarified** — documentation and behavior now consistently describe stack-based undo/redo rather than implying unsupported surgical undo.
+- **Tool schema and docs updated** — `write_code` schema/examples and `tools.md` now document `operation_id` in responses and align undo/redo descriptions with the current implementation.
+- **Test suite aligned to the live API surface** — multiple integration and workflow tests were updated to follow current response shapes, delegated health reporting, optional search-service behavior, and current cache/state contracts instead of older assumptions.
+- **Script-style tests converted to normal pytest behavior** — tests that previously returned `True`/`False` now use assertions, `pytest.skip(...)`, or `pytest.fail(...)`, eliminating `PytestReturnNotNoneWarning` noise.
+
+### Fixed
+
+- **Public undo/redo integration gap** — `CodeEmbeddingTool.write_code()` now records undoable operations, so public edits participate in undo/redo history.
+- **Broken redo path** — redo now reapplies the original operation content correctly instead of only moving stack entries.
+- **Undo/redo result reporting** — `undo()` and `redo()` now report the actual number of operations applied rather than echoing the requested step count.
+- **Timezone deprecation warnings** — replaced deprecated `datetime.utcnow()` usage in snapshot and state management code with timezone-aware UTC timestamps.
+- **Test-environment deprecation noise** — suppressed known third-party FAISS/SWIG bootstrap warnings during pytest startup while keeping project-originated deprecations visible during validation.
+- **Python-version-sensitive test execution** — test validation was corrected to run under the supported `conda` `314` environment, matching the project’s Python 3.10+ support policy.
+
 ## [0.6.1] - 2026-05-15
 
 ### Added
