@@ -5,9 +5,11 @@ import importlib.util
 import sys
 import types
 import warnings
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
+import pytest
 
 warnings.filterwarnings(
     "ignore",
@@ -116,13 +118,7 @@ try:
 except Exception:
     _install_sentence_transformers_shim()
 
-# Add parent directory to path
-from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-# Session fixture
-import pytest
 
 # Patch importlib.util.find_spec to catch ValueError when __spec__ is None
 _real_find_spec = importlib.util.find_spec

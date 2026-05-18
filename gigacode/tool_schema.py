@@ -12,6 +12,8 @@ Only coordinates (file, line) and metadata (score, buffer_id) are exposed.
 
 from __future__ import annotations
 
+import os
+from enum import Enum
 from typing import Any
 
 __all__ = [
@@ -4490,7 +4492,7 @@ _enrich_all_schemas()
 # ---------------------------------------------------------------------------
 
 # Categories for filtering
-TOOL_CATEGORIES = sorted(set(s["category"] for s in ALL_SCHEMAS))
+TOOL_CATEGORIES = sorted({schema["category"] for schema in ALL_SCHEMAS})
 
 
 def get_schemas_by_category(category: str) -> list[dict[str, Any]]:
@@ -4582,9 +4584,6 @@ def to_mcp_tools() -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # Schema Format Configuration
 # ---------------------------------------------------------------------------
-
-from enum import Enum
-
 
 class SchemaFormat(str, Enum):
     """Supported tool schema export formats.
@@ -4745,9 +4744,6 @@ def export_schemas(
 # ---------------------------------------------------------------------------
 # Schema Config (file-based defaults)
 # ---------------------------------------------------------------------------
-
-import os
-
 
 class SchemaConfig:
     """Configuration for schema export defaults.

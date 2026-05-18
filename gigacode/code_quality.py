@@ -144,8 +144,16 @@ def _format_black(
                     file_name = line[6:]
                     break
             if file_name:
-                added = sum(1 for l in lines if l.startswith("+") and not l.startswith("+++"))
-                removed = sum(1 for l in lines if l.startswith("-") and not l.startswith("---"))
+                added = sum(
+                    1
+                    for diff_line in lines
+                    if diff_line.startswith("+") and not diff_line.startswith("+++")
+                )
+                removed = sum(
+                    1
+                    for diff_line in lines
+                    if diff_line.startswith("-") and not diff_line.startswith("---")
+                )
                 changes.append(
                     {
                         "file": file_name,
@@ -217,8 +225,16 @@ def _format_ruff(
                     file_name = line[6:]
                     break
             if file_name:
-                added = sum(1 for l in lines if l.startswith("+") and not l.startswith("+++"))
-                removed = sum(1 for l in lines if l.startswith("-") and not l.startswith("---"))
+                added = sum(
+                    1
+                    for diff_line in lines
+                    if diff_line.startswith("+") and not diff_line.startswith("+++")
+                )
+                removed = sum(
+                    1
+                    for diff_line in lines
+                    if diff_line.startswith("-") and not diff_line.startswith("---")
+                )
                 changes.append(
                     {
                         "file": file_name,
@@ -342,7 +358,7 @@ def auto_lint(
             if file_path not in by_rule[code]["files"]:
                 by_rule[code]["files"].append(file_path)
 
-    files_with_issues = len(set(i["file"] for i in issues))
+    files_with_issues = len({issue["file"] for issue in issues})
 
     # Count fixed vs unfixed
     fixed_count = 0

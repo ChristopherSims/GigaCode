@@ -18,8 +18,22 @@ import numpy as np
 
 from gigacode import response_adapters, tool_validation
 from gigacode.access_control import User
+from gigacode.agent_profile import (
+    AdaptiveChunker,
+    AgentProfile,
+    AgentProfileService,
+    ChunkingStrategyFactory,
+    ProfileAdapter,
+)
 from gigacode.buffer_state import BufferState, BufferStateTransition
 from gigacode.chunker import CodeChunk, chunk_text
+from gigacode.code_quality import auto_format, auto_lint, auto_polish
+from gigacode.constants import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_PROMETHEUS_PORT,
+    DEFAULT_THRESHOLD_MB,
+    MAX_DIRTY_BEFORE_AUTO_REBUILD,
+)
 from gigacode.context_assembler import ContextAssembler
 from gigacode.context_packer import pack_context
 from gigacode.context_summarizer import ContextSummarizer
@@ -27,6 +41,7 @@ from gigacode.conversation_memory import ConversationMemory
 from gigacode.dead_code_detector import DeadCodeDetector
 from gigacode.dependency_graph import DependencyGraph
 from gigacode.embedder import Embedder
+from gigacode.execution_paths import trace_execution_paths
 from gigacode.execution_sandbox import SandboxExecutor
 from gigacode.faceted_search import FacetedSearcher, SearchFilter
 from gigacode.git_utils import GitUtils
@@ -54,6 +69,7 @@ from gigacode.refactor_engine import (
 from gigacode.refactor_engine import (
     edit_symbol as _edit_symbol,
 )
+from gigacode.reference_map import ReferenceMap
 from gigacode.resource_budget import ConfidenceScorer
 from gigacode.resource_budget import estimate_budget as _estimate_budget
 from gigacode.response_types import (
@@ -68,24 +84,8 @@ from gigacode.symbol_index import SymbolIndex
 from gigacode.test_runner import TestRunner
 from gigacode.todo_tracker import TodoTracker
 from gigacode.tool_security import ToolSecurityLayer
-from gigacode.type_search import TypeSearcher
 from gigacode.type_inference_cache import TypeInferenceCache
-from gigacode.code_quality import auto_format, auto_lint, auto_polish
-from gigacode.constants import (
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_PROMETHEUS_PORT,
-    DEFAULT_THRESHOLD_MB,
-    MAX_DIRTY_BEFORE_AUTO_REBUILD,
-)
-from gigacode.reference_map import ReferenceMap
-from gigacode.execution_paths import trace_execution_paths
-from gigacode.agent_profile import (
-    AgentProfile,
-    ChunkingStrategyFactory,
-    AdaptiveChunker,
-    ProfileAdapter,
-    AgentProfileService,
-)
+from gigacode.type_search import TypeSearcher
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("tool")
@@ -1264,8 +1264,8 @@ class CodeEmbeddingTool:
             )
 
         try:
-            from gigacode.type_search import _extract_python_types
             from gigacode.type_inference_cache import InferredType
+            from gigacode.type_search import _extract_python_types
 
             # Find the chunk containing this symbol
             matching_chunks = [c for c in chunks if hasattr(c, "name") and c.name == symbol]
@@ -1848,8 +1848,8 @@ class CodeEmbeddingTool:
 
     def _get_type_info_from_chunk(self, chunk: Any, method: str) -> dict[str, Any]:
         """Extract type info from a chunk, optionally using cache."""
-        from gigacode.type_search import _extract_python_types
         from gigacode.type_inference_cache import InferredType
+        from gigacode.type_search import _extract_python_types
 
         result: dict[str, Any] = {}
         sigs = _extract_python_types(chunk.text) if chunk.text else []
@@ -5036,7 +5036,7 @@ class CodeEmbeddingTool:
 
                 # Collect symbols at each depth level
                 current_level = [symbol]
-                for d in range(depth):
+                for _d in range(depth):
                     next_level: list[str] = []
                     for sym in current_level:
                         refs = ref_map.get_references(sym, direction="both", top_k=20)
@@ -5833,7 +5833,7 @@ class CodeEmbeddingTool:
                     lines.extend(param_docs)
                 if return_type:
                     lines.append("")
-                    lines.append(f"Returns:")
+                    lines.append("Returns:")
                     lines.append(f"    {return_type.strip()}")
                 lines.append('"""')
                 docstring = "\n".join(lines)
@@ -6508,13 +6508,13 @@ class CodeEmbeddingTool:
                     )
 
             # Check for f-string in log (potential performance issue)
-            for match in re.finditer(r'(?:logger|logging)\.\w+\s*\(\s*f["\']', chunk.text):
+            for _match in re.finditer(r'(?:logger|logging)\.\w+\s*\(\s*f["\']', chunk.text):
                 log_patterns_seen.add("f-string-in-log")
 
             # Detect functions with no logging but error handling
             if chunk.type in ("function", "method"):
                 has_try = "try:" in chunk.text or "try :" in chunk.text
-                has_log = any(f".{l}(" in chunk.text for l in levels)
+                has_log = any(f".{level_name}(" in chunk.text for level_name in levels)
                 if has_try and not has_log:
                     missing_logs.append(
                         {
@@ -7899,8 +7899,8 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         try:
-            from gigacode.solver import Solver, SolveExecutor
             from gigacode.intent_router import IntentRouter
+            from gigacode.solver import SolveExecutor, Solver
 
             intent_router = IntentRouter()
             executor = SolveExecutor(
@@ -7941,7 +7941,7 @@ class CodeEmbeddingTool:
             self._undo_redo_services: dict[str, Any] = {}
 
         if buffer_id not in self._undo_redo_services:
-            from gigacode.undo_redo import UndoRedoService, BranchedBufferManager
+            from gigacode.undo_redo import BranchedBufferManager, UndoRedoService
 
             branched_mgr = BranchedBufferManager(buffer_manager=self._buffer_manager)
             self._undo_redo_services[buffer_id] = UndoRedoService(
@@ -8157,7 +8157,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         try:
-            from gigacode.why_annotator import WhyAnnotator, AnnotationService, RelevanceExplainer
+            from gigacode.why_annotator import AnnotationService, RelevanceExplainer, WhyAnnotator
 
             # Run semantic search first
             search_result = self.semantic_search(buffer_id, query, top_k=top_k)
@@ -8231,7 +8231,7 @@ class CodeEmbeddingTool:
         info, _ = result
 
         try:
-            from gigacode.conflict_predictor import ConflictPredictor, ConflictPredictionService
+            from gigacode.conflict_predictor import ConflictPredictionService, ConflictPredictor
 
             chunks = self._load_chunks(buffer_id)
             dep_graph = DependencyGraph(chunks) if chunks else DependencyGraph([])

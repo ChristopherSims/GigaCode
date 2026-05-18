@@ -4,10 +4,10 @@ Eliminates full-codebase duplication by storing only file metadata (name, mtime,
 and reading lines on-demand from disk. Supports 3-way merge for conflict detection.
 """
 
+import difflib
 import hashlib
 import json
 import logging
-import difflib
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -415,7 +415,7 @@ class SnapshotDiffer:
 
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == "equal":
-                for old_idx, new_idx in zip(range(i1, i2), range(j1, j2)):
+                for _old_idx, new_idx in zip(range(i1, i2), range(j1, j2), strict=False):
                     diffs.append(("=", new_idx, new_lines[new_idx]))
             elif tag == "delete":
                 for old_idx in range(i1, i2):

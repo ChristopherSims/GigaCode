@@ -28,36 +28,41 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from typing import Optional, List
 
 from gigacode.gigacode_tool import CodeEmbeddingTool
 from gigacode.pydantic_models import (
-    GetReferencesRequest,
     AnalyzeChangeRequest,
-    InferTypesRequest,
+    AnalyzeChangeResponse,
     AutoFormatRequest,
     AutoLintRequest,
     AutoPolishRequest,
-    PolishBeforeCommitRequest,
-    GetFullContextRequest as FullContextRequest,
-    GetSymbolMetadataRequest as SymbolMetadataRequest,
-    SearchBatchRequest as BatchSearchRequest,
-    GetTestCoverageRequest,
+    AutoPolishResponse,
+    GetFullContextResponse,
+    GetReferencesRequest,
     # Response models
     GetReferencesResponse,
-    GetFullContextResponse,
-    AnalyzeChangeResponse,
+    GetTestCoverageRequest,
     GetTestCoverageResponse,
+    InferTypesRequest,
     InferTypesResponse,
-    SymbolMetadataResponse,
-    SearchBatchResponse,
-    AutoPolishResponse,
+    PolishBeforeCommitRequest,
     PolishBeforeCommitResponse,
+    SearchBatchResponse,
+    SymbolMetadataResponse,
+)
+from gigacode.pydantic_models import (
+    GetFullContextRequest as FullContextRequest,
+)
+from gigacode.pydantic_models import (
+    GetSymbolMetadataRequest as SymbolMetadataRequest,
+)
+from gigacode.pydantic_models import (
+    SearchBatchRequest as BatchSearchRequest,
 )
 from gigacode.server_dispatch import resolve_tool_method
 
@@ -1179,7 +1184,8 @@ def create_app(tool: Any) -> FastAPI:
         Supported formats: openai, anthropic, mcp, ollama.
         Query params: format, include_metadata, category, read_only_only.
         """
-        from gigacode.tool_schema import export_schemas as _export, SchemaFormat
+        from gigacode.tool_schema import SchemaFormat
+        from gigacode.tool_schema import export_schemas as _export
 
         try:
             fmt = SchemaFormat(format)
@@ -1191,7 +1197,7 @@ def create_app(tool: Any) -> FastAPI:
                     "status": "error",
                     "message": f"Invalid format '{format}'. Supported: {valid}",
                 },
-            )
+            ) from None
         return _export(
             format=fmt,
             include_metadata=include_metadata,
@@ -1259,8 +1265,8 @@ def create_production_app(
         rate_limit_calls: Max calls per period (default: 100).
         rate_limit_period: Rate limit period in seconds (default: 60).
     """
-    from fastapi.security import APIKeyHeader
     from fastapi import Security
+    from fastapi.security import APIKeyHeader
 
     app = create_app(tool)
 
