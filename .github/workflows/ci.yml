@@ -36,8 +36,8 @@ jobs:
       - name: Lint with Ruff
         run: ruff check --output-format=github gigacode/ tests/
 
-      - name: Check formatting with Black
-        run: black --check --diff --verbose gigacode/ tests/
+      - name: Check formatting with Ruff
+        run: ruff format --check gigacode/ tests/
 
   # ------------------------------------------------------------------
   # Type Check

@@ -4585,6 +4585,7 @@ def to_mcp_tools() -> list[dict[str, Any]]:
 # Schema Format Configuration
 # ---------------------------------------------------------------------------
 
+
 class SchemaFormat(str, Enum):
     """Supported tool schema export formats.
 
@@ -4744,6 +4745,7 @@ def export_schemas(
 # ---------------------------------------------------------------------------
 # Schema Config (file-based defaults)
 # ---------------------------------------------------------------------------
+
 
 class SchemaConfig:
     """Configuration for schema export defaults.
