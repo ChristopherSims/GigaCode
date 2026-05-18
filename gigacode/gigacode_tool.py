@@ -6405,8 +6405,12 @@ class CodeEmbeddingTool:
                         breaking_changes.append(entry)
                     else:
                         other.append(entry)
-        except Exception as e:
-            return self._make_error_response(f"Git log failed: {e}", buffer_id=buffer_id, operation="generate_changelog")
+        except (OSError, RuntimeError, ValueError) as e:
+            return self._make_error_response(
+                f"Git log failed: {e}",
+                buffer_id=buffer_id,
+                operation="generate_changelog",
+            )
 
         return {
             "status": "ok",
@@ -6490,8 +6494,8 @@ class CodeEmbeddingTool:
                             "return_type_changed": False,
                             "migration_guide": f"Review changes to {api['symbol']} in {api['file']}",
                         })
-        except Exception:
-            pass
+        except (OSError, RuntimeError, ValueError) as e:
+            logger.warning("API change diff fallback failed: %s", e)
 
         return {
             "status": "ok",
@@ -6560,8 +6564,12 @@ class CodeEmbeddingTool:
                 "commit_date": commit_date,
                 "diff_to_revert": diff_to_revert,
             }
-        except Exception as e:
-            return self._make_error_response(f"Git operation failed: {e}", buffer_id=buffer_id, operation="get_rollback_info")
+        except (OSError, RuntimeError, ValueError) as e:
+            return self._make_error_response(
+                f"Git operation failed: {e}",
+                buffer_id=buffer_id,
+                operation="get_rollback_info",
+            )
 
     def generate_change_template(
         self,
@@ -6622,8 +6630,8 @@ class CodeEmbeddingTool:
                         name = t.get("name", t.get("target_symbol", ""))
                         if name and name not in test_cases_needed:
                             test_cases_needed.append(name)
-            except Exception:
-                pass
+            except (OSError, RuntimeError, ValueError) as e:
+                logger.warning("Impact analysis fallback failed for %s: %s", f, e)
 
         return {
             "status": "ok",
