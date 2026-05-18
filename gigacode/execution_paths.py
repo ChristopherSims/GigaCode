@@ -89,13 +89,13 @@ def _extract_branches_regex(source: str) -> tuple[int, list[str], list[str]]:
 
     # Branch patterns
     branch_patterns = [
-        (r'\bif\b\s+(.+?):', 'if'),
-        (r'\belif\b\s+(.+?):', 'elif'),
-        (r'\bfor\b\s+\w+\b', 'for'),
-        (r'\bwhile\b\s+(.+?):', 'while'),
-        (r'\bexcept\b\s*(\w+)?', 'except'),
-        (r'\band\b', 'and'),
-        (r'\bor\b', 'or'),
+        (r"\bif\b\s+(.+?):", "if"),
+        (r"\belif\b\s+(.+?):", "elif"),
+        (r"\bfor\b\s+\w+\b", "for"),
+        (r"\bwhile\b\s+(.+?):", "while"),
+        (r"\bexcept\b\s*(\w+)?", "except"),
+        (r"\band\b", "and"),
+        (r"\bor\b", "or"),
     ]
     for pattern, kind in branch_patterns:
         for match in re.finditer(pattern, source):
@@ -103,10 +103,30 @@ def _extract_branches_regex(source: str) -> tuple[int, list[str], list[str]]:
             conditions.append(match.group(1) if match.lastindex else kind)
 
     # Call patterns
-    call_pattern = re.compile(r'\b([a-zA-Z_][a-zA-Z0-9_.]*)\s*\(')
-    keywords = {'if', 'while', 'for', 'with', 'assert', 'raise', 'return',
-                'print', 'len', 'range', 'isinstance', 'type', 'str', 'int',
-                'float', 'list', 'dict', 'set', 'tuple', 'bool', 'super'}
+    call_pattern = re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_.]*)\s*\(")
+    keywords = {
+        "if",
+        "while",
+        "for",
+        "with",
+        "assert",
+        "raise",
+        "return",
+        "print",
+        "len",
+        "range",
+        "isinstance",
+        "type",
+        "str",
+        "int",
+        "float",
+        "list",
+        "dict",
+        "set",
+        "tuple",
+        "bool",
+        "super",
+    }
     for match in call_pattern.finditer(source):
         name = match.group(1)
         if name not in keywords and name not in calls:
@@ -120,7 +140,7 @@ def _node_to_str(node: ast.AST) -> str:
     try:
         return ast.unparse(node)
     except (AttributeError, ValueError):
-        return str(getattr(node, 'id', getattr(node, 'attr', '?')))
+        return str(getattr(node, "id", getattr(node, "attr", "?")))
 
 
 def _get_call_name(node: ast.Call) -> str | None:
@@ -136,7 +156,7 @@ def _get_call_name(node: ast.Call) -> str | None:
         if isinstance(current, ast.Name):
             parts.append(current.id)
         parts.reverse()
-        return '.'.join(parts)
+        return ".".join(parts)
     return None
 
 
@@ -162,14 +182,14 @@ def trace_execution_paths(
     # Find the chunk for this symbol
     target_chunk = None
     for chunk in chunks:
-        if hasattr(chunk, 'name') and chunk.name == symbol and chunk.text:
+        if hasattr(chunk, "name") and chunk.name == symbol and chunk.text:
             target_chunk = chunk
             break
 
     if target_chunk is None:
         # Try partial match
         for chunk in chunks:
-            if hasattr(chunk, 'name') and symbol in (chunk.name or '') and chunk.text:
+            if hasattr(chunk, "name") and symbol in (chunk.name or "") and chunk.text:
                 target_chunk = chunk
                 break
 
@@ -179,7 +199,7 @@ def trace_execution_paths(
     # Build definition lookup
     definitions: dict[str, Any] = {}
     for chunk in chunks:
-        if hasattr(chunk, 'name') and chunk.name:
+        if hasattr(chunk, "name") and chunk.name:
             definitions[chunk.name] = chunk
 
     # Trace paths using DFS
@@ -191,12 +211,14 @@ def trace_execution_paths(
             return
         if current_sym in visited:
             chain.append(f"{current_sym} (cycle)")
-            paths.append(ExecutionPath(
-                path=[" → ".join(chain)],
-                branches=0,
-                calls=list(chain),
-                conditions=[],
-            ))
+            paths.append(
+                ExecutionPath(
+                    path=[" → ".join(chain)],
+                    branches=0,
+                    calls=list(chain),
+                    conditions=[],
+                )
+            )
             chain.pop()
             return
 
@@ -204,12 +226,14 @@ def trace_execution_paths(
         chunk = definitions.get(current_sym)
         if chunk is None or not chunk.text:
             chain.append(current_sym)
-            paths.append(ExecutionPath(
-                path=[" → ".join(chain)],
-                branches=0,
-                calls=list(chain),
-                conditions=[],
-            ))
+            paths.append(
+                ExecutionPath(
+                    path=[" → ".join(chain)],
+                    branches=0,
+                    calls=list(chain),
+                    conditions=[],
+                )
+            )
             visited.discard(current_sym)
             chain.pop()
             return
@@ -218,12 +242,14 @@ def trace_execution_paths(
 
         if not calls or depth == max_depth:
             chain.append(current_sym)
-            paths.append(ExecutionPath(
-                path=[" → ".join(chain)],
-                branches=branches,
-                calls=list(chain),
-                conditions=conditions,
-            ))
+            paths.append(
+                ExecutionPath(
+                    path=[" → ".join(chain)],
+                    branches=branches,
+                    calls=list(chain),
+                    conditions=conditions,
+                )
+            )
             visited.discard(current_sym)
             chain.pop()
             return
@@ -237,21 +263,21 @@ def trace_execution_paths(
         visited.discard(current_sym)
 
     # Start tracing
-    root_branches, root_calls, root_conditions = _extract_branches_and_calls(
-        target_chunk.text
-    )
+    root_branches, root_calls, root_conditions = _extract_branches_and_calls(target_chunk.text)
 
     if root_calls:
         for call_sym in root_calls:
             _trace(call_sym, [symbol], 1)
     else:
         # No calls — single path
-        paths.append(ExecutionPath(
-            path=[symbol],
-            branches=root_branches,
-            calls=[symbol],
-            conditions=root_conditions,
-        ))
+        paths.append(
+            ExecutionPath(
+                path=[symbol],
+                branches=root_branches,
+                calls=[symbol],
+                conditions=root_conditions,
+            )
+        )
 
     # Deduplicate and limit
     seen_paths: set[str] = set()

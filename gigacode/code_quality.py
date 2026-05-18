@@ -146,12 +146,14 @@ def _format_black(
             if file_name:
                 added = sum(1 for l in lines if l.startswith("+") and not l.startswith("+++"))
                 removed = sum(1 for l in lines if l.startswith("-") and not l.startswith("---"))
-                changes.append({
-                    "file": file_name,
-                    "added_lines": added,
-                    "removed_lines": removed,
-                    "diff": "diff --git" + section,
-                })
+                changes.append(
+                    {
+                        "file": file_name,
+                        "added_lines": added,
+                        "removed_lines": removed,
+                        "diff": "diff --git" + section,
+                    }
+                )
                 formatted_count += 1
 
     if not dry_run:
@@ -162,7 +164,9 @@ def _format_black(
             if "left unchanged" in line:
                 already_formatted = 1
 
-    summary = f"Formatted {formatted_count} files" if formatted_count else "All files already formatted"
+    summary = (
+        f"Formatted {formatted_count} files" if formatted_count else "All files already formatted"
+    )
 
     return {
         "status": "ok",
@@ -215,19 +219,23 @@ def _format_ruff(
             if file_name:
                 added = sum(1 for l in lines if l.startswith("+") and not l.startswith("+++"))
                 removed = sum(1 for l in lines if l.startswith("-") and not l.startswith("---"))
-                changes.append({
-                    "file": file_name,
-                    "added_lines": added,
-                    "removed_lines": removed,
-                    "diff": "diff --git" + section,
-                })
+                changes.append(
+                    {
+                        "file": file_name,
+                        "added_lines": added,
+                        "removed_lines": removed,
+                        "diff": "diff --git" + section,
+                    }
+                )
                 formatted_count += 1
 
     # ruff format exit code 0 = no changes, 1 = changes made (in non-diff mode)
     if not dry_run and returncode == 1:
         formatted_count = 1  # Summary
 
-    summary = f"Formatted {formatted_count} files" if formatted_count else "All files already formatted"
+    summary = (
+        f"Formatted {formatted_count} files" if formatted_count else "All files already formatted"
+    )
 
     return {
         "status": "ok",
@@ -272,7 +280,10 @@ def auto_lint(
     targets = [str(Path(work_dir) / f) for f in files] if files else ["."]
 
     if linter != "ruff":
-        return {"status": "error", "message": f"Unsupported linter: {linter}. Only 'ruff' is supported."}
+        return {
+            "status": "error",
+            "message": f"Unsupported linter: {linter}. Only 'ruff' is supported.",
+        }
 
     args = ["ruff", "check"]
 

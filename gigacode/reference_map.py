@@ -233,11 +233,13 @@ class ReferenceMap:
                     if sub:
                         for ref in sub.callers:
                             if ref.get("symbol") not in visited:
-                                all_callers.append({
-                                    **ref,
-                                    "via": caller_sym,
-                                    "depth": depth,
-                                })
+                                all_callers.append(
+                                    {
+                                        **ref,
+                                        "via": caller_sym,
+                                        "depth": depth,
+                                    }
+                                )
                                 next_callers.append(ref["symbol"])
 
             if direction in ("both", "calls"):
@@ -249,11 +251,13 @@ class ReferenceMap:
                     if sub:
                         for ref in sub.callees:
                             if ref.get("symbol") not in visited:
-                                all_callees.append({
-                                    **ref,
-                                    "via": callee_sym,
-                                    "depth": depth,
-                                })
+                                all_callees.append(
+                                    {
+                                        **ref,
+                                        "via": callee_sym,
+                                        "depth": depth,
+                                    }
+                                )
                                 next_callees.append(ref["symbol"])
 
             current_callers = next_callers
@@ -321,13 +325,15 @@ class ReferenceMap:
                 key = (chunk.file, line)
                 if key not in seen:
                     seen.add(key)
-                    callers.append({
-                        "file": chunk.file,
-                        "line": line,
-                        "symbol": getattr(chunk, "name", ""),
-                        "context": context,
-                        "confidence": "high",
-                    })
+                    callers.append(
+                        {
+                            "file": chunk.file,
+                            "line": line,
+                            "symbol": getattr(chunk, "name", ""),
+                            "context": context,
+                            "confidence": "high",
+                        }
+                    )
 
             # Medium confidence: regex text search (only if we haven't hit top_k)
             if len(callers) >= top_k:
@@ -342,17 +348,19 @@ class ReferenceMap:
                 if getattr(chunk, "name", None) == symbol:
                     continue
                 for match in pattern.finditer(chunk.text):
-                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    line = chunk.start_line + chunk.text[: match.start()].count("\n")
                     key = (chunk.file, line)
                     if key not in seen:
                         seen.add(key)
-                        callers.append({
-                            "file": chunk.file,
-                            "line": line,
-                            "symbol": getattr(chunk, "name", ""),
-                            "context": match.group(0),
-                            "confidence": "medium",
-                        })
+                        callers.append(
+                            {
+                                "file": chunk.file,
+                                "line": line,
+                                "symbol": getattr(chunk, "name", ""),
+                                "context": match.group(0),
+                                "confidence": "medium",
+                            }
+                        )
                         if len(callers) >= top_k:
                             break
                 if len(callers) >= top_k:
@@ -365,9 +373,7 @@ class ReferenceMap:
 
         return callers[:top_k]
 
-    def _find_callees(
-        self, symbol: str, chunk: Any, top_k: int
-    ) -> list[dict[str, Any]]:
+    def _find_callees(self, symbol: str, chunk: Any, top_k: int) -> list[dict[str, Any]]:
         """Find all symbols called by this symbol's chunk."""
         callees: list[dict[str, Any]] = []
 
@@ -379,23 +385,27 @@ class ReferenceMap:
                 def_file, def_line, _, _ = defs[0]
                 # Find the call line in the caller chunk
                 line, context = self._find_call_line(chunk, called_sym)
-                callees.append({
-                    "file": def_file,
-                    "line": def_line,
-                    "symbol": called_sym,
-                    "context": context,
-                    "confidence": "high",
-                })
+                callees.append(
+                    {
+                        "file": def_file,
+                        "line": def_line,
+                        "symbol": called_sym,
+                        "context": context,
+                        "confidence": "high",
+                    }
+                )
             else:
                 # Symbol not defined in this codebase (external/built-in)
                 line, context = self._find_call_line(chunk, called_sym)
-                callees.append({
-                    "file": getattr(chunk, "file", ""),
-                    "line": line,
-                    "symbol": called_sym,
-                    "context": context,
-                    "confidence": "medium",
-                })
+                callees.append(
+                    {
+                        "file": getattr(chunk, "file", ""),
+                        "line": line,
+                        "symbol": called_sym,
+                        "context": context,
+                        "confidence": "medium",
+                    }
+                )
 
         return callees[:top_k]
 
@@ -408,10 +418,10 @@ class ReferenceMap:
         pattern = re.compile(rf"\b{re.escape(symbol)}\b")
         match = pattern.search(chunk.text)
         if match:
-            line = chunk.start_line + chunk.text[:match.start()].count("\n")
+            line = chunk.start_line + chunk.text[: match.start()].count("\n")
             # Get the full line of code for context
             lines = chunk.text.split("\n")
-            line_offset = chunk.text[:match.start()].count("\n")
+            line_offset = chunk.text[: match.start()].count("\n")
             context = lines[line_offset].strip() if line_offset < len(lines) else match.group(0)
             return line, context
         return getattr(chunk, "start_line", 0), ""

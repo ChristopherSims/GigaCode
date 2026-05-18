@@ -298,7 +298,9 @@ def get_prometheus_exporter(port: int = DEFAULT_PROMETHEUS_PORT) -> PrometheusMe
     return _exporter
 
 
-def configure_prometheus(port: int = DEFAULT_PROMETHEUS_PORT, start_server: bool = True) -> PrometheusMetricsExporter:
+def configure_prometheus(
+    port: int = DEFAULT_PROMETHEUS_PORT, start_server: bool = True
+) -> PrometheusMetricsExporter:
     """Configure and optionally start Prometheus metrics export.
 
     Args:

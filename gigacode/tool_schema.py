@@ -231,12 +231,24 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
                         "file": {"type": "string", "description": "Source file path"},
                         "start_line": {"type": "integer", "description": "First line of match"},
                         "end_line": {"type": "integer", "description": "Last line of match"},
-                        "line": {"type": "integer", "description": "Alias for start_line (backward compatibility)"},
+                        "line": {
+                            "type": "integer",
+                            "description": "Alias for start_line (backward compatibility)",
+                        },
                         "score": {"type": "number", "description": "Relevance score (0.0-1.0)"},
-                        "type": {"type": "string", "description": "Symbol type (function, class, etc.)"},
+                        "type": {
+                            "type": "string",
+                            "description": "Symbol type (function, class, etc.)",
+                        },
                         "name": {"type": "string", "description": "Symbol name if applicable"},
-                        "text": {"type": "string", "description": "Complete source code for the match"},
-                        "signature": {"type": "string", "description": "Function/class signature with type annotations (only when include_types=true)"},
+                        "text": {
+                            "type": "string",
+                            "description": "Complete source code for the match",
+                        },
+                        "signature": {
+                            "type": "string",
+                            "description": "Function/class signature with type annotations (only when include_types=true)",
+                        },
                         "parameter_types": {
                             "type": "array",
                             "items": {
@@ -248,9 +260,19 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
                             },
                             "description": "Inferred parameter types (only when include_types=true)",
                         },
-                        "return_type": {"type": "string", "description": "Inferred return type (only when include_types=true)"},
-                        "type_confidence": {"type": "number", "description": "Confidence score 0.0-1.0 (only for LLM inference)"},
-                        "inference_method": {"type": "string", "enum": ["llm", "ast"], "description": "Inference method used"},
+                        "return_type": {
+                            "type": "string",
+                            "description": "Inferred return type (only when include_types=true)",
+                        },
+                        "type_confidence": {
+                            "type": "number",
+                            "description": "Confidence score 0.0-1.0 (only for LLM inference)",
+                        },
+                        "inference_method": {
+                            "type": "string",
+                            "enum": ["llm", "ast"],
+                            "description": "Inference method used",
+                        },
                     },
                     "required": ["file", "start_line", "end_line", "score"],
                 },
@@ -681,11 +703,17 @@ WRITE_CODE_SCHEMA: dict[str, Any] = {
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "file": {"type": "string"},
-            "operation_id": {"type": "string", "description": "Tracked operation ID for undo/redo history."},
+            "operation_id": {
+                "type": "string",
+                "description": "Tracked operation ID for undo/redo history.",
+            },
             "changed_lines": {"type": "integer"},
             "replaced_lines": {"type": "integer"},
             "total_lines": {"type": "integer"},
-            "diff": {"type": "string", "description": "Unified diff of the changes made by this write operation."},
+            "diff": {
+                "type": "string",
+                "description": "Unified diff of the changes made by this write operation.",
+            },
             "message": {"type": "string"},
         },
         "required": ["status"],
@@ -999,9 +1027,15 @@ INFER_TYPES_SCHEMA: dict[str, Any] = {
             "return_type": {"type": ["string", "null"]},
             "is_async": {"type": "boolean"},
             "signature": {"type": "string"},
-            "type_confidence": {"type": ["number", "null"], "description": "Confidence 0.0-1.0 (LLM only)"},
+            "type_confidence": {
+                "type": ["number", "null"],
+                "description": "Confidence 0.0-1.0 (LLM only)",
+            },
             "method": {"type": "string", "enum": ["llm", "ast"]},
-            "cached": {"type": "boolean", "description": "Whether result was from type inference cache"},
+            "cached": {
+                "type": "boolean",
+                "description": "Whether result was from type inference cache",
+            },
         },
         "required": ["status"],
     },
@@ -1052,7 +1086,10 @@ GET_SYMBOL_METADATA_SCHEMA: dict[str, Any] = {
             "file": {"type": "string"},
             "line": {"type": "integer"},
             "end_line": {"type": "integer"},
-            "type": {"type": "string", "description": "Symbol type (function, class, method, etc.)"},
+            "type": {
+                "type": "string",
+                "description": "Symbol type (function, class, method, etc.)",
+            },
             "lines_of_code": {"type": "integer"},
             "cyclomatic_complexity": {"type": "integer"},
             "called_by_count": {"type": "integer"},
@@ -1060,7 +1097,10 @@ GET_SYMBOL_METADATA_SCHEMA: dict[str, Any] = {
             "docstring": {"type": ["string", "null"]},
             "parameters": {
                 "type": "array",
-                "items": {"type": "object", "properties": {"name": {"type": "string"}, "type": {"type": "string"}}},
+                "items": {
+                    "type": "object",
+                    "properties": {"name": {"type": "string"}, "type": {"type": "string"}},
+                },
             },
             "return_type": {"type": ["string", "null"]},
             "type_confidence": {"type": ["number", "null"]},
@@ -1144,9 +1184,17 @@ AUTO_FORMAT_SCHEMA: dict[str, Any] = {
                 "description": "Formatter to use. Default: 'black'.",
                 "default": "black",
             },
-            "line_length": {"type": "integer", "description": "Max line length. Default: 88.", "default": 88},
+            "line_length": {
+                "type": "integer",
+                "description": "Max line length. Default: 88.",
+                "default": 88,
+            },
             "skip_magic_trailing_comma": {"type": "boolean", "default": False},
-            "dry_run": {"type": "boolean", "description": "Preview only. Default: true.", "default": True},
+            "dry_run": {
+                "type": "boolean",
+                "description": "Preview only. Default: true.",
+                "default": True,
+            },
             "exclude_patterns": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -1184,7 +1232,11 @@ AUTO_LINT_SCHEMA: dict[str, Any] = {
                 "items": {"type": "string"},
                 "description": "Specific files to lint. If null, lint entire directory.",
             },
-            "linter": {"type": "string", "description": "Linter (only 'ruff'). Default: 'ruff'.", "default": "ruff"},
+            "linter": {
+                "type": "string",
+                "description": "Linter (only 'ruff'). Default: 'ruff'.",
+                "default": "ruff",
+            },
             "select": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -1195,8 +1247,16 @@ AUTO_LINT_SCHEMA: dict[str, Any] = {
                 "items": {"type": "string"},
                 "description": "Rule codes to ignore (e.g., ['E501']).",
             },
-            "auto_fix": {"type": "boolean", "description": "Auto-fix fixable issues. Default: false.", "default": False},
-            "dry_run": {"type": "boolean", "description": "Preview only. Default: true.", "default": True},
+            "auto_fix": {
+                "type": "boolean",
+                "description": "Auto-fix fixable issues. Default: false.",
+                "default": False,
+            },
+            "dry_run": {
+                "type": "boolean",
+                "description": "Preview only. Default: true.",
+                "default": True,
+            },
             "exclude_patterns": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -1242,9 +1302,21 @@ AUTO_POLISH_SCHEMA: dict[str, Any] = {
                 "description": "Formatter. Default: 'black'.",
                 "default": "black",
             },
-            "lint_with": {"type": "string", "description": "Linter. Default: 'ruff'.", "default": "ruff"},
-            "auto_fix_lints": {"type": "boolean", "description": "Auto-fix fixable lint issues. Default: true.", "default": True},
-            "line_length": {"type": "integer", "description": "Max line length. Default: 88.", "default": 88},
+            "lint_with": {
+                "type": "string",
+                "description": "Linter. Default: 'ruff'.",
+                "default": "ruff",
+            },
+            "auto_fix_lints": {
+                "type": "boolean",
+                "description": "Auto-fix fixable lint issues. Default: true.",
+                "default": True,
+            },
+            "line_length": {
+                "type": "integer",
+                "description": "Max line length. Default: 88.",
+                "default": 88,
+            },
             "ruff_select": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -1255,7 +1327,11 @@ AUTO_POLISH_SCHEMA: dict[str, Any] = {
                 "items": {"type": "string"},
                 "description": "Glob patterns to exclude.",
             },
-            "dry_run": {"type": "boolean", "description": "Preview only. Default: true.", "default": True},
+            "dry_run": {
+                "type": "boolean",
+                "description": "Preview only. Default: true.",
+                "default": True,
+            },
         },
         "required": ["buffer_id"],
     },
@@ -1290,7 +1366,11 @@ GET_REFERENCES_SCHEMA: dict[str, Any] = {
                 "description": "Direction: 'both' (default), 'calls' (callees), 'called_by' (callers).",
                 "default": "both",
             },
-            "top_k": {"type": "integer", "description": "Max references per direction. Default: 50.", "default": 50},
+            "top_k": {
+                "type": "integer",
+                "description": "Max references per direction. Default: 50.",
+                "default": 50,
+            },
             "expand_depth": {
                 "type": ["integer", "null"],
                 "description": "If set, expand call chain to this depth (on-demand fill).",
@@ -1315,7 +1395,10 @@ GET_REFERENCES_SCHEMA: dict[str, Any] = {
                         "symbol": {"type": "string"},
                         "context": {"type": "string"},
                         "confidence": {"type": "string", "enum": ["high", "medium"]},
-                        "via": {"type": "string", "description": "Intermediate symbol (for expanded depth > 1)"},
+                        "via": {
+                            "type": "string",
+                            "description": "Intermediate symbol (for expanded depth > 1)",
+                        },
                         "depth": {"type": "integer", "description": "Depth level (1 = direct)"},
                     },
                 },
@@ -1357,7 +1440,18 @@ GET_FULL_CONTEXT_SCHEMA: dict[str, Any] = {
             "symbol": {"type": "string", "description": "Symbol name to get full context for."},
             "include": {
                 "type": "array",
-                "items": {"type": "string", "enum": ["definition", "callers", "callees", "tests", "related_code", "type_hints", "errors"]},
+                "items": {
+                    "type": "string",
+                    "enum": [
+                        "definition",
+                        "callers",
+                        "callees",
+                        "tests",
+                        "related_code",
+                        "type_hints",
+                        "errors",
+                    ],
+                },
                 "description": "Sections to include. Default: all.",
             },
             "type_inference_method": {
@@ -1378,9 +1472,15 @@ GET_FULL_CONTEXT_SCHEMA: dict[str, Any] = {
             "callers": {"type": "array", "description": "Symbols that call this symbol."},
             "callees": {"type": "array", "description": "Symbols called by this symbol."},
             "types": {"type": "object", "description": "Inferred type information."},
-            "tests": {"type": "array", "description": "Test files/functions related to this symbol."},
+            "tests": {
+                "type": "array",
+                "description": "Test files/functions related to this symbol.",
+            },
             "related_code": {"type": "array", "description": "Semantically related code."},
-            "errors": {"type": "array", "description": "Error handling patterns involving this symbol."},
+            "errors": {
+                "type": "array",
+                "description": "Error handling patterns involving this symbol.",
+            },
         },
         "required": ["status"],
     },
@@ -1397,9 +1497,19 @@ ANALYZE_CHANGE_SCHEMA: dict[str, Any] = {
         "properties": {
             "buffer_id": {"type": "string", "description": "Buffer handle."},
             "file": {"type": "string", "description": "File that would be modified."},
-            "start_line": {"type": ["integer", "null"], "description": "Start line of proposed change (1-based)."},
-            "end_line": {"type": ["integer", "null"], "description": "End line of proposed change (1-based)."},
-            "max_depth": {"type": "integer", "description": "Max call-chain depth. Default: 6.", "default": 6},
+            "start_line": {
+                "type": ["integer", "null"],
+                "description": "Start line of proposed change (1-based).",
+            },
+            "end_line": {
+                "type": ["integer", "null"],
+                "description": "End line of proposed change (1-based).",
+            },
+            "max_depth": {
+                "type": "integer",
+                "description": "Max call-chain depth. Default: 6.",
+                "default": 6,
+            },
         },
         "required": ["buffer_id", "file"],
     },
@@ -1470,8 +1580,16 @@ POLISH_BEFORE_COMMIT_SCHEMA: dict[str, Any] = {
                 "description": "Formatter. Default: 'black'.",
                 "default": "black",
             },
-            "lint_with": {"type": "string", "description": "Linter. Default: 'ruff'.", "default": "ruff"},
-            "check_only": {"type": "boolean", "description": "Only validate, don't modify. Default: false.", "default": False},
+            "lint_with": {
+                "type": "string",
+                "description": "Linter. Default: 'ruff'.",
+                "default": "ruff",
+            },
+            "check_only": {
+                "type": "boolean",
+                "description": "Only validate, don't modify. Default: false.",
+                "default": False,
+            },
         },
         "required": ["buffer_id"],
     },
@@ -1495,9 +1613,16 @@ TRACE_EXECUTION_PATHS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
             "symbol": {"type": "string", "description": "Symbol name to analyze."},
-            "max_depth": {"type": "integer", "description": "Maximum call depth to trace.", "default": 3},
+            "max_depth": {
+                "type": "integer",
+                "description": "Maximum call depth to trace.",
+                "default": 3,
+            },
         },
         "required": ["buffer_id", "symbol"],
     },
@@ -1530,9 +1655,19 @@ GET_DEPENDENCY_GRAPH_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "symbol": {"type": ["string", "null"], "description": "Optional symbol to scope graph around."},
-            "depth": {"type": "integer", "description": "Depth of dependency graph to include.", "default": 2},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "symbol": {
+                "type": ["string", "null"],
+                "description": "Optional symbol to scope graph around.",
+            },
+            "depth": {
+                "type": "integer",
+                "description": "Depth of dependency graph to include.",
+                "default": 2,
+            },
         },
         "required": ["buffer_id"],
     },
@@ -1547,7 +1682,10 @@ GET_DEPENDENCY_GRAPH_SCHEMA: dict[str, Any] = {
                     "properties": {
                         "id": {"type": "string"},
                         "label": {"type": "string"},
-                        "type": {"type": "string", "description": "chunk type: function/class/module"},
+                        "type": {
+                            "type": "string",
+                            "description": "chunk type: function/class/module",
+                        },
                         "file": {"type": "string"},
                     },
                 },
@@ -1574,13 +1712,31 @@ DETECT_CODE_SMELLS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
             "types": {
                 "type": "array",
-                "items": {"type": "string", "enum": ["long_function", "deep_nesting", "missing_docstring", "complex_logic", "too_many_params", "duplicates"]},
+                "items": {
+                    "type": "string",
+                    "enum": [
+                        "long_function",
+                        "deep_nesting",
+                        "missing_docstring",
+                        "complex_logic",
+                        "too_many_params",
+                        "duplicates",
+                    ],
+                },
                 "description": "Smell types to detect. Options: long_function, deep_nesting, missing_docstring, complex_logic, too_many_params, duplicates.",
             },
-            "severity_min": {"type": "string", "enum": ["low", "medium", "high"], "description": "Minimum severity to report: low, medium, or high.", "default": "low"},
+            "severity_min": {
+                "type": "string",
+                "enum": ["low", "medium", "high"],
+                "description": "Minimum severity to report: low, medium, or high.",
+                "default": "low",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -1595,7 +1751,10 @@ DETECT_CODE_SMELLS_SCHEMA: dict[str, Any] = {
                     "properties": {
                         "file": {"type": "string"},
                         "line": {"type": "integer"},
-                        "type": {"type": "string", "description": "long_function|deep_nesting|missing_docstring|complex_logic|too_many_params"},
+                        "type": {
+                            "type": "string",
+                            "description": "long_function|deep_nesting|missing_docstring|complex_logic|too_many_params",
+                        },
                         "severity": {"type": "string", "enum": ["low", "medium", "high"]},
                         "suggestion": {"type": "string"},
                     },
@@ -1613,8 +1772,16 @@ SCAN_SECURITY_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "severity_min": {"type": "string", "enum": ["low", "medium", "high"], "description": "Minimum severity to report: low, medium, or high.", "default": "medium"},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "severity_min": {
+                "type": "string",
+                "enum": ["low", "medium", "high"],
+                "description": "Minimum severity to report: low, medium, or high.",
+                "default": "medium",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -1629,7 +1796,10 @@ SCAN_SECURITY_SCHEMA: dict[str, Any] = {
                     "properties": {
                         "file": {"type": "string"},
                         "line": {"type": "integer"},
-                        "type": {"type": "string", "description": "eval_usage|exec_usage|shell_injection|os_system|unsafe_pickle|unsafe_yaml|sql_injection|hardcoded_secret|assert_usage|broad_except|wildcard_import"},
+                        "type": {
+                            "type": "string",
+                            "description": "eval_usage|exec_usage|shell_injection|os_system|unsafe_pickle|unsafe_yaml|sql_injection|hardcoded_secret|assert_usage|broad_except|wildcard_import",
+                        },
                         "severity": {"type": "string", "enum": ["low", "medium", "high"]},
                         "context": {"type": "string"},
                         "fix_suggestion": {"type": "string"},
@@ -1648,7 +1818,10 @@ SUGGEST_REFACTORINGS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
             "symbol": {"type": "string", "description": "Symbol name to analyze."},
         },
         "required": ["buffer_id", "symbol"],
@@ -1663,7 +1836,10 @@ SUGGEST_REFACTORINGS_SCHEMA: dict[str, Any] = {
                 "items": {
                     "type": "object",
                     "properties": {
-                        "type": {"type": "string", "description": "extract_method|simplify_branches|consolidate_calls|add_type_hints|use_guard_clauses"},
+                        "type": {
+                            "type": "string",
+                            "description": "extract_method|simplify_branches|consolidate_calls|add_type_hints|use_guard_clauses",
+                        },
                         "lines": {"type": "string", "description": "line range like '10-20'"},
                         "symbol": {"type": "string", "description": "related symbol name"},
                         "benefit": {"type": "string"},
@@ -1682,11 +1858,31 @@ LINT_BUFFER_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "files": {"type": "array", "items": {"type": "string"}, "description": "Specific files to analyze. If None, analyzes entire buffer."},
-            "select": {"type": "array", "items": {"type": "string"}, "description": "Lint rule categories to check (e.g. E, F, W)."},
-            "exclude_patterns": {"type": "array", "items": {"type": "string"}, "description": "Glob patterns to exclude from analysis."},
-            "group_by": {"type": "string", "enum": ["file", "severity", "rule"], "description": "How to organize results: by file, severity, or rule.", "default": "file"},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "files": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Specific files to analyze. If None, analyzes entire buffer.",
+            },
+            "select": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Lint rule categories to check (e.g. E, F, W).",
+            },
+            "exclude_patterns": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Glob patterns to exclude from analysis.",
+            },
+            "group_by": {
+                "type": "string",
+                "enum": ["file", "severity", "rule"],
+                "description": "How to organize results: by file, severity, or rule.",
+                "default": "file",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -1738,13 +1934,41 @@ FORMAT_BUFFER_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "files": {"type": "array", "items": {"type": "string"}, "description": "Specific files to analyze. If None, analyzes entire buffer."},
-            "formatter": {"type": "string", "enum": ["black", "ruff.format"], "description": "Formatter to use: black or ruff.format.", "default": "black"},
-            "line_length": {"type": "integer", "description": "Maximum line length for formatting.", "default": 88},
-            "exclude_patterns": {"type": "array", "items": {"type": "string"}, "description": "Glob patterns to exclude from analysis."},
-            "dry_run": {"type": "boolean", "description": "Preview only without making changes.", "default": True},
-            "summary_only": {"type": "boolean", "description": "Return only summary statistics, not full diffs.", "default": False},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "files": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Specific files to analyze. If None, analyzes entire buffer.",
+            },
+            "formatter": {
+                "type": "string",
+                "enum": ["black", "ruff.format"],
+                "description": "Formatter to use: black or ruff.format.",
+                "default": "black",
+            },
+            "line_length": {
+                "type": "integer",
+                "description": "Maximum line length for formatting.",
+                "default": 88,
+            },
+            "exclude_patterns": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Glob patterns to exclude from analysis.",
+            },
+            "dry_run": {
+                "type": "boolean",
+                "description": "Preview only without making changes.",
+                "default": True,
+            },
+            "summary_only": {
+                "type": "boolean",
+                "description": "Return only summary statistics, not full diffs.",
+                "default": False,
+            },
         },
         "required": ["buffer_id"],
     },
@@ -1781,7 +2005,10 @@ FIND_PERFORMANCE_HOTSPOTS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -1796,7 +2023,10 @@ FIND_PERFORMANCE_HOTSPOTS_SCHEMA: dict[str, Any] = {
                     "properties": {
                         "file": {"type": "string"},
                         "line": {"type": "integer"},
-                        "type": {"type": "string", "description": "n_plus_one|unbounded_growth|missing_prefetch|inefficient_loop|slow_serialization|regex_in_loop|unclosed_file|full_table_scan|nested_loop"},
+                        "type": {
+                            "type": "string",
+                            "description": "n_plus_one|unbounded_growth|missing_prefetch|inefficient_loop|slow_serialization|regex_in_loop|unclosed_file|full_table_scan|nested_loop",
+                        },
                         "severity": {"type": "string", "enum": ["low", "medium", "high"]},
                         "context": {"type": "string"},
                         "suggestion": {"type": "string"},
@@ -1815,9 +2045,17 @@ GENERATE_DOCUMENTATION_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
             "symbol": {"type": "string", "description": "Symbol name to analyze."},
-            "style": {"type": "string", "enum": ["google", "numpy", "sphinx"], "description": "Docstring style: google, numpy, or sphinx.", "default": "google"},
+            "style": {
+                "type": "string",
+                "enum": ["google", "numpy", "sphinx"],
+                "description": "Docstring style: google, numpy, or sphinx.",
+                "default": "google",
+            },
         },
         "required": ["buffer_id", "symbol"],
     },
@@ -1832,7 +2070,11 @@ GENERATE_DOCUMENTATION_SCHEMA: dict[str, Any] = {
                 "additionalProperties": {"type": "string"},
                 "description": "Map of parameter name to inferred type",
             },
-            "examples": {"type": "array", "items": {"type": "string"}, "description": "Usage examples found in test files"},
+            "examples": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Usage examples found in test files",
+            },
             "generated_from_code": {"type": "boolean"},
             "style": {"type": "string"},
         },
@@ -1846,14 +2088,44 @@ FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "code_snippet": {"type": "string", "description": "Code snippet to find similar patterns for."},
-            "min_similarity": {"type": "number", "description": "Minimum Jaccard similarity threshold (0.0-1.0).", "default": 0.7},
-            "top_k": {"type": "integer", "description": "Maximum number of results to return before clustering.", "default": 10},
-            "cluster": {"type": "boolean", "description": "Enable clustering mode: group similar patterns into clusters. Default: false.", "default": False},
-            "clustering_method": {"type": "string", "enum": ["agglomerative", "kmeans", "spectral"], "description": "Clustering algorithm: agglomerative (hierarchical), kmeans (partition-based), spectral (graph-based). Default: agglomerative.", "default": "agglomerative"},
-            "cluster_threshold": {"type": "number", "description": "Similarity threshold for forming clusters (0.0-1.0). Only used when cluster=true. Default: 0.8.", "default": 0.8},
-            "expected_clusters": {"type": ["integer", "null"], "description": "Expected number of clusters (for kmeans). If null, auto-detected. Only used with kmeans clustering."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "code_snippet": {
+                "type": "string",
+                "description": "Code snippet to find similar patterns for.",
+            },
+            "min_similarity": {
+                "type": "number",
+                "description": "Minimum Jaccard similarity threshold (0.0-1.0).",
+                "default": 0.7,
+            },
+            "top_k": {
+                "type": "integer",
+                "description": "Maximum number of results to return before clustering.",
+                "default": 10,
+            },
+            "cluster": {
+                "type": "boolean",
+                "description": "Enable clustering mode: group similar patterns into clusters. Default: false.",
+                "default": False,
+            },
+            "clustering_method": {
+                "type": "string",
+                "enum": ["agglomerative", "kmeans", "spectral"],
+                "description": "Clustering algorithm: agglomerative (hierarchical), kmeans (partition-based), spectral (graph-based). Default: agglomerative.",
+                "default": "agglomerative",
+            },
+            "cluster_threshold": {
+                "type": "number",
+                "description": "Similarity threshold for forming clusters (0.0-1.0). Only used when cluster=true. Default: 0.8.",
+                "default": 0.8,
+            },
+            "expected_clusters": {
+                "type": ["integer", "null"],
+                "description": "Expected number of clusters (for kmeans). If null, auto-detected. Only used with kmeans clustering.",
+            },
         },
         "required": ["buffer_id", "code_snippet"],
     },
@@ -1868,12 +2140,30 @@ FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
                 "items": {
                     "type": "object",
                     "properties": {
-                        "cluster_id": {"type": "integer", "description": "Unique cluster identifier."},
-                        "size": {"type": "integer", "description": "Number of code blocks in this cluster."},
-                        "avg_similarity": {"type": "number", "description": "Average similarity of members within this cluster (0.0-1.0)."},
-                        "compactness": {"type": "number", "description": "How tightly grouped cluster members are (0.0-1.0, higher is better)."},
-                        "example_file": {"type": "string", "description": "Example file containing a cluster member."},
-                        "example_line": {"type": "integer", "description": "Line number of example member."},
+                        "cluster_id": {
+                            "type": "integer",
+                            "description": "Unique cluster identifier.",
+                        },
+                        "size": {
+                            "type": "integer",
+                            "description": "Number of code blocks in this cluster.",
+                        },
+                        "avg_similarity": {
+                            "type": "number",
+                            "description": "Average similarity of members within this cluster (0.0-1.0).",
+                        },
+                        "compactness": {
+                            "type": "number",
+                            "description": "How tightly grouped cluster members are (0.0-1.0, higher is better).",
+                        },
+                        "example_file": {
+                            "type": "string",
+                            "description": "Example file containing a cluster member.",
+                        },
+                        "example_line": {
+                            "type": "integer",
+                            "description": "Line number of example member.",
+                        },
                         "members": {
                             "type": "array",
                             "items": {
@@ -1882,12 +2172,18 @@ FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
                                     "file": {"type": "string"},
                                     "start_line": {"type": "integer"},
                                     "end_line": {"type": "integer"},
-                                    "similarity": {"type": "number", "description": "How similar this member is to the cluster (0.0-1.0)."},
+                                    "similarity": {
+                                        "type": "number",
+                                        "description": "How similar this member is to the cluster (0.0-1.0).",
+                                    },
                                 },
                             },
                             "description": "Code blocks belonging to this cluster.",
                         },
-                        "refactoring_opportunity": {"type": "string", "description": "Suggested refactoring approach (e.g., extract_method, create_helper)."},
+                        "refactoring_opportunity": {
+                            "type": "string",
+                            "description": "Suggested refactoring approach (e.g., extract_method, create_helper).",
+                        },
                     },
                     "required": ["cluster_id", "size", "avg_similarity", "members"],
                 },
@@ -1916,8 +2212,14 @@ FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
                 },
             },
             "snippet_length": {"type": "integer"},
-            "clustering_method": {"type": "string", "description": "Clustering algorithm used (only when cluster=true)."},
-            "quality": {"type": "number", "description": "Overall clustering quality (0.0-1.0, higher is better). Only when cluster=true."},
+            "clustering_method": {
+                "type": "string",
+                "description": "Clustering algorithm used (only when cluster=true).",
+            },
+            "quality": {
+                "type": "number",
+                "description": "Overall clustering quality (0.0-1.0, higher is better). Only when cluster=true.",
+            },
         },
         "required": ["status"],
     },
@@ -1929,7 +2231,10 @@ FIND_DEPRECATED_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -1944,7 +2249,10 @@ FIND_DEPRECATED_SCHEMA: dict[str, Any] = {
                     "properties": {
                         "file": {"type": "string"},
                         "line": {"type": "integer"},
-                        "detection_method": {"type": "string", "description": "decorator|warning|comment|deprecation_warning"},
+                        "detection_method": {
+                            "type": "string",
+                            "description": "decorator|warning|comment|deprecation_warning",
+                        },
                         "context": {"type": "string"},
                         "symbol": {"type": "string"},
                     },
@@ -1962,8 +2270,15 @@ VALIDATE_CHANGES_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "dry_run": {"type": "boolean", "description": "Preview only without making changes.", "default": True},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "dry_run": {
+                "type": "boolean",
+                "description": "Preview only without making changes.",
+                "default": True,
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2007,7 +2322,10 @@ EXTRACT_CONFIGURATION_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2056,7 +2374,10 @@ ANALYZE_LOGGING_PATTERNS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2109,7 +2430,10 @@ ANALYZE_ERROR_HANDLING_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2163,8 +2487,14 @@ GENERATE_CHANGELOG_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "since_commit": {"type": ["string", "null"], "description": "Git commit hash to compare against. If None, compares against HEAD."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "since_commit": {
+                "type": ["string", "null"],
+                "description": "Git commit hash to compare against. If None, compares against HEAD.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2224,8 +2554,14 @@ DETECT_API_CHANGES_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "since_commit": {"type": ["string", "null"], "description": "Git commit hash to compare against. If None, compares against HEAD."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "since_commit": {
+                "type": ["string", "null"],
+                "description": "Git commit hash to compare against. If None, compares against HEAD.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2268,7 +2604,10 @@ GET_ROLLBACK_INFO_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
             "file": {"type": "string", "description": "File path within the buffer."},
         },
         "required": ["buffer_id", "file"],
@@ -2280,7 +2619,10 @@ GET_ROLLBACK_INFO_SCHEMA: dict[str, Any] = {
             "last_working_commit": {"type": ["string", "null"]},
             "commit_message": {"type": "string"},
             "commit_date": {"type": "string"},
-            "diff_to_revert": {"type": "string", "description": "Unified diff to revert to last working state"},
+            "diff_to_revert": {
+                "type": "string",
+                "description": "Unified diff to revert to last working state",
+            },
         },
         "required": ["status"],
     },
@@ -2292,8 +2634,14 @@ GENERATE_CHANGE_TEMPLATE_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "request": {"type": "string", "description": "Natural language description of the desired change."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "request": {
+                "type": "string",
+                "description": "Natural language description of the desired change.",
+            },
         },
         "required": ["buffer_id", "request"],
     },
@@ -2317,7 +2665,10 @@ MAP_API_ENDPOINTS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2350,7 +2701,10 @@ ANALYZE_CACHE_PATTERNS_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2358,7 +2712,11 @@ ANALYZE_CACHE_PATTERNS_SCHEMA: dict[str, Any] = {
         "type": "object",
         "properties": {
             "status": {"type": "string"},
-            "caches_used": {"type": "array", "items": {"type": "string"}, "description": "Cache libraries detected: redis, memcache, lru_cache, etc."},
+            "caches_used": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Cache libraries detected: redis, memcache, lru_cache, etc.",
+            },
             "invalidation_logic": {
                 "type": "array",
                 "items": {
@@ -2393,7 +2751,10 @@ ANALYZE_THREAD_SAFETY_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2448,7 +2809,10 @@ DETECT_MEMORY_ISSUES_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2502,10 +2866,24 @@ LINT_WITH_CONFIG_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "config_file": {"type": ["string", "null"], "description": "Path to config file (ruff.toml, pyproject.toml). Auto-detected if None."},
-            "files": {"type": "array", "items": {"type": "string"}, "description": "Specific files to analyze. If None, analyzes entire buffer."},
-            "auto_fix": {"type": "boolean", "description": "Automatically fix lint issues instead of just reporting.", "default": False},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "config_file": {
+                "type": ["string", "null"],
+                "description": "Path to config file (ruff.toml, pyproject.toml). Auto-detected if None.",
+            },
+            "files": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Specific files to analyze. If None, analyzes entire buffer.",
+            },
+            "auto_fix": {
+                "type": "boolean",
+                "description": "Automatically fix lint issues instead of just reporting.",
+                "default": False,
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2513,7 +2891,10 @@ LINT_WITH_CONFIG_SCHEMA: dict[str, Any] = {
         "type": "object",
         "properties": {
             "status": {"type": "string"},
-            "config_file": {"type": "string", "description": "Config file used (auto-detected or specified)"},
+            "config_file": {
+                "type": "string",
+                "description": "Config file used (auto-detected or specified)",
+            },
             "issues": {
                 "type": "array",
                 "items": {
@@ -2538,10 +2919,24 @@ FORMAT_WITH_CONFIG_SCHEMA: dict[str, Any] = {
     "input_schema": {
         "type": "object",
         "properties": {
-            "buffer_id": {"type": "string", "description": "Buffer handle returned by embed_codebase."},
-            "config_file": {"type": ["string", "null"], "description": "Path to config file (ruff.toml, pyproject.toml). Auto-detected if None."},
-            "files": {"type": "array", "items": {"type": "string"}, "description": "Specific files to analyze. If None, analyzes entire buffer."},
-            "dry_run": {"type": "boolean", "description": "Preview only without making changes.", "default": True},
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase.",
+            },
+            "config_file": {
+                "type": ["string", "null"],
+                "description": "Path to config file (ruff.toml, pyproject.toml). Auto-detected if None.",
+            },
+            "files": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Specific files to analyze. If None, analyzes entire buffer.",
+            },
+            "dry_run": {
+                "type": "boolean",
+                "description": "Preview only without making changes.",
+                "default": True,
+            },
         },
         "required": ["buffer_id"],
     },
@@ -2549,7 +2944,10 @@ FORMAT_WITH_CONFIG_SCHEMA: dict[str, Any] = {
         "type": "object",
         "properties": {
             "status": {"type": "string"},
-            "config_file": {"type": "string", "description": "Config file used (auto-detected or specified)"},
+            "config_file": {
+                "type": "string",
+                "description": "Config file used (auto-detected or specified)",
+            },
             "changes": {
                 "type": "array",
                 "items": {
@@ -2647,8 +3045,14 @@ UNDO_SCHEMA: dict[str, Any] = {
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "buffer_id": {"type": "string"},
-            "steps_undone": {"type": "integer", "description": "Number of operations actually undone."},
-            "remaining_undo_count": {"type": "integer", "description": "Operations remaining on undo stack."},
+            "steps_undone": {
+                "type": "integer",
+                "description": "Number of operations actually undone.",
+            },
+            "remaining_undo_count": {
+                "type": "integer",
+                "description": "Operations remaining on undo stack.",
+            },
             "message": {"type": "string"},
         },
         "required": ["status"],
@@ -2678,8 +3082,14 @@ REDO_SCHEMA: dict[str, Any] = {
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "buffer_id": {"type": "string"},
-            "steps_redone": {"type": "integer", "description": "Number of operations actually redone."},
-            "remaining_redo_count": {"type": "integer", "description": "Operations remaining on redo stack."},
+            "steps_redone": {
+                "type": "integer",
+                "description": "Number of operations actually redone.",
+            },
+            "remaining_redo_count": {
+                "type": "integer",
+                "description": "Operations remaining on redo stack.",
+            },
             "message": {"type": "string"},
         },
         "required": ["status"],
@@ -2744,8 +3154,14 @@ LIST_BRANCHES_SCHEMA: dict[str, Any] = {
                         "parent": {"type": "string"},
                         "created": {"type": "string", "description": "ISO timestamp."},
                         "description": {"type": "string"},
-                        "operations": {"type": "integer", "description": "Number of operations on this branch."},
-                        "current": {"type": "boolean", "description": "Whether this is the active branch."},
+                        "operations": {
+                            "type": "integer",
+                            "description": "Number of operations on this branch.",
+                        },
+                        "current": {
+                            "type": "boolean",
+                            "description": "Whether this is the active branch.",
+                        },
                     },
                 },
             },
@@ -2825,8 +3241,14 @@ ANNOTATE_SEARCH_SCHEMA: dict[str, Any] = {
                         "line": {"type": "integer"},
                         "score": {"type": "number"},
                         "snippet": {"type": "string"},
-                        "why": {"type": "string", "description": "Human-readable explanation of relevance."},
-                        "suggested_next_action": {"type": "string", "description": "Suggested action for this result."},
+                        "why": {
+                            "type": "string",
+                            "description": "Human-readable explanation of relevance.",
+                        },
+                        "suggested_next_action": {
+                            "type": "string",
+                            "description": "Suggested action for this result.",
+                        },
                         "related_results": {
                             "type": "array",
                             "items": {"type": "string"},
@@ -2864,7 +3286,10 @@ PREDICT_CONFLICTS_SCHEMA: dict[str, Any] = {
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "buffer_id": {"type": "string"},
-            "embed_point": {"type": "string", "description": "Commit SHA and timestamp at embed time."},
+            "embed_point": {
+                "type": "string",
+                "description": "Commit SHA and timestamp at embed time.",
+            },
             "current_head": {"type": "string", "description": "Current HEAD SHA and timestamp."},
             "time_since_embed_minutes": {"type": "integer"},
             "commits_since_embed": {"type": "integer"},
@@ -3012,12 +3437,26 @@ GET_CHUNKING_STRATEGY_SCHEMA: dict[str, Any] = {
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "profile": {"type": "string", "description": "Profile name used."},
-            "include": {"type": "array", "items": {"type": "string"}, "description": "Elements to include in chunks."},
-            "exclude": {"type": "array", "items": {"type": "string"}, "description": "Elements to exclude from chunks."},
+            "include": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Elements to include in chunks.",
+            },
+            "exclude": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Elements to exclude from chunks.",
+            },
             "max_lines": {"type": "integer", "description": "Maximum lines per chunk."},
             "min_lines": {"type": "integer", "description": "Minimum lines per chunk."},
-            "description": {"type": "string", "description": "Human-readable strategy description."},
-            "expected_token_savings": {"type": "string", "description": "Expected token savings vs generic (e.g. '25%')."},
+            "description": {
+                "type": "string",
+                "description": "Human-readable strategy description.",
+            },
+            "expected_token_savings": {
+                "type": "string",
+                "description": "Expected token savings vs generic (e.g. '25%').",
+            },
         },
         "required": ["status"],
     },
@@ -3050,7 +3489,10 @@ SET_AGENT_PROFILE_SCHEMA: dict[str, Any] = {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "buffer_id": {"type": "string", "description": "Buffer handle."},
             "profile": {"type": "string", "description": "Profile name that was set."},
-            "strategy_description": {"type": "string", "description": "Description of the associated chunking strategy."},
+            "strategy_description": {
+                "type": "string",
+                "description": "Description of the associated chunking strategy.",
+            },
         },
         "required": ["status"],
     },
@@ -3083,7 +3525,10 @@ CHUNK_WITH_PROFILE_SCHEMA: dict[str, Any] = {
             "status": {"type": "string", "enum": ["ok", "error"]},
             "profile": {"type": "string", "description": "Profile used for chunking."},
             "total_chunks": {"type": "integer", "description": "Total number of chunks produced."},
-            "strategy_description": {"type": "string", "description": "Description of the chunking strategy applied."},
+            "strategy_description": {
+                "type": "string",
+                "description": "Description of the chunking strategy applied.",
+            },
         },
         "required": ["status"],
     },
@@ -3119,9 +3564,15 @@ ADAPT_SEARCH_SCHEMA: dict[str, Any] = {
         "type": "object",
         "properties": {
             "status": {"type": "string", "enum": ["ok", "error"]},
-            "enhanced_query": {"type": "string", "description": "Query with profile-specific enhancements."},
+            "enhanced_query": {
+                "type": "string",
+                "description": "Query with profile-specific enhancements.",
+            },
             "profile": {"type": "string", "description": "Profile used for enhancement."},
-            "original_query": {"type": "string", "description": "Original query before enhancement."},
+            "original_query": {
+                "type": "string",
+                "description": "Original query before enhancement.",
+            },
         },
         "required": ["status"],
     },
@@ -3203,144 +3654,198 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
 
 # 1. Category + Tags — tool categorization for AI filtering
 _SCHEMA_CATEGORIES: dict[str, dict[str, Any]] = {
-    "embed_codebase":            {"category": "indexing",    "tags": ["write", "slow", "setup"]},
-    "semantic_search":           {"category": "search",      "tags": ["read-only", "fast"]},
-    "hybrid_search":             {"category": "search",      "tags": ["read-only", "fast"]},
-    "search_for":                {"category": "search",      "tags": ["read-only", "fast"]},
-    "search_symbols":            {"category": "search",      "tags": ["read-only", "fast"]},
-    "cluster_code":              {"category": "search",      "tags": ["read-only", "slow"]},
-    "find_duplicates":           {"category": "search",      "tags": ["read-only", "slow"]},
-    "pack_context":              {"category": "search",      "tags": ["read-only", "fast"]},
-    "reload_codebase":           {"category": "indexing",    "tags": ["write", "slow"]},
-    "check_codebase":            {"category": "indexing",    "tags": ["read-only", "fast"]},
-    "list_buffers":              {"category": "indexing",    "tags": ["read-only", "fast"]},
-    "delete_buffer":             {"category": "indexing",    "tags": ["write", "destructive"]},
-    "read_code":                 {"category": "navigation",  "tags": ["read-only", "fast"]},
-    "look_for_file":             {"category": "navigation",  "tags": ["read-only", "fast"]},
-    "write_code":                {"category": "editing",     "tags": ["write", "mutating", "slow"]},
-    "diff":                      {"category": "editing",     "tags": ["read-only", "fast"]},
-    "discard":                   {"category": "editing",     "tags": ["write", "destructive"]},
-    "commit":                    {"category": "editing",     "tags": ["write", "mutating", "slow"]},
-    "infer_types":               {"category": "analysis",    "tags": ["read-only", "medium"]},
-    "get_symbol_metadata":       {"category": "navigation",  "tags": ["read-only", "fast"]},
-    "search_batch":              {"category": "search",      "tags": ["read-only", "slow"]},
-    "auto_format":               {"category": "quality",     "tags": ["write", "mutating", "medium"]},
-    "auto_lint":                 {"category": "quality",     "tags": ["read-only", "medium"]},
-    "auto_polish":               {"category": "quality",     "tags": ["write", "mutating", "medium"]},
-    "get_references":            {"category": "navigation",  "tags": ["read-only", "fast"]},
-    "get_full_context":          {"category": "navigation",  "tags": ["read-only", "medium"]},
-    "analyze_change":            {"category": "safety",      "tags": ["read-only", "medium"]},
-    "get_test_coverage":         {"category": "navigation",  "tags": ["read-only", "medium"]},
-    "polish_before_commit":      {"category": "quality",     "tags": ["write", "mutating", "medium"]},
-    "trace_execution_paths":     {"category": "analysis",    "tags": ["read-only", "medium"]},
-    "get_dependency_graph":      {"category": "analysis",    "tags": ["read-only", "medium"]},
-    "detect_code_smells":        {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "scan_security":             {"category": "security",    "tags": ["read-only", "fast"]},
-    "suggest_refactorings":      {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "lint_buffer":               {"category": "quality",     "tags": ["read-only", "medium"]},
-    "format_buffer":             {"category": "quality",     "tags": ["read-only", "medium"]},
-    "find_performance_hotspots": {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "generate_documentation":    {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "find_similar_patterns":     {"category": "search",      "tags": ["read-only", "medium"]},
-    "find_deprecated":           {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "validate_changes":          {"category": "safety",      "tags": ["read-only", "medium"]},
-    "extract_configuration":     {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "analyze_logging_patterns":  {"category": "analysis",    "tags": ["read-only", "fast"]},
+    "embed_codebase": {"category": "indexing", "tags": ["write", "slow", "setup"]},
+    "semantic_search": {"category": "search", "tags": ["read-only", "fast"]},
+    "hybrid_search": {"category": "search", "tags": ["read-only", "fast"]},
+    "search_for": {"category": "search", "tags": ["read-only", "fast"]},
+    "search_symbols": {"category": "search", "tags": ["read-only", "fast"]},
+    "cluster_code": {"category": "search", "tags": ["read-only", "slow"]},
+    "find_duplicates": {"category": "search", "tags": ["read-only", "slow"]},
+    "pack_context": {"category": "search", "tags": ["read-only", "fast"]},
+    "reload_codebase": {"category": "indexing", "tags": ["write", "slow"]},
+    "check_codebase": {"category": "indexing", "tags": ["read-only", "fast"]},
+    "list_buffers": {"category": "indexing", "tags": ["read-only", "fast"]},
+    "delete_buffer": {"category": "indexing", "tags": ["write", "destructive"]},
+    "read_code": {"category": "navigation", "tags": ["read-only", "fast"]},
+    "look_for_file": {"category": "navigation", "tags": ["read-only", "fast"]},
+    "write_code": {"category": "editing", "tags": ["write", "mutating", "slow"]},
+    "diff": {"category": "editing", "tags": ["read-only", "fast"]},
+    "discard": {"category": "editing", "tags": ["write", "destructive"]},
+    "commit": {"category": "editing", "tags": ["write", "mutating", "slow"]},
+    "infer_types": {"category": "analysis", "tags": ["read-only", "medium"]},
+    "get_symbol_metadata": {"category": "navigation", "tags": ["read-only", "fast"]},
+    "search_batch": {"category": "search", "tags": ["read-only", "slow"]},
+    "auto_format": {"category": "quality", "tags": ["write", "mutating", "medium"]},
+    "auto_lint": {"category": "quality", "tags": ["read-only", "medium"]},
+    "auto_polish": {"category": "quality", "tags": ["write", "mutating", "medium"]},
+    "get_references": {"category": "navigation", "tags": ["read-only", "fast"]},
+    "get_full_context": {"category": "navigation", "tags": ["read-only", "medium"]},
+    "analyze_change": {"category": "safety", "tags": ["read-only", "medium"]},
+    "get_test_coverage": {"category": "navigation", "tags": ["read-only", "medium"]},
+    "polish_before_commit": {"category": "quality", "tags": ["write", "mutating", "medium"]},
+    "trace_execution_paths": {"category": "analysis", "tags": ["read-only", "medium"]},
+    "get_dependency_graph": {"category": "analysis", "tags": ["read-only", "medium"]},
+    "detect_code_smells": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "scan_security": {"category": "security", "tags": ["read-only", "fast"]},
+    "suggest_refactorings": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "lint_buffer": {"category": "quality", "tags": ["read-only", "medium"]},
+    "format_buffer": {"category": "quality", "tags": ["read-only", "medium"]},
+    "find_performance_hotspots": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "generate_documentation": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "find_similar_patterns": {"category": "search", "tags": ["read-only", "medium"]},
+    "find_deprecated": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "validate_changes": {"category": "safety", "tags": ["read-only", "medium"]},
+    "extract_configuration": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "analyze_logging_patterns": {"category": "analysis", "tags": ["read-only", "fast"]},
     "analyze_error_handling_patterns": {"category": "analysis", "tags": ["read-only", "fast"]},
-    "generate_changelog":        {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "detect_api_changes":        {"category": "safety",      "tags": ["read-only", "fast"]},
-    "get_rollback_info":         {"category": "safety",      "tags": ["read-only", "fast"]},
-    "generate_change_template":  {"category": "safety",      "tags": ["read-only", "medium"]},
-    "map_api_endpoints":         {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "analyze_cache_patterns":    {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "analyze_thread_safety":     {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "detect_memory_issues":      {"category": "analysis",    "tags": ["read-only", "fast"]},
-    "lint_with_config":          {"category": "quality",     "tags": ["read-only", "medium"]},
-    "format_with_config":        {"category": "quality",     "tags": ["write", "mutating", "medium"]},
-    "solve":                     {"category": "safety",      "tags": ["write", "mutating", "slow"]},
-    "undo":                      {"category": "editing",     "tags": ["write", "mutating", "fast"]},
-    "redo":                      {"category": "editing",     "tags": ["write", "mutating", "fast"]},
-    "create_branch":             {"category": "editing",     "tags": ["write", "mutating", "fast"]},
-    "list_branches":             {"category": "editing",     "tags": ["read-only", "fast"]},
-    "checkout_branch":           {"category": "editing",     "tags": ["write", "mutating", "fast"]},
-    "annotate_search_results":   {"category": "search",      "tags": ["read-only", "medium"]},
-    "predict_conflicts":         {"category": "safety",      "tags": ["read-only", "fast"]},
-    "search_modified_only":       {"category": "search",      "tags": ["read-only", "fast"]},
-    "get_chunking_strategy":     {"category": "search",      "tags": ["read-only", "fast"]},
-    "set_agent_profile":         {"category": "editing",     "tags": ["write", "mutating", "fast"]},
-    "chunk_with_profile":        {"category": "editing",     "tags": ["write", "mutating", "slow"]},
-    "adapt_search":              {"category": "search",      "tags": ["read-only", "fast"]},
+    "generate_changelog": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "detect_api_changes": {"category": "safety", "tags": ["read-only", "fast"]},
+    "get_rollback_info": {"category": "safety", "tags": ["read-only", "fast"]},
+    "generate_change_template": {"category": "safety", "tags": ["read-only", "medium"]},
+    "map_api_endpoints": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "analyze_cache_patterns": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "analyze_thread_safety": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "detect_memory_issues": {"category": "analysis", "tags": ["read-only", "fast"]},
+    "lint_with_config": {"category": "quality", "tags": ["read-only", "medium"]},
+    "format_with_config": {"category": "quality", "tags": ["write", "mutating", "medium"]},
+    "solve": {"category": "safety", "tags": ["write", "mutating", "slow"]},
+    "undo": {"category": "editing", "tags": ["write", "mutating", "fast"]},
+    "redo": {"category": "editing", "tags": ["write", "mutating", "fast"]},
+    "create_branch": {"category": "editing", "tags": ["write", "mutating", "fast"]},
+    "list_branches": {"category": "editing", "tags": ["read-only", "fast"]},
+    "checkout_branch": {"category": "editing", "tags": ["write", "mutating", "fast"]},
+    "annotate_search_results": {"category": "search", "tags": ["read-only", "medium"]},
+    "predict_conflicts": {"category": "safety", "tags": ["read-only", "fast"]},
+    "search_modified_only": {"category": "search", "tags": ["read-only", "fast"]},
+    "get_chunking_strategy": {"category": "search", "tags": ["read-only", "fast"]},
+    "set_agent_profile": {"category": "editing", "tags": ["write", "mutating", "fast"]},
+    "chunk_with_profile": {"category": "editing", "tags": ["write", "mutating", "slow"]},
+    "adapt_search": {"category": "search", "tags": ["read-only", "fast"]},
 }
 
 # 2. Read-only + Side-effects — safety annotations
 _SCHEMA_SIDE_EFFECTS: dict[str, dict[str, Any]] = {
-    "embed_codebase":            {"read_only": False, "side_effects": "Creates a new buffer with embedded code; allocates GPU/CPU memory for embeddings index."},
-    "semantic_search":           {"read_only": True,  "side_effects": None},
-    "hybrid_search":             {"read_only": True,  "side_effects": None},
-    "search_for":                {"read_only": True,  "side_effects": None},
-    "search_symbols":            {"read_only": True,  "side_effects": None},
-    "cluster_code":              {"read_only": True,  "side_effects": None},
-    "find_duplicates":           {"read_only": True,  "side_effects": None},
-    "pack_context":              {"read_only": True,  "side_effects": None},
-    "reload_codebase":           {"read_only": False, "side_effects": "Re-embeds changed files; updates embeddings index in-place."},
-    "check_codebase":            {"read_only": True,  "side_effects": None},
-    "list_buffers":              {"read_only": True,  "side_effects": None},
-    "delete_buffer":             {"read_only": False, "side_effects": "Permanently deletes the buffer and its embeddings from disk. Cannot be undone."},
-    "read_code":                 {"read_only": True,  "side_effects": None},
-    "look_for_file":             {"read_only": True,  "side_effects": None},
-    "write_code":                {"read_only": False, "side_effects": "Modifies the in-buffer source snapshot. Changes are not written to disk until commit()."},
-    "diff":                      {"read_only": True,  "side_effects": None},
-    "discard":                   {"read_only": False, "side_effects": "Discards in-buffer changes, reverting to the last committed state."},
-    "commit":                    {"read_only": False, "side_effects": "Writes all in-buffer changes to disk files. Irreversible — use dry_run=True first."},
-    "infer_types":               {"read_only": True,  "side_effects": None},
-    "get_symbol_metadata":       {"read_only": True,  "side_effects": None},
-    "search_batch":              {"read_only": True,  "side_effects": None},
-    "auto_format":               {"read_only": False, "side_effects": "Reformats source files on disk when dry_run=False. Use dry_run=True to preview."},
-    "auto_lint":                 {"read_only": True,  "side_effects": "Report-only by default. auto_fix=True will modify source files on disk."},
-    "auto_polish":               {"read_only": False, "side_effects": "Formats and lints files on disk when dry_run=False. Use dry_run=True to preview."},
-    "get_references":            {"read_only": True,  "side_effects": None},
-    "get_full_context":          {"read_only": True,  "side_effects": None},
-    "analyze_change":            {"read_only": True,  "side_effects": None},
-    "get_test_coverage":         {"read_only": True,  "side_effects": None},
-    "polish_before_commit":      {"read_only": False, "side_effects": "Formats and lints files when check_only=False. Use check_only=True for preview."},
-    "trace_execution_paths":     {"read_only": True,  "side_effects": None},
-    "get_dependency_graph":      {"read_only": True,  "side_effects": None},
-    "detect_code_smells":        {"read_only": True,  "side_effects": None},
-    "scan_security":             {"read_only": True,  "side_effects": None},
-    "suggest_refactorings":      {"read_only": True,  "side_effects": None},
-    "lint_buffer":               {"read_only": True,  "side_effects": None},
-    "format_buffer":             {"read_only": True,  "side_effects": None},
-    "find_performance_hotspots": {"read_only": True,  "side_effects": None},
-    "generate_documentation":    {"read_only": True,  "side_effects": None},
-    "find_similar_patterns":     {"read_only": True,  "side_effects": None},
-    "find_deprecated":           {"read_only": True,  "side_effects": None},
-    "validate_changes":          {"read_only": True,  "side_effects": None},
-    "extract_configuration":     {"read_only": True,  "side_effects": None},
-    "analyze_logging_patterns":  {"read_only": True,  "side_effects": None},
+    "embed_codebase": {
+        "read_only": False,
+        "side_effects": "Creates a new buffer with embedded code; allocates GPU/CPU memory for embeddings index.",
+    },
+    "semantic_search": {"read_only": True, "side_effects": None},
+    "hybrid_search": {"read_only": True, "side_effects": None},
+    "search_for": {"read_only": True, "side_effects": None},
+    "search_symbols": {"read_only": True, "side_effects": None},
+    "cluster_code": {"read_only": True, "side_effects": None},
+    "find_duplicates": {"read_only": True, "side_effects": None},
+    "pack_context": {"read_only": True, "side_effects": None},
+    "reload_codebase": {
+        "read_only": False,
+        "side_effects": "Re-embeds changed files; updates embeddings index in-place.",
+    },
+    "check_codebase": {"read_only": True, "side_effects": None},
+    "list_buffers": {"read_only": True, "side_effects": None},
+    "delete_buffer": {
+        "read_only": False,
+        "side_effects": "Permanently deletes the buffer and its embeddings from disk. Cannot be undone.",
+    },
+    "read_code": {"read_only": True, "side_effects": None},
+    "look_for_file": {"read_only": True, "side_effects": None},
+    "write_code": {
+        "read_only": False,
+        "side_effects": "Modifies the in-buffer source snapshot. Changes are not written to disk until commit().",
+    },
+    "diff": {"read_only": True, "side_effects": None},
+    "discard": {
+        "read_only": False,
+        "side_effects": "Discards in-buffer changes, reverting to the last committed state.",
+    },
+    "commit": {
+        "read_only": False,
+        "side_effects": "Writes all in-buffer changes to disk files. Irreversible — use dry_run=True first.",
+    },
+    "infer_types": {"read_only": True, "side_effects": None},
+    "get_symbol_metadata": {"read_only": True, "side_effects": None},
+    "search_batch": {"read_only": True, "side_effects": None},
+    "auto_format": {
+        "read_only": False,
+        "side_effects": "Reformats source files on disk when dry_run=False. Use dry_run=True to preview.",
+    },
+    "auto_lint": {
+        "read_only": True,
+        "side_effects": "Report-only by default. auto_fix=True will modify source files on disk.",
+    },
+    "auto_polish": {
+        "read_only": False,
+        "side_effects": "Formats and lints files on disk when dry_run=False. Use dry_run=True to preview.",
+    },
+    "get_references": {"read_only": True, "side_effects": None},
+    "get_full_context": {"read_only": True, "side_effects": None},
+    "analyze_change": {"read_only": True, "side_effects": None},
+    "get_test_coverage": {"read_only": True, "side_effects": None},
+    "polish_before_commit": {
+        "read_only": False,
+        "side_effects": "Formats and lints files when check_only=False. Use check_only=True for preview.",
+    },
+    "trace_execution_paths": {"read_only": True, "side_effects": None},
+    "get_dependency_graph": {"read_only": True, "side_effects": None},
+    "detect_code_smells": {"read_only": True, "side_effects": None},
+    "scan_security": {"read_only": True, "side_effects": None},
+    "suggest_refactorings": {"read_only": True, "side_effects": None},
+    "lint_buffer": {"read_only": True, "side_effects": None},
+    "format_buffer": {"read_only": True, "side_effects": None},
+    "find_performance_hotspots": {"read_only": True, "side_effects": None},
+    "generate_documentation": {"read_only": True, "side_effects": None},
+    "find_similar_patterns": {"read_only": True, "side_effects": None},
+    "find_deprecated": {"read_only": True, "side_effects": None},
+    "validate_changes": {"read_only": True, "side_effects": None},
+    "extract_configuration": {"read_only": True, "side_effects": None},
+    "analyze_logging_patterns": {"read_only": True, "side_effects": None},
     "analyze_error_handling_patterns": {"read_only": True, "side_effects": None},
-    "generate_changelog":        {"read_only": True,  "side_effects": None},
-    "detect_api_changes":        {"read_only": True,  "side_effects": None},
-    "get_rollback_info":         {"read_only": True,  "side_effects": None},
-    "generate_change_template":  {"read_only": True,  "side_effects": None},
-    "map_api_endpoints":         {"read_only": True,  "side_effects": None},
-    "analyze_cache_patterns":    {"read_only": True,  "side_effects": None},
-    "analyze_thread_safety":     {"read_only": True,  "side_effects": None},
-    "detect_memory_issues":      {"read_only": True,  "side_effects": None},
-    "lint_with_config":          {"read_only": True,  "side_effects": "Report-only by default. auto_fix=True will modify source files on disk."},
-    "format_with_config":        {"read_only": False, "side_effects": "Reformats source files when dry_run=False. Use dry_run=True to preview."},
-    "solve":                     {"read_only": False, "side_effects": "May modify buffer contents via write_code operations within the solve loop."},
-    "undo":                      {"read_only": False, "side_effects": "Reverts previous in-buffer edits by restoring original content."},
-    "redo":                      {"read_only": False, "side_effects": "Re-applies previously undone in-buffer edits."},
-    "create_branch":             {"read_only": False, "side_effects": "Creates a new branch snapshot for the buffer."},
-    "list_branches":             {"read_only": True,  "side_effects": None},
-    "checkout_branch":           {"read_only": False, "side_effects": "Switches the active branch, changing which edits are visible."},
-    "annotate_search_results":   {"read_only": True,  "side_effects": None},
-    "predict_conflicts":         {"read_only": True,  "side_effects": None},
-    "search_modified_only":       {"read_only": True,  "side_effects": None},
-    "get_chunking_strategy":     {"read_only": True,  "side_effects": None},
-    "set_agent_profile":         {"read_only": False, "side_effects": "Stores profile name in buffer metadata, affecting future chunking and search behavior."},
-    "chunk_with_profile":        {"read_only": False, "side_effects": "Re-chunks the buffer's codebase using the specified profile, replacing existing chunk data."},
-    "adapt_search":              {"read_only": True,  "side_effects": None},
+    "generate_changelog": {"read_only": True, "side_effects": None},
+    "detect_api_changes": {"read_only": True, "side_effects": None},
+    "get_rollback_info": {"read_only": True, "side_effects": None},
+    "generate_change_template": {"read_only": True, "side_effects": None},
+    "map_api_endpoints": {"read_only": True, "side_effects": None},
+    "analyze_cache_patterns": {"read_only": True, "side_effects": None},
+    "analyze_thread_safety": {"read_only": True, "side_effects": None},
+    "detect_memory_issues": {"read_only": True, "side_effects": None},
+    "lint_with_config": {
+        "read_only": True,
+        "side_effects": "Report-only by default. auto_fix=True will modify source files on disk.",
+    },
+    "format_with_config": {
+        "read_only": False,
+        "side_effects": "Reformats source files when dry_run=False. Use dry_run=True to preview.",
+    },
+    "solve": {
+        "read_only": False,
+        "side_effects": "May modify buffer contents via write_code operations within the solve loop.",
+    },
+    "undo": {
+        "read_only": False,
+        "side_effects": "Reverts previous in-buffer edits by restoring original content.",
+    },
+    "redo": {"read_only": False, "side_effects": "Re-applies previously undone in-buffer edits."},
+    "create_branch": {
+        "read_only": False,
+        "side_effects": "Creates a new branch snapshot for the buffer.",
+    },
+    "list_branches": {"read_only": True, "side_effects": None},
+    "checkout_branch": {
+        "read_only": False,
+        "side_effects": "Switches the active branch, changing which edits are visible.",
+    },
+    "annotate_search_results": {"read_only": True, "side_effects": None},
+    "predict_conflicts": {"read_only": True, "side_effects": None},
+    "search_modified_only": {"read_only": True, "side_effects": None},
+    "get_chunking_strategy": {"read_only": True, "side_effects": None},
+    "set_agent_profile": {
+        "read_only": False,
+        "side_effects": "Stores profile name in buffer metadata, affecting future chunking and search behavior.",
+    },
+    "chunk_with_profile": {
+        "read_only": False,
+        "side_effects": "Re-chunks the buffer's codebase using the specified profile, replacing existing chunk data.",
+    },
+    "adapt_search": {"read_only": True, "side_effects": None},
 }
 
 # 3. Shared error schema — documents the error/conflict response shape
@@ -3348,7 +3853,11 @@ _SHARED_ERROR_SCHEMA: dict[str, Any] = {
     "type": "object",
     "description": "Error response returned when status is 'error' or 'conflict'.",
     "properties": {
-        "status": {"type": "string", "enum": ["error", "conflict"], "description": "Error or conflict status."},
+        "status": {
+            "type": "string",
+            "enum": ["error", "conflict"],
+            "description": "Error or conflict status.",
+        },
         "message": {"type": "string", "description": "Human-readable error description."},
         "operation": {"type": "string", "description": "The tool operation that failed."},
         "buffer_id": {"type": "string", "description": "Buffer handle, if applicable."},
@@ -3358,87 +3867,582 @@ _SHARED_ERROR_SCHEMA: dict[str, Any] = {
 
 # 4. Composition hints — which tools delegate to or compose other tools
 _SCHEMA_COMPOSITION: dict[str, dict[str, Any]] = {
-    "search_batch":             {"delegates_to": ["semantic_search"]},
-    "auto_polish":              {"composed_of": ["auto_format", "auto_lint"]},
-    "polish_before_commit":     {"composed_of": ["auto_polish", "get_test_coverage", "analyze_change"]},
-    "get_full_context":         {"composed_of": ["get_references", "get_symbol_metadata", "get_test_coverage", "infer_types"]},
-    "lint_buffer":              {"delegates_to": ["auto_lint"]},
-    "format_buffer":            {"delegates_to": ["auto_format"]},
-    "lint_with_config":         {"delegates_to": ["auto_lint"]},
-    "format_with_config":       {"delegates_to": ["auto_format"]},
-    "get_dependency_graph":     {"delegates_to": ["get_references"]},
+    "search_batch": {"delegates_to": ["semantic_search"]},
+    "auto_polish": {"composed_of": ["auto_format", "auto_lint"]},
+    "polish_before_commit": {"composed_of": ["auto_polish", "get_test_coverage", "analyze_change"]},
+    "get_full_context": {
+        "composed_of": ["get_references", "get_symbol_metadata", "get_test_coverage", "infer_types"]
+    },
+    "lint_buffer": {"delegates_to": ["auto_lint"]},
+    "format_buffer": {"delegates_to": ["auto_format"]},
+    "lint_with_config": {"delegates_to": ["auto_lint"]},
+    "format_with_config": {"delegates_to": ["auto_format"]},
+    "get_dependency_graph": {"delegates_to": ["get_references"]},
     "generate_change_template": {"composed_of": ["semantic_search", "analyze_change"]},
 }
 
 # 5. Examples — JSON Schema examples keyword for few-shot prompting
 _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
-    "embed_codebase":            {"input": {"path": "./src", "pattern": "*.py"}, "output": {"status": "ok", "buffer_id": "gcbuff-abc123", "token_count": 4500}},
-    "semantic_search":           {"input": {"buffer_id": "gcbuff-abc123", "query": "authentication middleware", "top_k": 5}, "output": {"status": "ok", "results": [{"file": "src/auth.py", "start_line": 10, "score": 0.92}]}},
-    "hybrid_search":             {"input": {"buffer_id": "gcbuff-abc123", "query": "payment processing", "top_k": 5}, "output": {"status": "ok", "results": [{"file": "src/pay.py", "start_line": 1, "score": 0.88}]}},
-    "search_for":                {"input": {"buffer_id": "gcbuff-abc123", "literal": "def authenticate"}, "output": {"status": "ok", "results": [{"file": "src/auth.py", "start_line": 15}]}},
-    "search_symbols":            {"input": {"buffer_id": "gcbuff-abc123", "name": "authenticate"}, "output": {"status": "ok", "results": [{"file": "src/auth.py", "name": "authenticate", "type": "function"}]}},
-    "cluster_code":              {"input": {"buffer_id": "gcbuff-abc123", "n_clusters": 5}, "output": {"status": "ok", "clusters": [{"label": "authentication", "files": ["src/auth.py"]}]}},
-    "find_duplicates":           {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "duplicates": [{"files": ["src/a.py", "src/b.py"], "similarity": 0.92}]}},
-    "pack_context":              {"input": {"buffer_id": "gcbuff-abc123", "query": "database connection", "max_tokens": 4000}, "output": {"status": "ok", "packed_lines": 120, "truncated": False}},
-    "reload_codebase":           {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "re_embedded_files": 3}},
-    "check_codebase":            {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "dirty_files": ["src/auth.py"]}},
-    "list_buffers":              {"input": {}, "output": {"status": "ok", "buffers": [{"buffer_id": "gcbuff-abc123", "files": 12}]}},
-    "delete_buffer":             {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok"}},
-    "read_code":                 {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"}, "output": {"status": "ok", "lines": ["def authenticate(user, pwd):", "    ..."], "start_line": 1}},
-    "look_for_file":             {"input": {"buffer_id": "gcbuff-abc123", "glob": "**/auth*.py"}, "output": {"status": "ok", "files": ["src/auth.py", "tests/test_auth.py"]}},
-    "write_code":                {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py", "start_line": 1, "new_lines": ["def authenticate(token):", "    ..."]}, "output": {"status": "ok", "operation_id": "op-12345", "changed_lines": 2, "diff": "--- a/src/auth.py\n+++ b/src/auth.py\n@@ -1,2 +1,2 @@"}},
-    "diff":                      {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "changed_files": [{"file": "src/auth.py", "dirty": True}]}},
-    "discard":                   {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"}, "output": {"status": "ok"}},
-    "commit":                    {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "dry_run": True, "written_files": ["src/auth.py"]}},
-    "infer_types":               {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py", "start_line": 1, "end_line": 20, "method": "llm"}, "output": {"status": "ok", "variables": {"user": {"type": "str", "confidence": 0.95}}, "return_type": "bool"}},
-    "get_symbol_metadata":       {"input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate"}, "output": {"status": "ok", "file": "src/auth.py", "line": 10, "cyclomatic_complexity": 4, "called_by_count": 8}},
-    "search_batch":              {"input": {"buffer_id": "gcbuff-abc123", "queries": ["auth middleware", "database query"]}, "output": {"status": "ok", "results": {"auth middleware": [{"file": "src/auth.py", "score": 0.9}]}}},
-    "auto_format":               {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "formatted_files": 2, "already_formatted": 10}},
-    "auto_lint":                 {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "issues": [{"file": "src/auth.py", "code": "E501", "message": "line too long"}]}},
-    "auto_polish":               {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "formatting": {"formatted_files": 2}, "linting": {"issues": 3}}},
-    "get_references":            {"input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate", "direction": "both"}, "output": {"status": "ok", "callers": [{"symbol": "login", "file": "src/api.py"}], "callees": [{"symbol": "verify_token", "file": "src/auth.py"}]}},
-    "get_full_context":          {"input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate"}, "output": {"status": "ok", "definition": {"file": "src/auth.py", "lines": 20}, "callers": 8, "tests": ["test_auth"]}},
-    "analyze_change":            {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py", "start_line": 10, "end_line": 20}, "output": {"status": "ok", "risk_level": "medium", "affected_symbols": ["authenticate"], "direct_callers": 5}},
-    "get_test_coverage":         {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "coverage": {"src/auth.py": {"(10, 25)": ["test_auth"]}}}},
-    "polish_before_commit":      {"input": {"buffer_id": "gcbuff-abc123", "check_only": True}, "output": {"status": "ok", "ready_to_commit": True, "pre_commit_warnings": []}},
-    "trace_execution_paths":     {"input": {"buffer_id": "gcbuff-abc123", "symbol": "handle_request", "max_depth": 3}, "output": {"status": "ok", "paths": [{"path": ["handle_request -> validate -> check_auth"], "branches": 3, "calls": ["validate", "check_auth"]}]}},
-    "get_dependency_graph":      {"input": {"buffer_id": "gcbuff-abc123", "symbol": "process_payment", "depth": 2}, "output": {"status": "ok", "nodes": [{"id": "process_payment", "label": "process_payment", "type": "function", "file": "src/pay.py"}], "edges": [{"from": "process_payment", "to": "validate_card", "type": "calls"}]}},
-    "detect_code_smells":        {"input": {"buffer_id": "gcbuff-abc123", "types": ["long_function", "deep_nesting"]}, "output": {"status": "ok", "smells": [{"file": "src/auth.py", "line": 42, "type": "long_function", "severity": "medium", "suggestion": "Consider extracting methods."}]}},
-    "scan_security":             {"input": {"buffer_id": "gcbuff-abc123", "severity_min": "high"}, "output": {"status": "ok", "vulnerabilities": [{"file": "src/db.py", "line": 42, "type": "sql_injection", "severity": "high", "fix_suggestion": "Use parameterized queries"}]}},
-    "suggest_refactorings":      {"input": {"buffer_id": "gcbuff-abc123", "symbol": "process_payment"}, "output": {"status": "ok", "suggestions": [{"type": "extract_method", "lines": "10-60", "benefit": "Reduce complexity", "risk": "medium"}]}},
-    "lint_buffer":               {"input": {"buffer_id": "gcbuff-abc123", "group_by": "severity"}, "output": {"status": "ok", "total_issues": 17, "by_severity": {"error": 5, "warning": 12, "info": 3}}},
-    "format_buffer":             {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "formatted_files": 3, "total_lines_added": 12, "total_lines_removed": 8}},
-    "find_performance_hotspots": {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "hotspots": [{"file": "src/db.py", "line": 42, "type": "n_plus_one", "severity": "high", "suggestion": "Use select_related"}]}},
-    "generate_documentation":    {"input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate", "style": "google"}, "output": {"status": "ok", "docstring": '"""authenticate documentation."""', "type_hints": {"user": "str"}, "examples": []}},
-    "find_similar_patterns":     {"input": {"buffer_id": "gcbuff-abc123", "code_snippet": "def validate(x):\\n    return x is not None", "cluster": True}, "output": {"status": "ok", "cluster_mode": True, "clusters": [{"cluster_id": 1, "size": 3, "avg_similarity": 0.88, "compactness": 0.92, "example_file": "src/validators.py", "example_line": 15, "members": [{"file": "src/validators.py", "start_line": 15, "end_line": 16, "similarity": 0.91}, {"file": "src/checks.py", "start_line": 42, "end_line": 43, "similarity": 0.87}], "refactoring_opportunity": "extract_method"}], "clustering_method": "agglomerative", "quality": 0.85}},
-    "find_deprecated":           {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "deprecated": [{"file": "src/api.py", "line": 42, "detection_method": "decorator", "symbol": "old_endpoint"}]}},
-    "validate_changes":          {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "type_errors": [], "broken_imports": [], "safe_to_commit": True}},
-    "extract_configuration":     {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "env_vars": [{"name": "DATABASE_URL", "used_in": "src/db.py:5", "required": True, "default": None}], "hardcoded_secrets": []}},
-    "analyze_logging_patterns":  {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "total_logs": 142, "levels": {"debug": 30, "info": 80, "warning": 25, "error": 7, "critical": 0}}},
-    "analyze_error_handling_patterns": {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "try_except_blocks": 42, "broad_catches": [{"file": "src/db.py", "line": 42, "catches": "Exception"}]}},
-    "generate_changelog":        {"input": {"buffer_id": "gcbuff-abc123", "since_commit": "v1.0.0"}, "output": {"status": "ok", "features": [{"commit": "abc1234", "message": "feat: add retry logic"}], "bugfixes": []}},
-    "detect_api_changes":        {"input": {"buffer_id": "gcbuff-abc123", "since_commit": "v1.0.0"}, "output": {"status": "ok", "current_api_surface": 25, "changes": [{"symbol": "process_payment", "breaking": True}]}},
-    "get_rollback_info":         {"input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"}, "output": {"status": "ok", "last_working_commit": "abc1234", "commit_message": "feat: add MFA support"}},
-    "generate_change_template":  {"input": {"buffer_id": "gcbuff-abc123", "request": "add retry logic to database calls"}, "output": {"status": "ok", "files_to_modify": ["src/db.py"], "risk_assessment": "medium"}},
-    "map_api_endpoints":         {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "endpoints": [{"method": "POST", "path": "/api/v1/payment", "handler": "process_payment", "is_async": True}]}},
-    "analyze_cache_patterns":    {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "caches_used": ["redis", "lru_cache"], "stale_data_risks": []}},
-    "analyze_thread_safety":     {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "shared_state": [{"name": "global_cache", "protected_by": "none"}], "race_conditions": []}},
-    "detect_memory_issues":      {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "unbounded_collections": [{"file": "src/collector.py", "line": 15, "growth_reason": "append in loop"}]}},
-    "lint_with_config":          {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "config_file": "pyproject.toml", "issues": []}},
-    "format_with_config":        {"input": {"buffer_id": "gcbuff-abc123", "dry_run": True}, "output": {"status": "ok", "config_file": "pyproject.toml", "formatted_files": 2}},
-    "solve":                     {"input": {"buffer_id": "gcbuff-abc123", "task": "add retry logic to database calls"}, "output": {"status": "ok", "task_id": "a1b2c3d4", "iterations": 3, "summary": "Successfully completed task in 3 iterations"}},
-    "undo":                      {"input": {"buffer_id": "gcbuff-abc123", "steps": 1}, "output": {"status": "ok", "steps_undone": 1, "remaining_undo_count": 5}},
-    "redo":                      {"input": {"buffer_id": "gcbuff-abc123", "steps": 1}, "output": {"status": "ok", "steps_redone": 1, "remaining_redo_count": 2}},
-    "create_branch":             {"input": {"buffer_id": "gcbuff-abc123", "name": "experiment-v2"}, "output": {"status": "ok", "branch": "experiment-v2", "parent": "main"}},
-    "list_branches":             {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "branches": [{"name": "main", "current": True}, {"name": "experiment-v2", "current": False}]}},
-    "checkout_branch":           {"input": {"buffer_id": "gcbuff-abc123", "name": "experiment-v2"}, "output": {"status": "ok", "branch": "experiment-v2"}},
-    "annotate_search_results":   {"input": {"buffer_id": "gcbuff-abc123", "query": "database connection", "top_k": 5}, "output": {"status": "ok", "annotated_results": [{"file": "src/db.py", "why": "Called by 2 edited files", "suggested_next_action": "Check src/db.py to see how it's being used"}]}},
-    "predict_conflicts":         {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok", "risk_level": "low", "commits_since_embed": 0, "recommendations": ["Buffer state is clean; safe to commit"]}},
-    "search_modified_only":       {"input": {"buffer_id": "gcbuff-abc123", "query": "error handling", "scope": "changes+deps"}, "output": {"status": "ok", "scope_used": "changes+deps", "files_searched": ["src/db.py", "src/api.py"], "results": [{"file": "src/db.py", "score": 0.89}]}},
-    "get_chunking_strategy":     {"input": {"profile": "debugger"}, "output": {"status": "ok", "profile": "debugger", "include": ["function_signature", "error_paths", "imports"], "exclude": ["docstring_details", "vendor"], "max_lines": 80, "min_lines": 1, "description": "Minimal signatures with error paths for debugging", "expected_token_savings": "67%"}},
-    "set_agent_profile":         {"input": {"buffer_id": "gcbuff-abc123", "profile": "debugger"}, "output": {"status": "ok", "buffer_id": "gcbuff-abc123", "profile": "debugger", "strategy_description": "Minimal signatures with error paths for debugging"}},
-    "chunk_with_profile":        {"input": {"buffer_id": "gcbuff-abc123", "profile": "debugger"}, "output": {"status": "ok", "profile": "debugger", "total_chunks": 42, "strategy_description": "Minimal signatures with error paths for debugging"}},
-    "adapt_search":              {"input": {"buffer_id": "gcbuff-abc123", "query": "authentication", "profile": "debugger"}, "output": {"status": "ok", "enhanced_query": "authentication error bug exception fail", "profile": "debugger", "original_query": "authentication"}},
+    "embed_codebase": {
+        "input": {"path": "./src", "pattern": "*.py"},
+        "output": {"status": "ok", "buffer_id": "gcbuff-abc123", "token_count": 4500},
+    },
+    "semantic_search": {
+        "input": {"buffer_id": "gcbuff-abc123", "query": "authentication middleware", "top_k": 5},
+        "output": {
+            "status": "ok",
+            "results": [{"file": "src/auth.py", "start_line": 10, "score": 0.92}],
+        },
+    },
+    "hybrid_search": {
+        "input": {"buffer_id": "gcbuff-abc123", "query": "payment processing", "top_k": 5},
+        "output": {
+            "status": "ok",
+            "results": [{"file": "src/pay.py", "start_line": 1, "score": 0.88}],
+        },
+    },
+    "search_for": {
+        "input": {"buffer_id": "gcbuff-abc123", "literal": "def authenticate"},
+        "output": {"status": "ok", "results": [{"file": "src/auth.py", "start_line": 15}]},
+    },
+    "search_symbols": {
+        "input": {"buffer_id": "gcbuff-abc123", "name": "authenticate"},
+        "output": {
+            "status": "ok",
+            "results": [{"file": "src/auth.py", "name": "authenticate", "type": "function"}],
+        },
+    },
+    "cluster_code": {
+        "input": {"buffer_id": "gcbuff-abc123", "n_clusters": 5},
+        "output": {
+            "status": "ok",
+            "clusters": [{"label": "authentication", "files": ["src/auth.py"]}],
+        },
+    },
+    "find_duplicates": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "duplicates": [{"files": ["src/a.py", "src/b.py"], "similarity": 0.92}],
+        },
+    },
+    "pack_context": {
+        "input": {"buffer_id": "gcbuff-abc123", "query": "database connection", "max_tokens": 4000},
+        "output": {"status": "ok", "packed_lines": 120, "truncated": False},
+    },
+    "reload_codebase": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {"status": "ok", "re_embedded_files": 3},
+    },
+    "check_codebase": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {"status": "ok", "dirty_files": ["src/auth.py"]},
+    },
+    "list_buffers": {
+        "input": {},
+        "output": {"status": "ok", "buffers": [{"buffer_id": "gcbuff-abc123", "files": 12}]},
+    },
+    "delete_buffer": {"input": {"buffer_id": "gcbuff-abc123"}, "output": {"status": "ok"}},
+    "read_code": {
+        "input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"},
+        "output": {
+            "status": "ok",
+            "lines": ["def authenticate(user, pwd):", "    ..."],
+            "start_line": 1,
+        },
+    },
+    "look_for_file": {
+        "input": {"buffer_id": "gcbuff-abc123", "glob": "**/auth*.py"},
+        "output": {"status": "ok", "files": ["src/auth.py", "tests/test_auth.py"]},
+    },
+    "write_code": {
+        "input": {
+            "buffer_id": "gcbuff-abc123",
+            "file": "src/auth.py",
+            "start_line": 1,
+            "new_lines": ["def authenticate(token):", "    ..."],
+        },
+        "output": {
+            "status": "ok",
+            "operation_id": "op-12345",
+            "changed_lines": 2,
+            "diff": "--- a/src/auth.py\n+++ b/src/auth.py\n@@ -1,2 +1,2 @@",
+        },
+    },
+    "diff": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {"status": "ok", "changed_files": [{"file": "src/auth.py", "dirty": True}]},
+    },
+    "discard": {
+        "input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"},
+        "output": {"status": "ok"},
+    },
+    "commit": {
+        "input": {"buffer_id": "gcbuff-abc123", "dry_run": True},
+        "output": {"status": "ok", "dry_run": True, "written_files": ["src/auth.py"]},
+    },
+    "infer_types": {
+        "input": {
+            "buffer_id": "gcbuff-abc123",
+            "file": "src/auth.py",
+            "start_line": 1,
+            "end_line": 20,
+            "method": "llm",
+        },
+        "output": {
+            "status": "ok",
+            "variables": {"user": {"type": "str", "confidence": 0.95}},
+            "return_type": "bool",
+        },
+    },
+    "get_symbol_metadata": {
+        "input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate"},
+        "output": {
+            "status": "ok",
+            "file": "src/auth.py",
+            "line": 10,
+            "cyclomatic_complexity": 4,
+            "called_by_count": 8,
+        },
+    },
+    "search_batch": {
+        "input": {"buffer_id": "gcbuff-abc123", "queries": ["auth middleware", "database query"]},
+        "output": {
+            "status": "ok",
+            "results": {"auth middleware": [{"file": "src/auth.py", "score": 0.9}]},
+        },
+    },
+    "auto_format": {
+        "input": {"buffer_id": "gcbuff-abc123", "dry_run": True},
+        "output": {"status": "ok", "formatted_files": 2, "already_formatted": 10},
+    },
+    "auto_lint": {
+        "input": {"buffer_id": "gcbuff-abc123", "dry_run": True},
+        "output": {
+            "status": "ok",
+            "issues": [{"file": "src/auth.py", "code": "E501", "message": "line too long"}],
+        },
+    },
+    "auto_polish": {
+        "input": {"buffer_id": "gcbuff-abc123", "dry_run": True},
+        "output": {"status": "ok", "formatting": {"formatted_files": 2}, "linting": {"issues": 3}},
+    },
+    "get_references": {
+        "input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate", "direction": "both"},
+        "output": {
+            "status": "ok",
+            "callers": [{"symbol": "login", "file": "src/api.py"}],
+            "callees": [{"symbol": "verify_token", "file": "src/auth.py"}],
+        },
+    },
+    "get_full_context": {
+        "input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate"},
+        "output": {
+            "status": "ok",
+            "definition": {"file": "src/auth.py", "lines": 20},
+            "callers": 8,
+            "tests": ["test_auth"],
+        },
+    },
+    "analyze_change": {
+        "input": {
+            "buffer_id": "gcbuff-abc123",
+            "file": "src/auth.py",
+            "start_line": 10,
+            "end_line": 20,
+        },
+        "output": {
+            "status": "ok",
+            "risk_level": "medium",
+            "affected_symbols": ["authenticate"],
+            "direct_callers": 5,
+        },
+    },
+    "get_test_coverage": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {"status": "ok", "coverage": {"src/auth.py": {"(10, 25)": ["test_auth"]}}},
+    },
+    "polish_before_commit": {
+        "input": {"buffer_id": "gcbuff-abc123", "check_only": True},
+        "output": {"status": "ok", "ready_to_commit": True, "pre_commit_warnings": []},
+    },
+    "trace_execution_paths": {
+        "input": {"buffer_id": "gcbuff-abc123", "symbol": "handle_request", "max_depth": 3},
+        "output": {
+            "status": "ok",
+            "paths": [
+                {
+                    "path": ["handle_request -> validate -> check_auth"],
+                    "branches": 3,
+                    "calls": ["validate", "check_auth"],
+                }
+            ],
+        },
+    },
+    "get_dependency_graph": {
+        "input": {"buffer_id": "gcbuff-abc123", "symbol": "process_payment", "depth": 2},
+        "output": {
+            "status": "ok",
+            "nodes": [
+                {
+                    "id": "process_payment",
+                    "label": "process_payment",
+                    "type": "function",
+                    "file": "src/pay.py",
+                }
+            ],
+            "edges": [{"from": "process_payment", "to": "validate_card", "type": "calls"}],
+        },
+    },
+    "detect_code_smells": {
+        "input": {"buffer_id": "gcbuff-abc123", "types": ["long_function", "deep_nesting"]},
+        "output": {
+            "status": "ok",
+            "smells": [
+                {
+                    "file": "src/auth.py",
+                    "line": 42,
+                    "type": "long_function",
+                    "severity": "medium",
+                    "suggestion": "Consider extracting methods.",
+                }
+            ],
+        },
+    },
+    "scan_security": {
+        "input": {"buffer_id": "gcbuff-abc123", "severity_min": "high"},
+        "output": {
+            "status": "ok",
+            "vulnerabilities": [
+                {
+                    "file": "src/db.py",
+                    "line": 42,
+                    "type": "sql_injection",
+                    "severity": "high",
+                    "fix_suggestion": "Use parameterized queries",
+                }
+            ],
+        },
+    },
+    "suggest_refactorings": {
+        "input": {"buffer_id": "gcbuff-abc123", "symbol": "process_payment"},
+        "output": {
+            "status": "ok",
+            "suggestions": [
+                {
+                    "type": "extract_method",
+                    "lines": "10-60",
+                    "benefit": "Reduce complexity",
+                    "risk": "medium",
+                }
+            ],
+        },
+    },
+    "lint_buffer": {
+        "input": {"buffer_id": "gcbuff-abc123", "group_by": "severity"},
+        "output": {
+            "status": "ok",
+            "total_issues": 17,
+            "by_severity": {"error": 5, "warning": 12, "info": 3},
+        },
+    },
+    "format_buffer": {
+        "input": {"buffer_id": "gcbuff-abc123", "dry_run": True},
+        "output": {
+            "status": "ok",
+            "formatted_files": 3,
+            "total_lines_added": 12,
+            "total_lines_removed": 8,
+        },
+    },
+    "find_performance_hotspots": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "hotspots": [
+                {
+                    "file": "src/db.py",
+                    "line": 42,
+                    "type": "n_plus_one",
+                    "severity": "high",
+                    "suggestion": "Use select_related",
+                }
+            ],
+        },
+    },
+    "generate_documentation": {
+        "input": {"buffer_id": "gcbuff-abc123", "symbol": "authenticate", "style": "google"},
+        "output": {
+            "status": "ok",
+            "docstring": '"""authenticate documentation."""',
+            "type_hints": {"user": "str"},
+            "examples": [],
+        },
+    },
+    "find_similar_patterns": {
+        "input": {
+            "buffer_id": "gcbuff-abc123",
+            "code_snippet": "def validate(x):\\n    return x is not None",
+            "cluster": True,
+        },
+        "output": {
+            "status": "ok",
+            "cluster_mode": True,
+            "clusters": [
+                {
+                    "cluster_id": 1,
+                    "size": 3,
+                    "avg_similarity": 0.88,
+                    "compactness": 0.92,
+                    "example_file": "src/validators.py",
+                    "example_line": 15,
+                    "members": [
+                        {
+                            "file": "src/validators.py",
+                            "start_line": 15,
+                            "end_line": 16,
+                            "similarity": 0.91,
+                        },
+                        {
+                            "file": "src/checks.py",
+                            "start_line": 42,
+                            "end_line": 43,
+                            "similarity": 0.87,
+                        },
+                    ],
+                    "refactoring_opportunity": "extract_method",
+                }
+            ],
+            "clustering_method": "agglomerative",
+            "quality": 0.85,
+        },
+    },
+    "find_deprecated": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "deprecated": [
+                {
+                    "file": "src/api.py",
+                    "line": 42,
+                    "detection_method": "decorator",
+                    "symbol": "old_endpoint",
+                }
+            ],
+        },
+    },
+    "validate_changes": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {"status": "ok", "type_errors": [], "broken_imports": [], "safe_to_commit": True},
+    },
+    "extract_configuration": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "env_vars": [
+                {
+                    "name": "DATABASE_URL",
+                    "used_in": "src/db.py:5",
+                    "required": True,
+                    "default": None,
+                }
+            ],
+            "hardcoded_secrets": [],
+        },
+    },
+    "analyze_logging_patterns": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "total_logs": 142,
+            "levels": {"debug": 30, "info": 80, "warning": 25, "error": 7, "critical": 0},
+        },
+    },
+    "analyze_error_handling_patterns": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "try_except_blocks": 42,
+            "broad_catches": [{"file": "src/db.py", "line": 42, "catches": "Exception"}],
+        },
+    },
+    "generate_changelog": {
+        "input": {"buffer_id": "gcbuff-abc123", "since_commit": "v1.0.0"},
+        "output": {
+            "status": "ok",
+            "features": [{"commit": "abc1234", "message": "feat: add retry logic"}],
+            "bugfixes": [],
+        },
+    },
+    "detect_api_changes": {
+        "input": {"buffer_id": "gcbuff-abc123", "since_commit": "v1.0.0"},
+        "output": {
+            "status": "ok",
+            "current_api_surface": 25,
+            "changes": [{"symbol": "process_payment", "breaking": True}],
+        },
+    },
+    "get_rollback_info": {
+        "input": {"buffer_id": "gcbuff-abc123", "file": "src/auth.py"},
+        "output": {
+            "status": "ok",
+            "last_working_commit": "abc1234",
+            "commit_message": "feat: add MFA support",
+        },
+    },
+    "generate_change_template": {
+        "input": {"buffer_id": "gcbuff-abc123", "request": "add retry logic to database calls"},
+        "output": {"status": "ok", "files_to_modify": ["src/db.py"], "risk_assessment": "medium"},
+    },
+    "map_api_endpoints": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "endpoints": [
+                {
+                    "method": "POST",
+                    "path": "/api/v1/payment",
+                    "handler": "process_payment",
+                    "is_async": True,
+                }
+            ],
+        },
+    },
+    "analyze_cache_patterns": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {"status": "ok", "caches_used": ["redis", "lru_cache"], "stale_data_risks": []},
+    },
+    "analyze_thread_safety": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "shared_state": [{"name": "global_cache", "protected_by": "none"}],
+            "race_conditions": [],
+        },
+    },
+    "detect_memory_issues": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "unbounded_collections": [
+                {"file": "src/collector.py", "line": 15, "growth_reason": "append in loop"}
+            ],
+        },
+    },
+    "lint_with_config": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {"status": "ok", "config_file": "pyproject.toml", "issues": []},
+    },
+    "format_with_config": {
+        "input": {"buffer_id": "gcbuff-abc123", "dry_run": True},
+        "output": {"status": "ok", "config_file": "pyproject.toml", "formatted_files": 2},
+    },
+    "solve": {
+        "input": {"buffer_id": "gcbuff-abc123", "task": "add retry logic to database calls"},
+        "output": {
+            "status": "ok",
+            "task_id": "a1b2c3d4",
+            "iterations": 3,
+            "summary": "Successfully completed task in 3 iterations",
+        },
+    },
+    "undo": {
+        "input": {"buffer_id": "gcbuff-abc123", "steps": 1},
+        "output": {"status": "ok", "steps_undone": 1, "remaining_undo_count": 5},
+    },
+    "redo": {
+        "input": {"buffer_id": "gcbuff-abc123", "steps": 1},
+        "output": {"status": "ok", "steps_redone": 1, "remaining_redo_count": 2},
+    },
+    "create_branch": {
+        "input": {"buffer_id": "gcbuff-abc123", "name": "experiment-v2"},
+        "output": {"status": "ok", "branch": "experiment-v2", "parent": "main"},
+    },
+    "list_branches": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "branches": [
+                {"name": "main", "current": True},
+                {"name": "experiment-v2", "current": False},
+            ],
+        },
+    },
+    "checkout_branch": {
+        "input": {"buffer_id": "gcbuff-abc123", "name": "experiment-v2"},
+        "output": {"status": "ok", "branch": "experiment-v2"},
+    },
+    "annotate_search_results": {
+        "input": {"buffer_id": "gcbuff-abc123", "query": "database connection", "top_k": 5},
+        "output": {
+            "status": "ok",
+            "annotated_results": [
+                {
+                    "file": "src/db.py",
+                    "why": "Called by 2 edited files",
+                    "suggested_next_action": "Check src/db.py to see how it's being used",
+                }
+            ],
+        },
+    },
+    "predict_conflicts": {
+        "input": {"buffer_id": "gcbuff-abc123"},
+        "output": {
+            "status": "ok",
+            "risk_level": "low",
+            "commits_since_embed": 0,
+            "recommendations": ["Buffer state is clean; safe to commit"],
+        },
+    },
+    "search_modified_only": {
+        "input": {"buffer_id": "gcbuff-abc123", "query": "error handling", "scope": "changes+deps"},
+        "output": {
+            "status": "ok",
+            "scope_used": "changes+deps",
+            "files_searched": ["src/db.py", "src/api.py"],
+            "results": [{"file": "src/db.py", "score": 0.89}],
+        },
+    },
+    "get_chunking_strategy": {
+        "input": {"profile": "debugger"},
+        "output": {
+            "status": "ok",
+            "profile": "debugger",
+            "include": ["function_signature", "error_paths", "imports"],
+            "exclude": ["docstring_details", "vendor"],
+            "max_lines": 80,
+            "min_lines": 1,
+            "description": "Minimal signatures with error paths for debugging",
+            "expected_token_savings": "67%",
+        },
+    },
+    "set_agent_profile": {
+        "input": {"buffer_id": "gcbuff-abc123", "profile": "debugger"},
+        "output": {
+            "status": "ok",
+            "buffer_id": "gcbuff-abc123",
+            "profile": "debugger",
+            "strategy_description": "Minimal signatures with error paths for debugging",
+        },
+    },
+    "chunk_with_profile": {
+        "input": {"buffer_id": "gcbuff-abc123", "profile": "debugger"},
+        "output": {
+            "status": "ok",
+            "profile": "debugger",
+            "total_chunks": 42,
+            "strategy_description": "Minimal signatures with error paths for debugging",
+        },
+    },
+    "adapt_search": {
+        "input": {"buffer_id": "gcbuff-abc123", "query": "authentication", "profile": "debugger"},
+        "output": {
+            "status": "ok",
+            "enhanced_query": "authentication error bug exception fail",
+            "profile": "debugger",
+            "original_query": "authentication",
+        },
+    },
 }
 
 
@@ -3544,7 +4548,6 @@ def to_openai_functions() -> list[dict[str, Any]]:
             func["composed_of"] = schema["composed_of"]
         functions.append(func)
     return functions
-
 
 
 def to_mcp_tools() -> list[dict[str, Any]]:
@@ -3665,8 +4668,14 @@ def to_ollama_tools(
     if not include_metadata:
         # Strip metadata fields
         for func in functions:
-            for key in ("category", "tags", "read_only", "side_effects",
-                        "delegates_to", "composed_of"):
+            for key in (
+                "category",
+                "tags",
+                "read_only",
+                "side_effects",
+                "delegates_to",
+                "composed_of",
+            ):
                 func.pop(key, None)
     return functions
 
@@ -3792,11 +4801,13 @@ class SchemaConfig:
         try:
             with open(path, "rb") as f:
                 import tomllib
+
                 data = tomllib.load(f)
         except (ImportError, ModuleNotFoundError):
             # Python < 3.11 fallback
             try:
                 import tomli as tomllib  # type: ignore[no-redef]
+
                 with open(path, "rb") as f:
                     data = tomllib.load(f)
             except ImportError:

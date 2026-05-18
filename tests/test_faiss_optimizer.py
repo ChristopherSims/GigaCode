@@ -193,9 +193,9 @@ def test_index_creation_performance():
             vectors = np.random.randn(vector_count, embedding_dim).astype(np.float32)
 
             selected_type = optimizer.select_index_type(vector_count, embedding_dim)
-            assert (
-                selected_type == expected_type
-            ), f"Type mismatch: {selected_type} vs {expected_type}"
+            assert selected_type == expected_type, (
+                f"Type mismatch: {selected_type} vs {expected_type}"
+            )
 
             t0 = time.perf_counter()
             index = optimizer.create_optimized_index(vectors=vectors, embedding_dim=embedding_dim)

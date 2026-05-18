@@ -56,19 +56,30 @@ __all__ = [
 # Request models
 # ---------------------------------------------------------------------------
 
+
 class GetReferencesRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     symbol: str = Field(description="Symbol name to analyze.")
-    direction: str = Field("both", description="Reference direction: callers, callees, or both.", pattern="^(both|calls|called_by)$")
+    direction: str = Field(
+        "both",
+        description="Reference direction: callers, callees, or both.",
+        pattern="^(both|calls|called_by)$",
+    )
     top_k: int = Field(50, description="Maximum number of results to return.", ge=1, le=200)
-    expand_depth: Optional[int] = Field(None, description="Depth to expand the reference graph.", ge=1, le=10)
+    expand_depth: Optional[int] = Field(
+        None, description="Depth to expand the reference graph.", ge=1, le=10
+    )
 
 
 class GetFullContextRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     symbol: str = Field(description="Symbol name to analyze.")
     include: Optional[List[str]] = Field(None, description="Components to include in context.")
-    type_inference_method: str = Field("llm", description="Type inference method: llm (accurate) or ast (fast).", pattern="^(llm|ast)$")
+    type_inference_method: str = Field(
+        "llm",
+        description="Type inference method: llm (accurate) or ast (fast).",
+        pattern="^(llm|ast)$",
+    )
 
 
 class AnalyzeChangeRequest(BaseModel):
@@ -86,38 +97,64 @@ class GetTestCoverageRequest(BaseModel):
 class InferTypesRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     symbol: str = Field(description="Symbol name to analyze.")
-    method: str = Field("llm", description="Type inference method: llm (accurate) or ast (fast).", pattern="^(llm|ast)$")
+    method: str = Field(
+        "llm",
+        description="Type inference method: llm (accurate) or ast (fast).",
+        pattern="^(llm|ast)$",
+    )
 
 
 class GetSymbolMetadataRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     symbol: str = Field(description="Symbol name to analyze.")
     include_types: bool = Field(True, description="Include type inference in results.")
-    type_inference_method: str = Field("ast", description="Type inference method: llm (accurate) or ast (fast).", pattern="^(llm|ast)$")
+    type_inference_method: str = Field(
+        "ast",
+        description="Type inference method: llm (accurate) or ast (fast).",
+        pattern="^(llm|ast)$",
+    )
 
 
 class SearchBatchRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    queries: List[str] = Field(..., description="List of search queries to run.", min_length=1, max_length=20)
+    queries: List[str] = Field(
+        ..., description="List of search queries to run.", min_length=1, max_length=20
+    )
     top_k: int = Field(5, description="Maximum number of results to return.", ge=1, le=50)
     include_types: bool = Field(False, description="Include type inference in results.")
-    type_inference_method: str = Field("llm", description="Type inference method: llm (accurate) or ast (fast).", pattern="^(llm|ast)$")
+    type_inference_method: str = Field(
+        "llm",
+        description="Type inference method: llm (accurate) or ast (fast).",
+        pattern="^(llm|ast)$",
+    )
 
 
 class AutoFormatRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files: Optional[List[str]] = Field(None, description="Specific files to analyze. If None, processes entire buffer.")
-    formatter: str = Field("black", description="Formatter to use: black or ruff.format.", pattern="^(black|ruff\\.format)$")
+    files: Optional[List[str]] = Field(
+        None, description="Specific files to analyze. If None, processes entire buffer."
+    )
+    formatter: str = Field(
+        "black",
+        description="Formatter to use: black or ruff.format.",
+        pattern="^(black|ruff\\.format)$",
+    )
     line_length: int = Field(88, description="Maximum line length for formatting.", ge=1, le=200)
-    skip_magic_trailing_comma: bool = Field(False, description="Skip Black's magic trailing comma feature.")
+    skip_magic_trailing_comma: bool = Field(
+        False, description="Skip Black's magic trailing comma feature."
+    )
     dry_run: bool = Field(True, description="Preview only without making changes.")
     exclude_patterns: Optional[List[str]] = Field(None, description="Glob patterns to exclude.")
 
 
 class AutoLintRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files: Optional[List[str]] = Field(None, description="Specific files to analyze. If None, processes entire buffer.")
-    select: Optional[List[str]] = Field(None, description="Lint rule categories to check (e.g. E, F, W).")
+    files: Optional[List[str]] = Field(
+        None, description="Specific files to analyze. If None, processes entire buffer."
+    )
+    select: Optional[List[str]] = Field(
+        None, description="Lint rule categories to check (e.g. E, F, W)."
+    )
     ignore: Optional[List[str]] = Field(None, description="Lint rules to ignore.")
     auto_fix: bool = Field(False, description="Automatically fix issues instead of just reporting.")
     dry_run: bool = Field(True, description="Preview only without making changes.")
@@ -126,8 +163,14 @@ class AutoLintRequest(BaseModel):
 
 class AutoPolishRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files: Optional[List[str]] = Field(None, description="Specific files to analyze. If None, processes entire buffer.")
-    format_with: str = Field("black", description="Formatter to use: black or ruff.format.", pattern="^(black|ruff\\.format)$")
+    files: Optional[List[str]] = Field(
+        None, description="Specific files to analyze. If None, processes entire buffer."
+    )
+    format_with: str = Field(
+        "black",
+        description="Formatter to use: black or ruff.format.",
+        pattern="^(black|ruff\\.format)$",
+    )
     auto_fix_lints: bool = Field(True, description="Automatically fix lint issues.")
     line_length: int = Field(88, description="Maximum line length for formatting.", ge=1, le=200)
     ruff_select: Optional[List[str]] = Field(None, description="Ruff rule categories to check.")
@@ -137,8 +180,14 @@ class AutoPolishRequest(BaseModel):
 
 class PolishBeforeCommitRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files_to_commit: Optional[List[str]] = Field(None, description="Specific files to polish before committing.")
-    format_with: str = Field("black", description="Formatter to use: black or ruff.format.", pattern="^(black|ruff\\.format)$")
+    files_to_commit: Optional[List[str]] = Field(
+        None, description="Specific files to polish before committing."
+    )
+    format_with: str = Field(
+        "black",
+        description="Formatter to use: black or ruff.format.",
+        pattern="^(black|ruff\\.format)$",
+    )
     lint_with: str = Field("ruff", description="Linter to use: ruff or flake8.")
     check_only: bool = Field(False, description="Only check, do not apply fixes.")
 
@@ -146,6 +195,7 @@ class PolishBeforeCommitRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Response models
 # ---------------------------------------------------------------------------
+
 
 class CallerInfo(BaseModel):
     file: str

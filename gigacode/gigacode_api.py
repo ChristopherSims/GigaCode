@@ -67,6 +67,7 @@ logger = logging.getLogger(__name__)
 # Dependency injection
 # ---------------------------------------------------------------------------
 
+
 def get_tool(request: Request) -> CodeEmbeddingTool:
     """FastAPI dependency that provides the CodeEmbeddingTool from app state.
 
@@ -77,6 +78,7 @@ def get_tool(request: Request) -> CodeEmbeddingTool:
     """
     return request.app.state.tool
 
+
 # ---------------------------------------------------------------------------
 # Pydantic models
 # ---------------------------------------------------------------------------
@@ -85,7 +87,9 @@ def get_tool(request: Request) -> CodeEmbeddingTool:
 class EmbedRequest(BaseModel):
     path: str = Field(description="Path to codebase directory.")
     pattern: str = Field(default="*.py", description="Glob pattern for file inclusion.")
-    language_hint: Optional[str] = Field(default=None, description="Optional language hint for better parsing.")
+    language_hint: Optional[str] = Field(
+        default=None, description="Optional language hint for better parsing."
+    )
 
 
 class SearchRequest(BaseModel):
@@ -94,7 +98,9 @@ class SearchRequest(BaseModel):
     top_k: int = Field(default=5, description="Maximum number of results to return.")
     offset: int = Field(default=0, ge=0, description="Offset for paginating results.")
     include_types: bool = Field(default=False, description="Include type inference in results.")
-    type_inference_method: str = Field(default="llm", description="Type inference method: llm (accurate) or ast (fast).")
+    type_inference_method: str = Field(
+        default="llm", description="Type inference method: llm (accurate) or ast (fast)."
+    )
 
 
 class HybridSearchRequest(BaseModel):
@@ -123,7 +129,9 @@ class ReadRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     file: Optional[str] = Field(default=None, description="File path within the buffer.")
     start_line: int = Field(default=1, ge=1, description="Start line number (1-indexed).")
-    end_line: Optional[int] = Field(default=None, ge=1, description="End line number. If None, reads to end of file.")
+    end_line: Optional[int] = Field(
+        default=None, ge=1, description="End line number. If None, reads to end of file."
+    )
 
 
 class LookForFileRequest(BaseModel):
@@ -136,7 +144,9 @@ class WriteRequest(BaseModel):
     file: str = Field(description="File path within the buffer.")
     start_line: int = Field(description="Start line number (1-indexed).")
     new_lines: List[str] = Field(description="New lines to write.")
-    end_line: Optional[int] = Field(default=None, description="End line number. If None, replaces to end of file.")
+    end_line: Optional[int] = Field(
+        default=None, description="End line number. If None, replaces to end of file."
+    )
 
 
 class CommitRequest(BaseModel):
@@ -155,7 +165,9 @@ class DeleteBufferRequest(BaseModel):
 
 class CallRequest(BaseModel):
     tool: str = Field(description="Tool method name to invoke.")
-    args: dict[str, Any] = Field(default_factory=dict, description="Keyword arguments for the tool method.")
+    args: dict[str, Any] = Field(
+        default_factory=dict, description="Keyword arguments for the tool method."
+    )
 
 
 class TraceExecutionPathsRequest(BaseModel):
@@ -173,12 +185,16 @@ class DependencyGraphRequest(BaseModel):
 class CodeSmellsRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     types: Optional[List[str]] = Field(default=None, description="Code smell types to check.")
-    severity_min: str = Field(default="low", description="Minimum severity to report: low, medium, or high.")
+    severity_min: str = Field(
+        default="low", description="Minimum severity to report: low, medium, or high."
+    )
 
 
 class SecurityScanRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    severity_min: str = Field(default="medium", description="Minimum severity to report: low, medium, or high.")
+    severity_min: str = Field(
+        default="medium", description="Minimum severity to report: low, medium, or high."
+    )
 
 
 class SuggestRefactoringsRequest(BaseModel):
@@ -188,20 +204,34 @@ class SuggestRefactoringsRequest(BaseModel):
 
 class LintBufferRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files: Optional[List[str]] = Field(default=None, description="Specific files to analyze. If None, processes entire buffer.")
-    select: Optional[List[str]] = Field(default=None, description="Lint rule categories to check (e.g. E, F, W).")
-    exclude_patterns: Optional[List[str]] = Field(default=None, description="Glob patterns to exclude.")
-    group_by: str = Field(default="file", description="How to organize results: file, severity, or rule.")
+    files: Optional[List[str]] = Field(
+        default=None, description="Specific files to analyze. If None, processes entire buffer."
+    )
+    select: Optional[List[str]] = Field(
+        default=None, description="Lint rule categories to check (e.g. E, F, W)."
+    )
+    exclude_patterns: Optional[List[str]] = Field(
+        default=None, description="Glob patterns to exclude."
+    )
+    group_by: str = Field(
+        default="file", description="How to organize results: file, severity, or rule."
+    )
 
 
 class FormatBufferRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    files: Optional[List[str]] = Field(default=None, description="Specific files to analyze. If None, processes entire buffer.")
+    files: Optional[List[str]] = Field(
+        default=None, description="Specific files to analyze. If None, processes entire buffer."
+    )
     formatter: str = Field(default="black", description="Formatter to use: black or ruff.format.")
     line_length: int = Field(default=88, description="Maximum line length for formatting.")
-    exclude_patterns: Optional[List[str]] = Field(default=None, description="Glob patterns to exclude.")
+    exclude_patterns: Optional[List[str]] = Field(
+        default=None, description="Glob patterns to exclude."
+    )
     dry_run: bool = Field(default=True, description="Preview only without making changes.")
-    summary_only: bool = Field(default=False, description="Return only summary statistics, not full diffs.")
+    summary_only: bool = Field(
+        default=False, description="Return only summary statistics, not full diffs."
+    )
 
 
 class FindPerformanceHotspotsRequest(BaseModel):
@@ -217,12 +247,20 @@ class GenerateDocumentationRequest(BaseModel):
 class FindSimilarPatternsRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     code_snippet: str = Field(description="Code snippet to find similar patterns for.")
-    min_similarity: float = Field(default=0.7, description="Minimum similarity threshold (0.0-1.0).")
+    min_similarity: float = Field(
+        default=0.7, description="Minimum similarity threshold (0.0-1.0)."
+    )
     top_k: int = Field(default=10, description="Maximum number of results to return.")
     cluster: bool = Field(default=False, description="Group similar matches into clusters.")
-    clustering_method: str = Field(default="agglomerative", description="Clustering method to apply.")
-    cluster_threshold: float = Field(default=0.8, description="Cluster grouping threshold (0.0-1.0).")
-    expected_clusters: Optional[int] = Field(default=None, description="Preferred number of clusters when the method uses it.")
+    clustering_method: str = Field(
+        default="agglomerative", description="Clustering method to apply."
+    )
+    cluster_threshold: float = Field(
+        default=0.8, description="Cluster grouping threshold (0.0-1.0)."
+    )
+    expected_clusters: Optional[int] = Field(
+        default=None, description="Preferred number of clusters when the method uses it."
+    )
 
 
 class FindDeprecatedRequest(BaseModel):
@@ -248,12 +286,16 @@ class AnalyzeErrorHandlingRequest(BaseModel):
 
 class GenerateChangelogRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    since_commit: Optional[str] = Field(default=None, description="Git commit hash to compare against.")
+    since_commit: Optional[str] = Field(
+        default=None, description="Git commit hash to compare against."
+    )
 
 
 class DetectApiChangesRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    since_commit: Optional[str] = Field(default=None, description="Git commit hash to compare against.")
+    since_commit: Optional[str] = Field(
+        default=None, description="Git commit hash to compare against."
+    )
 
 
 class GetRollbackInfoRequest(BaseModel):
@@ -284,21 +326,33 @@ class DetectMemoryIssuesRequest(BaseModel):
 
 class LintWithConfigRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    config_file: Optional[str] = Field(default=None, description="Path to config file. Auto-detected if None.")
-    files: Optional[List[str]] = Field(default=None, description="Specific files to analyze. If None, processes entire buffer.")
-    auto_fix: bool = Field(default=False, description="Automatically fix issues instead of just reporting.")
+    config_file: Optional[str] = Field(
+        default=None, description="Path to config file. Auto-detected if None."
+    )
+    files: Optional[List[str]] = Field(
+        default=None, description="Specific files to analyze. If None, processes entire buffer."
+    )
+    auto_fix: bool = Field(
+        default=False, description="Automatically fix issues instead of just reporting."
+    )
 
 
 class FormatWithConfigRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    config_file: Optional[str] = Field(default=None, description="Path to config file. Auto-detected if None.")
-    files: Optional[List[str]] = Field(default=None, description="Specific files to analyze. If None, processes entire buffer.")
+    config_file: Optional[str] = Field(
+        default=None, description="Path to config file. Auto-detected if None."
+    )
+    files: Optional[List[str]] = Field(
+        default=None, description="Specific files to analyze. If None, processes entire buffer."
+    )
     dry_run: bool = Field(default=True, description="Preview only without making changes.")
 
 
 class FindDuplicatesRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    threshold: float = Field(default=0.85, description="Minimum Jaccard similarity threshold (0.0-1.0).")
+    threshold: float = Field(
+        default=0.85, description="Minimum Jaccard similarity threshold (0.0-1.0)."
+    )
 
 
 class PackContextRequest(BaseModel):
@@ -310,8 +364,6 @@ class PackContextRequest(BaseModel):
 
 class BufferIdRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-
-
 
 
 class SolveRequest(BaseModel):
@@ -357,28 +409,42 @@ class PredictConflictsRequest(BaseModel):
 class SearchModifiedOnlyRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     query: str = Field(description="Natural language search query.")
-    scope: str = Field(default="changes+deps", description="Search scope: changes, changes+deps, or all.")
+    scope: str = Field(
+        default="changes+deps", description="Search scope: changes, changes+deps, or all."
+    )
     top_k: int = Field(default=10, description="Maximum number of results to return.")
 
 
 class GetChunkingStrategyRequest(BaseModel):
-    profile: str = Field(default="generic", description="Agent profile name: reviewer, debugger, architect, documenter, or generic.")
+    profile: str = Field(
+        default="generic",
+        description="Agent profile name: reviewer, debugger, architect, documenter, or generic.",
+    )
 
 
 class SetAgentProfileRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    profile: str = Field(default="generic", description="Agent profile name: reviewer, debugger, architect, documenter, or generic.")
+    profile: str = Field(
+        default="generic",
+        description="Agent profile name: reviewer, debugger, architect, documenter, or generic.",
+    )
 
 
 class ChunkWithProfileRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
-    profile: str = Field(default="generic", description="Agent profile name: reviewer, debugger, architect, documenter, or generic.")
+    profile: str = Field(
+        default="generic",
+        description="Agent profile name: reviewer, debugger, architect, documenter, or generic.",
+    )
 
 
 class AdaptSearchRequest(BaseModel):
     buffer_id: str = Field(description="Buffer handle returned by embed_codebase.")
     query: str = Field(description="Original search query to enhance.")
-    profile: str = Field(default="generic", description="Agent profile name: reviewer, debugger, architect, documenter, or generic.")
+    profile: str = Field(
+        default="generic",
+        description="Agent profile name: reviewer, debugger, architect, documenter, or generic.",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -450,8 +516,12 @@ def create_app(tool: Any) -> FastAPI:
     def semantic_search(req: SearchRequest) -> dict[str, Any]:
         """Search codebase using natural language query with semantic embeddings."""
         result = tool.semantic_search(
-            req.buffer_id, req.query, top_k=req.top_k, offset=req.offset,
-            include_types=req.include_types, type_inference_method=req.type_inference_method,
+            req.buffer_id,
+            req.query,
+            top_k=req.top_k,
+            offset=req.offset,
+            include_types=req.include_types,
+            type_inference_method=req.type_inference_method,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -501,7 +571,9 @@ def create_app(tool: Any) -> FastAPI:
     @app.post("/pack")
     def pack_context(req: PackContextRequest) -> dict[str, Any]:
         """Pack relevant context for a query into a compact summary."""
-        result = tool.pack_context(req.buffer_id, req.query, max_tokens=req.max_tokens, top_k=req.top_k)
+        result = tool.pack_context(
+            req.buffer_id, req.query, max_tokens=req.max_tokens, top_k=req.top_k
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
@@ -568,8 +640,11 @@ def create_app(tool: Any) -> FastAPI:
     def batch_search(req: BatchSearchRequest) -> dict[str, Any]:
         """Run multiple semantic search queries in a single call."""
         result = tool.search_batch(
-            req.buffer_id, req.queries, top_k=req.top_k,
-            include_types=req.include_types, type_inference_method=req.type_inference_method,
+            req.buffer_id,
+            req.queries,
+            top_k=req.top_k,
+            include_types=req.include_types,
+            type_inference_method=req.type_inference_method,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -587,7 +662,9 @@ def create_app(tool: Any) -> FastAPI:
     def symbol_metadata(req: SymbolMetadataRequest) -> dict[str, Any]:
         """Get detailed metadata for a symbol: complexity, callers, types, docstring."""
         result = tool.get_symbol_metadata(
-            req.buffer_id, req.symbol, include_types=req.include_types,
+            req.buffer_id,
+            req.symbol,
+            include_types=req.include_types,
             type_inference_method=req.type_inference_method,
         )
         if result.get("status") != "ok":
@@ -598,8 +675,11 @@ def create_app(tool: Any) -> FastAPI:
     def get_references(req: GetReferencesRequest) -> dict[str, Any]:
         """Get callers, callees, and related references for a symbol."""
         result = tool.get_references(
-            req.buffer_id, req.symbol, direction=req.direction,
-            top_k=req.top_k, expand_depth=req.expand_depth,
+            req.buffer_id,
+            req.symbol,
+            direction=req.direction,
+            top_k=req.top_k,
+            expand_depth=req.expand_depth,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -609,7 +689,9 @@ def create_app(tool: Any) -> FastAPI:
     def get_full_context(req: FullContextRequest) -> dict[str, Any]:
         """Get full context for a symbol: definition, callers, tests, types, errors."""
         result = tool.get_full_context(
-            req.buffer_id, req.symbol, include=req.include,
+            req.buffer_id,
+            req.symbol,
+            include=req.include,
             type_inference_method=req.type_inference_method,
         )
         if result.get("status") != "ok":
@@ -620,8 +702,11 @@ def create_app(tool: Any) -> FastAPI:
     def analyze_change(req: AnalyzeChangeRequest) -> dict[str, Any]:
         """Analyze the impact of a code change before editing."""
         result = tool.analyze_change(
-            req.buffer_id, req.file, start_line=req.start_line,
-            end_line=req.end_line, max_depth=req.max_depth,
+            req.buffer_id,
+            req.file,
+            start_line=req.start_line,
+            end_line=req.end_line,
+            max_depth=req.max_depth,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -639,8 +724,10 @@ def create_app(tool: Any) -> FastAPI:
     def polish_before_commit(req: PolishBeforeCommitRequest) -> dict[str, Any]:
         """Run format + lint + impact checks before committing."""
         result = tool.polish_before_commit(
-            req.buffer_id, files_to_commit=req.files_to_commit,
-            format_with=req.format_with, lint_with=req.lint_with,
+            req.buffer_id,
+            files_to_commit=req.files_to_commit,
+            format_with=req.format_with,
+            lint_with=req.lint_with,
             check_only=req.check_only,
         )
         if result.get("status") != "ok":
@@ -654,7 +741,9 @@ def create_app(tool: Any) -> FastAPI:
     def trace_execution_paths(req: TraceExecutionPathsRequest) -> dict[str, Any]:
         """Trace all execution paths through a symbol with AST branch detection."""
         result = tool.trace_execution_paths(
-            req.buffer_id, req.symbol, max_depth=req.max_depth,
+            req.buffer_id,
+            req.symbol,
+            max_depth=req.max_depth,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -664,7 +753,9 @@ def create_app(tool: Any) -> FastAPI:
     def get_dependency_graph(req: DependencyGraphRequest) -> dict[str, Any]:
         """Get dependency graph visualization data (nodes + edges)."""
         result = tool.get_dependency_graph(
-            req.buffer_id, symbol=req.symbol, depth=req.depth,
+            req.buffer_id,
+            symbol=req.symbol,
+            depth=req.depth,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -674,7 +765,9 @@ def create_app(tool: Any) -> FastAPI:
     def detect_code_smells(req: CodeSmellsRequest) -> dict[str, Any]:
         """Detect code smells: long functions, deep nesting, missing docstrings, complex logic."""
         result = tool.detect_code_smells(
-            req.buffer_id, types=req.types, severity_min=req.severity_min,
+            req.buffer_id,
+            types=req.types,
+            severity_min=req.severity_min,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -684,7 +777,8 @@ def create_app(tool: Any) -> FastAPI:
     def scan_security(req: SecurityScanRequest) -> dict[str, Any]:
         """Scan for security vulnerabilities: eval, exec, shell injection, SQL injection, secrets."""
         result = tool.scan_security(
-            req.buffer_id, severity_min=req.severity_min,
+            req.buffer_id,
+            severity_min=req.severity_min,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -702,8 +796,11 @@ def create_app(tool: Any) -> FastAPI:
     def lint_buffer(req: LintBufferRequest) -> dict[str, Any]:
         """Deep lint analysis of entire buffer with detailed aggregation."""
         result = tool.lint_buffer(
-            req.buffer_id, files=req.files, select=req.select,
-            exclude_patterns=req.exclude_patterns, group_by=req.group_by,
+            req.buffer_id,
+            files=req.files,
+            select=req.select,
+            exclude_patterns=req.exclude_patterns,
+            group_by=req.group_by,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -713,9 +810,13 @@ def create_app(tool: Any) -> FastAPI:
     def format_buffer(req: FormatBufferRequest) -> dict[str, Any]:
         """Deep format analysis with detailed change tracking across codebase."""
         result = tool.format_buffer(
-            req.buffer_id, files=req.files, formatter=req.formatter,
-            line_length=req.line_length, exclude_patterns=req.exclude_patterns,
-            dry_run=req.dry_run, summary_only=req.summary_only,
+            req.buffer_id,
+            files=req.files,
+            formatter=req.formatter,
+            line_length=req.line_length,
+            exclude_patterns=req.exclude_patterns,
+            dry_run=req.dry_run,
+            summary_only=req.summary_only,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -725,9 +826,13 @@ def create_app(tool: Any) -> FastAPI:
     def auto_format_endpoint(req: AutoFormatRequest) -> dict[str, Any]:
         """Auto-format code using Black or ruff.format."""
         result = tool.auto_format(
-            req.buffer_id, files=req.files, formatter=req.formatter,
-            line_length=req.line_length, skip_magic_trailing_comma=req.skip_magic_trailing_comma,
-            dry_run=req.dry_run, exclude_patterns=req.exclude_patterns,
+            req.buffer_id,
+            files=req.files,
+            formatter=req.formatter,
+            line_length=req.line_length,
+            skip_magic_trailing_comma=req.skip_magic_trailing_comma,
+            dry_run=req.dry_run,
+            exclude_patterns=req.exclude_patterns,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -737,8 +842,13 @@ def create_app(tool: Any) -> FastAPI:
     def auto_lint_endpoint(req: AutoLintRequest) -> dict[str, Any]:
         """Auto-lint code using Ruff with optional auto-fix."""
         result = tool.auto_lint(
-            req.buffer_id, files=req.files, select=req.select, ignore=req.ignore,
-            auto_fix=req.auto_fix, dry_run=req.dry_run, exclude_patterns=req.exclude_patterns,
+            req.buffer_id,
+            files=req.files,
+            select=req.select,
+            ignore=req.ignore,
+            auto_fix=req.auto_fix,
+            dry_run=req.dry_run,
+            exclude_patterns=req.exclude_patterns,
         )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
@@ -748,9 +858,13 @@ def create_app(tool: Any) -> FastAPI:
     def auto_polish_endpoint(req: AutoPolishRequest) -> dict[str, Any]:
         """Combined format + lint in a single call."""
         result = tool.auto_polish(
-            req.buffer_id, files=req.files, format_with=req.format_with,
-            auto_fix_lints=req.auto_fix_lints, line_length=req.line_length,
-            ruff_select=req.ruff_select, exclude_patterns=req.exclude_patterns,
+            req.buffer_id,
+            files=req.files,
+            format_with=req.format_with,
+            auto_fix_lints=req.auto_fix_lints,
+            line_length=req.line_length,
+            ruff_select=req.ruff_select,
+            exclude_patterns=req.exclude_patterns,
             dry_run=req.dry_run,
         )
         if result.get("status") != "ok":
@@ -900,7 +1014,9 @@ def create_app(tool: Any) -> FastAPI:
     @app.post("/quality/lint-with-config")
     def lint_with_config(req: LintWithConfigRequest) -> dict[str, Any]:
         """Lint using project configuration (ruff.toml, pyproject.toml)."""
-        result = tool.lint_with_config(req.buffer_id, config_file=req.config_file, files=req.files, auto_fix=req.auto_fix)
+        result = tool.lint_with_config(
+            req.buffer_id, config_file=req.config_file, files=req.files, auto_fix=req.auto_fix
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
@@ -908,7 +1024,9 @@ def create_app(tool: Any) -> FastAPI:
     @app.post("/quality/format-with-config")
     def format_with_config(req: FormatWithConfigRequest) -> dict[str, Any]:
         """Format using project configuration (pyproject.toml, .black, ruff.toml)."""
-        result = tool.format_with_config(req.buffer_id, config_file=req.config_file, files=req.files, dry_run=req.dry_run)
+        result = tool.format_with_config(
+            req.buffer_id, config_file=req.config_file, files=req.files, dry_run=req.dry_run
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
@@ -983,7 +1101,9 @@ def create_app(tool: Any) -> FastAPI:
     @app.post("/search/modified")
     def search_modified_only(req: SearchModifiedOnlyRequest) -> dict[str, Any]:
         """Search only modified files and their dependencies."""
-        result = tool.search_modified_only(req.buffer_id, req.query, scope=req.scope, top_k=req.top_k)
+        result = tool.search_modified_only(
+            req.buffer_id, req.query, scope=req.scope, top_k=req.top_k
+        )
         if result.get("status") != "ok":
             raise HTTPException(status_code=400, detail=result)
         return result
@@ -1060,14 +1180,18 @@ def create_app(tool: Any) -> FastAPI:
         Query params: format, include_metadata, category, read_only_only.
         """
         from gigacode.tool_schema import export_schemas as _export, SchemaFormat
+
         try:
             fmt = SchemaFormat(format)
         except ValueError:
             valid = ", ".join(f.value for f in SchemaFormat)
-            raise HTTPException(status_code=400, detail={
-                "status": "error",
-                "message": f"Invalid format '{format}'. Supported: {valid}",
-            })
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": f"Invalid format '{format}'. Supported: {valid}",
+                },
+            )
         return _export(
             format=fmt,
             include_metadata=include_metadata,
@@ -1079,6 +1203,7 @@ def create_app(tool: Any) -> FastAPI:
     def get_schema_config() -> dict[str, Any]:
         """Read the current schema export config (from gigacode.toml or pyproject.toml)."""
         from gigacode.tool_schema import SchemaConfig
+
         config = SchemaConfig()
         return {"status": "ok", "config": config.to_dict()}
 
@@ -1086,6 +1211,7 @@ def create_app(tool: Any) -> FastAPI:
     def get_schema_categories() -> dict[str, Any]:
         """List all available tool categories."""
         from gigacode.tool_schema import TOOL_CATEGORIES
+
         return {"status": "ok", "categories": TOOL_CATEGORIES}
 
     # ------------------------------------------------------------------
@@ -1094,11 +1220,14 @@ def create_app(tool: Any) -> FastAPI:
     @app.middleware("http")
     async def monitoring_middleware(request: Request, call_next):
         import time
+
         start = time.perf_counter()
         response = await call_next(request)
         elapsed_ms = (time.perf_counter() - start) * 1000
         response.headers["X-Response-Time-Ms"] = f"{elapsed_ms:.1f}"
-        logger.info(f"{request.method} {request.url.path} -> {response.status_code} ({elapsed_ms:.1f}ms)")
+        logger.info(
+            f"{request.method} {request.url.path} -> {response.status_code} ({elapsed_ms:.1f}ms)"
+        )
         return response
 
     return app
@@ -1107,6 +1236,7 @@ def create_app(tool: Any) -> FastAPI:
 # ---------------------------------------------------------------------------
 # Starter app template with auth + rate limiting
 # ---------------------------------------------------------------------------
+
 
 def create_production_app(
     tool: CodeEmbeddingTool,
@@ -1173,8 +1303,7 @@ def create_production_app(
 
         # Remove expired entries
         _rate_tracker[client_id] = [
-            t for t in _rate_tracker[client_id]
-            if now - t < rate_limit_period
+            t for t in _rate_tracker[client_id] if now - t < rate_limit_period
         ]
 
         if len(_rate_tracker[client_id]) >= rate_limit_calls:

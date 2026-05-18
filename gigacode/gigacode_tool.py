@@ -79,10 +79,17 @@ from gigacode.constants import (
 )
 from gigacode.reference_map import ReferenceMap
 from gigacode.execution_paths import trace_execution_paths
-from gigacode.agent_profile import AgentProfile, ChunkingStrategyFactory, AdaptiveChunker, ProfileAdapter, AgentProfileService
+from gigacode.agent_profile import (
+    AgentProfile,
+    ChunkingStrategyFactory,
+    AdaptiveChunker,
+    ProfileAdapter,
+    AgentProfileService,
+)
 
 logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("tool")
+
 
 class CodeEmbeddingTool:
     """Embed a codebase into GPU/CPU buffers and expose search + cluster.
@@ -98,14 +105,16 @@ class CodeEmbeddingTool:
         prometheus_port: Port for Prometheus metrics endpoint (default 9090).
     """
 
-    _ASYNC_WRAPPERS = frozenset({
-        "semantic_search_async",
-        "write_code_async",
-        "search_batch_async",
-        "auto_format_async",
-        "auto_lint_async",
-        "auto_polish_async",
-    })
+    _ASYNC_WRAPPERS = frozenset(
+        {
+            "semantic_search_async",
+            "write_code_async",
+            "search_batch_async",
+            "auto_format_async",
+            "auto_lint_async",
+            "auto_polish_async",
+        }
+    )
 
     def __init__(
         self,
@@ -199,9 +208,7 @@ class CodeEmbeddingTool:
                 prometheus_exporter=None,  # Will be set below if Prometheus is enabled
             )
 
-            logger.info(
-                "Integration: BufferManager, IndexManager, SearchService initialized"
-            )
+            logger.info("Integration: BufferManager, IndexManager, SearchService initialized")
         except (ImportError, ModuleNotFoundError) as e:
             # Optional dependencies (sklearn for SearchService) may be missing
             # Managers are still required for core functionality
@@ -298,9 +305,7 @@ class CodeEmbeddingTool:
                 import asyncio
 
                 async def _async_wrapper(*args, **kwargs):
-                    return await asyncio.to_thread(
-                        getattr(self, sync_name), *args, **kwargs
-                    )
+                    return await asyncio.to_thread(getattr(self, sync_name), *args, **kwargs)
 
                 _async_wrapper.__name__ = name
                 _async_wrapper.__qualname__ = f"{self.__class__.__qualname__}.{name}"
@@ -437,6 +442,7 @@ class CodeEmbeddingTool:
                 )
             return info, chunks
         return info, []
+
     @staticmethod
     def _validate_search_params(
         query: str,
@@ -473,13 +479,15 @@ class CodeEmbeddingTool:
         old_with_newlines = [line + "\n" for line in old_lines]
         new_with_newlines = [line + "\n" for line in new_lines]
 
-        diff_lines = list(difflib.unified_diff(
-            old_with_newlines,
-            new_with_newlines,
-            fromfile=f"a/{file}",
-            tofile=f"b/{file}",
-            n=context_lines,
-        ))
+        diff_lines = list(
+            difflib.unified_diff(
+                old_with_newlines,
+                new_with_newlines,
+                fromfile=f"a/{file}",
+                tofile=f"b/{file}",
+                n=context_lines,
+            )
+        )
         return "".join(diff_lines)
 
     # ------------------------------------------------------------------
@@ -1260,9 +1268,7 @@ class CodeEmbeddingTool:
             from gigacode.type_inference_cache import InferredType
 
             # Find the chunk containing this symbol
-            matching_chunks = [
-                c for c in chunks if hasattr(c, "name") and c.name == symbol
-            ]
+            matching_chunks = [c for c in chunks if hasattr(c, "name") and c.name == symbol]
             if not matching_chunks:
                 # Fallback: search by symbol name in text
                 matching_chunks = [
@@ -1297,9 +1303,7 @@ class CodeEmbeddingTool:
 
             if method == "llm" and self._search_service:
                 try:
-                    type_info = self._search_service._infer_type_for_chunk(
-                        chunk, method="llm"
-                    )
+                    type_info = self._search_service._infer_type_for_chunk(chunk, method="llm")
                     if type_info:
                         result["type_confidence"] = type_info.get("type_confidence")
                         result["signature"] = type_info.get("signature")
@@ -1498,7 +1502,15 @@ class CodeEmbeddingTool:
             Dict with definition, callers, callees, types, tests, errors.
         """
         if include is None:
-            include = ["definition", "callers", "callees", "tests", "related_code", "type_hints", "errors"]
+            include = [
+                "definition",
+                "callers",
+                "callees",
+                "tests",
+                "related_code",
+                "type_hints",
+                "errors",
+            ]
 
         result = self._require_buffer(buffer_id, "get_full_context", require_chunks=False)
         if isinstance(result, dict):
@@ -1523,9 +1535,12 @@ class CodeEmbeddingTool:
                     result["definition"] = entry.to_dict()
                     # Also include the source text
                     for chunk in chunks:
-                        if (hasattr(chunk, "name") and chunk.name == entry.name
-                                and chunk.file == entry.file
-                                and chunk.start_line == entry.start_line):
+                        if (
+                            hasattr(chunk, "name")
+                            and chunk.name == entry.name
+                            and chunk.file == entry.file
+                            and chunk.start_line == entry.start_line
+                        ):
                             result["definition"]["source"] = chunk.text
                             break
                 else:
@@ -1537,8 +1552,12 @@ class CodeEmbeddingTool:
                     buffer_id=buffer_id, symbol=symbol, direction="both"
                 )
                 if ref_result.get("status") == "ok":
-                    result["callers"] = ref_result.get("callers", []) if "callers" in include else []
-                    result["callees"] = ref_result.get("callees", []) if "callees" in include else []
+                    result["callers"] = (
+                        ref_result.get("callers", []) if "callers" in include else []
+                    )
+                    result["callees"] = (
+                        ref_result.get("callees", []) if "callees" in include else []
+                    )
                 else:
                     result["callers"] = []
                     result["callees"] = []
@@ -1546,8 +1565,10 @@ class CodeEmbeddingTool:
             # Type hints
             if "type_hints" in include:
                 type_result = self.get_symbol_metadata(
-                    buffer_id=buffer_id, symbol=symbol,
-                    include_types=True, type_inference_method=type_inference_method,
+                    buffer_id=buffer_id,
+                    symbol=symbol,
+                    include_types=True,
+                    type_inference_method=type_inference_method,
                 )
                 if type_result.get("status") == "ok":
                     result["types"] = {
@@ -1565,9 +1586,7 @@ class CodeEmbeddingTool:
 
             # Related code (semantic search)
             if "related_code" in include:
-                related = self.semantic_search(
-                    buffer_id=buffer_id, query=symbol, top_k=5
-                )
+                related = self.semantic_search(buffer_id=buffer_id, query=symbol, top_k=5)
                 if related.get("status") == "ok":
                     result["related_code"] = related.get("matches", [])
                 else:
@@ -1590,6 +1609,7 @@ class CodeEmbeddingTool:
     def _find_tests_for_symbol(chunks: list[Any], symbol: str) -> list[dict[str, Any]]:
         """Find test files/functions related to a symbol."""
         import re
+
         tests: list[dict[str, Any]] = []
         # Heuristic: test files that import or reference the symbol
         test_patterns = ["test_", "_test", "tests/", "spec_", "_spec"]
@@ -1603,19 +1623,22 @@ class CodeEmbeddingTool:
             # Check if it references the symbol
             symbols_called = getattr(chunk, "symbols_called", None) or []
             if symbol in symbols_called or re.search(rf"\b{re.escape(symbol)}\b", chunk.text or ""):
-                tests.append({
-                    "file": chunk.file,
-                    "start_line": chunk.start_line,
-                    "end_line": chunk.end_line,
-                    "name": getattr(chunk, "name", ""),
-                    "type": getattr(chunk, "type", "function"),
-                })
+                tests.append(
+                    {
+                        "file": chunk.file,
+                        "start_line": chunk.start_line,
+                        "end_line": chunk.end_line,
+                        "name": getattr(chunk, "name", ""),
+                        "type": getattr(chunk, "type", "function"),
+                    }
+                )
         return tests[:10]
 
     @staticmethod
     def _analyze_error_handling(chunks: list[Any], symbol: str) -> list[dict[str, Any]]:
         """Find error handling patterns related to a symbol."""
         import re
+
         errors: list[dict[str, Any]] = []
         # Find try/except blocks that contain the symbol
         for chunk in chunks:
@@ -1628,13 +1651,15 @@ class CodeEmbeddingTool:
             for match in try_pattern.finditer(chunk.text):
                 try_block = match.group(1)
                 if symbol in try_block:
-                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
-                    errors.append({
-                        "file": chunk.file,
-                        "line": line,
-                        "type": "try_except",
-                        "context": try_block.strip()[:200],
-                    })
+                    line = chunk.start_line + chunk.text[: match.start()].count("\n")
+                    errors.append(
+                        {
+                            "file": chunk.file,
+                            "line": line,
+                            "type": "try_except",
+                            "context": try_block.strip()[:200],
+                        }
+                    )
         return errors[:5]
 
     def list_file_symbols(
@@ -1711,17 +1736,19 @@ class CodeEmbeddingTool:
 
             # Find the chunk for this symbol
             matching_chunks = [
-                c for c in chunks
-                if hasattr(c, "name") and c.name == entry.name
+                c
+                for c in chunks
+                if hasattr(c, "name")
+                and c.name == entry.name
                 and c.file == entry.file
                 and c.start_line == entry.start_line
             ]
             if not matching_chunks:
                 # Fallback: any chunk in same file covering same lines
                 matching_chunks = [
-                    c for c in chunks
-                    if c.file == entry.file
-                    and c.start_line <= entry.start_line <= c.end_line
+                    c
+                    for c in chunks
+                    if c.file == entry.file and c.start_line <= entry.start_line <= c.end_line
                 ]
 
             chunk = matching_chunks[0] if matching_chunks else None
@@ -1746,9 +1773,7 @@ class CodeEmbeddingTool:
 
                 # Count references
                 references = index.get_references(symbol)
-                result["called_by_count"] = len([
-                    r for r in references if r.confidence == "high"
-                ])
+                result["called_by_count"] = len([r for r in references if r.confidence == "high"])
 
                 # Count outgoing calls (symbols_called)
                 calls_count = 0
@@ -1785,6 +1810,7 @@ class CodeEmbeddingTool:
     def _extract_docstring_from_text(text: str) -> str | None:
         """Extract docstring from code text."""
         import re
+
         # Match triple-quoted docstring after def/class
         match = re.search(
             r'(?:^|\n)\s+(?P<doc>("""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'))',
@@ -1804,10 +1830,17 @@ class CodeEmbeddingTool:
         Base complexity is 1.
         """
         import re
+
         complexity = 1
         patterns = [
-            r'\bif\b', r'\belif\b', r'\bfor\b', r'\bwhile\b',
-            r'\bexcept\b', r'\band\b', r'\bor\b', r'\bassert\b',
+            r"\bif\b",
+            r"\belif\b",
+            r"\bfor\b",
+            r"\bwhile\b",
+            r"\bexcept\b",
+            r"\band\b",
+            r"\bor\b",
+            r"\bassert\b",
         ]
         for pattern in patterns:
             complexity += len(re.findall(pattern, text))
@@ -1829,7 +1862,9 @@ class CodeEmbeddingTool:
             if method == "llm" and self._search_service:
                 try:
                     type_info = self._search_service._infer_type_for_chunk(chunk, method="llm")
-                    result["type_confidence"] = type_info.get("type_confidence") if type_info else None
+                    result["type_confidence"] = (
+                        type_info.get("type_confidence") if type_info else None
+                    )
                 except (RuntimeError, ValueError, TypeError):
                     result["type_confidence"] = None
                 # Cache
@@ -3536,11 +3571,13 @@ class CodeEmbeddingTool:
                         direct_callers.append({**caller, "target_symbol": sym})
                         if caller.get("file"):
                             all_impacted_files.add(caller["file"])
-                dependent_symbols.append({
-                    "symbol": sym,
-                    "file": file,
-                    "caller_count": len(refs.get("callers", [])),
-                })
+                dependent_symbols.append(
+                    {
+                        "symbol": sym,
+                        "file": file,
+                        "caller_count": len(refs.get("callers", [])),
+                    }
+                )
 
             # Find test coverage
             tests_for_symbols: list[dict[str, Any]] = []
@@ -4775,10 +4812,7 @@ class CodeEmbeddingTool:
             index = SymbolIndex(chunks)
 
             # Separate test and source chunks
-            test_chunks = [
-                ch for ch in chunks
-                if ch.file and self._is_test_file(ch.file, language)
-            ]
+            test_chunks = [ch for ch in chunks if ch.file and self._is_test_file(ch.file, language)]
 
             # Build coverage map
             coverage: dict[str, dict[str, list[str]]] = {}
@@ -4995,6 +5029,7 @@ class CodeEmbeddingTool:
             if symbol:
                 # Scope graph around symbol
                 from gigacode.reference_map import ReferenceMap
+
                 ref_map = ReferenceMap(chunks)
                 visited_symbols: set[str] = {symbol}
                 visited_files: set[str] = set()
@@ -5028,7 +5063,9 @@ class CodeEmbeddingTool:
                 for sym in visited_symbols:
                     for ch in chunks:
                         if hasattr(ch, "name") and ch.name == sym:
-                            nodes.append({"id": sym, "label": sym, "type": ch.type, "file": ch.file})
+                            nodes.append(
+                                {"id": sym, "label": sym, "type": ch.type, "file": ch.file}
+                            )
                             break
 
                 # Build filtered edges
@@ -5042,27 +5079,43 @@ class CodeEmbeddingTool:
                 # Add import edges
                 for ch in chunks:
                     if ch.file in visited_files and hasattr(ch, "imports"):
-                        for imp in (ch.imports or []):
+                        for imp in ch.imports or []:
                             for other_file in visited_files:
                                 stem = Path(other_file).stem
                                 if stem in imp:
-                                    edges.append({"from": ch.file, "to": other_file, "type": "imports"})
+                                    edges.append(
+                                        {"from": ch.file, "to": other_file, "type": "imports"}
+                                    )
             else:
                 # Full graph
                 node_set: set[str] = set()
                 for ch in chunks:
                     if ch.name:
                         node_set.add(ch.name)
-                        nodes.append({"id": ch.name, "label": ch.name, "type": ch.type, "file": ch.file})
+                        nodes.append(
+                            {"id": ch.name, "label": ch.name, "type": ch.type, "file": ch.file}
+                        )
                     node_set.add(ch.file)
 
                 for call_edge in exported.get("calls", []):
                     if call_edge.get("caller") in node_set and call_edge.get("callee") in node_set:
-                        edges.append({"from": call_edge["caller"], "to": call_edge["callee"], "type": "calls"})
+                        edges.append(
+                            {
+                                "from": call_edge["caller"],
+                                "to": call_edge["callee"],
+                                "type": "calls",
+                            }
+                        )
 
                 for imp_edge in exported.get("edges", []):
                     if imp_edge.get("source") in node_set:
-                        edges.append({"from": imp_edge["source"], "to": imp_edge.get("target", ""), "type": "imports"})
+                        edges.append(
+                            {
+                                "from": imp_edge["source"],
+                                "to": imp_edge.get("target", ""),
+                                "type": "imports",
+                            }
+                        )
 
             return {"status": "ok", "nodes": nodes, "edges": edges}
 
@@ -5188,8 +5241,13 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         if types is None:
-            types = ["long_function", "deep_nesting", "missing_docstring",
-                     "complex_logic", "too_many_params"]
+            types = [
+                "long_function",
+                "deep_nesting",
+                "missing_docstring",
+                "complex_logic",
+                "too_many_params",
+            ]
 
         severity_order = {"low": 0, "medium": 1, "high": 2}
         min_severity = severity_order.get(severity_min, 0)
@@ -5211,13 +5269,15 @@ class CodeEmbeddingTool:
             if "long_function" in types and line_count > 50:
                 severity = "high" if line_count > 100 else "medium"
                 if severity_order.get(severity, 0) >= min_severity:
-                    smells.append({
-                        "file": chunk.file,
-                        "line": chunk.start_line,
-                        "type": "long_function",
-                        "severity": severity,
-                        "suggestion": f"Function '{name}' is {line_count} lines. Consider extracting methods.",
-                    })
+                    smells.append(
+                        {
+                            "file": chunk.file,
+                            "line": chunk.start_line,
+                            "type": "long_function",
+                            "severity": severity,
+                            "suggestion": f"Function '{name}' is {line_count} lines. Consider extracting methods.",
+                        }
+                    )
 
             # Deep nesting
             if "deep_nesting" in types:
@@ -5230,42 +5290,48 @@ class CodeEmbeddingTool:
                 if nesting > 3:
                     severity = "high" if nesting > 5 else "medium"
                     if severity_order.get(severity, 0) >= min_severity:
-                        smells.append({
-                            "file": chunk.file,
-                            "line": chunk.start_line,
-                            "type": "deep_nesting",
-                            "severity": severity,
-                            "suggestion": f"Function '{name}' has {nesting} levels of nesting. Consider guard clauses or extracting methods.",
-                        })
+                        smells.append(
+                            {
+                                "file": chunk.file,
+                                "line": chunk.start_line,
+                                "type": "deep_nesting",
+                                "severity": severity,
+                                "suggestion": f"Function '{name}' has {nesting} levels of nesting. Consider guard clauses or extracting methods.",
+                            }
+                        )
 
             # Missing docstring
             if "missing_docstring" in types and chunk.type in ("function", "method"):
                 has_docstring = '"""' in chunk.text or "'''" in chunk.text
                 if not has_docstring and name:
                     if severity_order.get("medium", 0) >= min_severity:
-                        smells.append({
-                            "file": chunk.file,
-                            "line": chunk.start_line,
-                            "type": "missing_docstring",
-                            "severity": "medium",
-                            "suggestion": f"Function '{name}' has no docstring.",
-                        })
+                        smells.append(
+                            {
+                                "file": chunk.file,
+                                "line": chunk.start_line,
+                                "type": "missing_docstring",
+                                "severity": "medium",
+                                "suggestion": f"Function '{name}' has no docstring.",
+                            }
+                        )
 
             # Complex logic (high cyclomatic complexity)
             if "complex_logic" in types:
-                complexity = 1 + len(re.findall(
-                    r"\b(if|elif|for|while|except|and|or|assert)\b", chunk.text
-                ))
+                complexity = 1 + len(
+                    re.findall(r"\b(if|elif|for|while|except|and|or|assert)\b", chunk.text)
+                )
                 if complexity > 10:
                     severity = "high" if complexity > 20 else "medium"
                     if severity_order.get(severity, 0) >= min_severity:
-                        smells.append({
-                            "file": chunk.file,
-                            "line": chunk.start_line,
-                            "type": "complex_logic",
-                            "severity": severity,
-                            "suggestion": f"Function '{name}' has cyclomatic complexity {complexity}. Consider simplifying branches.",
-                        })
+                        smells.append(
+                            {
+                                "file": chunk.file,
+                                "line": chunk.start_line,
+                                "type": "complex_logic",
+                                "severity": severity,
+                                "suggestion": f"Function '{name}' has cyclomatic complexity {complexity}. Consider simplifying branches.",
+                            }
+                        )
 
             # Too many parameters
             if "too_many_params" in types:
@@ -5273,17 +5339,23 @@ class CodeEmbeddingTool:
                 def_match = re.search(r"def\s+\w+\s*\((.*?)\)", chunk.text, re.DOTALL)
                 if def_match:
                     params_str = def_match.group(1)
-                    params = [p.strip() for p in params_str.split(",") if p.strip() and p.strip() not in ("self", "cls")]
+                    params = [
+                        p.strip()
+                        for p in params_str.split(",")
+                        if p.strip() and p.strip() not in ("self", "cls")
+                    ]
                     if len(params) > 5:
                         severity = "high" if len(params) > 8 else "medium"
                         if severity_order.get(severity, 0) >= min_severity:
-                            smells.append({
-                                "file": chunk.file,
-                                "line": chunk.start_line,
-                                "type": "too_many_params",
-                                "severity": severity,
-                                "suggestion": f"Function '{name}' has {len(params)} parameters. Consider using a config object.",
-                            })
+                            smells.append(
+                                {
+                                    "file": chunk.file,
+                                    "line": chunk.start_line,
+                                    "type": "too_many_params",
+                                    "severity": severity,
+                                    "suggestion": f"Function '{name}' has {len(params)} parameters. Consider using a config object.",
+                                }
+                            )
 
         # Sort by severity (high first)
         smells.sort(key=lambda s: -severity_order.get(s.get("severity", "low"), 0))
@@ -5333,21 +5405,72 @@ class CodeEmbeddingTool:
         min_sev = severity_order.get(severity_min, 1)
 
         import re
+
         vulns: list[dict[str, Any]] = []
 
         # Security patterns
         patterns: list[tuple[str, str, str, str]] = [
-            (r"eval\s*\(", "eval_usage", "high", "Avoid eval() — use ast.literal_eval() for safe parsing"),
+            (
+                r"eval\s*\(",
+                "eval_usage",
+                "high",
+                "Avoid eval() — use ast.literal_eval() for safe parsing",
+            ),
             (r"exec\s*\(", "exec_usage", "high", "Avoid exec() — can execute arbitrary code"),
-            (r"subprocess\.call\s*\(.*shell\s*=\s*True", "shell_injection", "high", "Use shell=False and pass args as list to prevent injection"),
-            (r"os\.system\s*\(", "os_system", "high", "Use subprocess.run() with shell=False instead"),
-            (r"pickle\.load\s*\(", "unsafe_pickle", "high", "Pickle can execute arbitrary code — use json or msgpack"),
-            (r"yaml\.load\s*\((?!.*Loader)", "unsafe_yaml", "high", "Use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader)"),
-            (r"sql.*%s|f['\"].*SELECT|\.format\s*\(.*SELECT", "sql_injection", "high", "Use parameterized queries instead of string formatting"),
-            (r"secret|password|api_key|token\s*=\s*['\"]", "hardcoded_secret", "high", "Never hardcode secrets — use environment variables or vault"),
-            (r"assert\s+", "assert_usage", "medium", "Assertions can be disabled with -O flag — use proper validation"),
-            (r"\bexcept\s*:", "broad_except", "medium", "Catch specific exceptions instead of bare except:"),
-            (r"import\s+\*|from\s+\w+\s+import\s+\*", "wildcard_import", "low", "Wildcard imports pollute namespace and hide dependencies"),
+            (
+                r"subprocess\.call\s*\(.*shell\s*=\s*True",
+                "shell_injection",
+                "high",
+                "Use shell=False and pass args as list to prevent injection",
+            ),
+            (
+                r"os\.system\s*\(",
+                "os_system",
+                "high",
+                "Use subprocess.run() with shell=False instead",
+            ),
+            (
+                r"pickle\.load\s*\(",
+                "unsafe_pickle",
+                "high",
+                "Pickle can execute arbitrary code — use json or msgpack",
+            ),
+            (
+                r"yaml\.load\s*\((?!.*Loader)",
+                "unsafe_yaml",
+                "high",
+                "Use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader)",
+            ),
+            (
+                r"sql.*%s|f['\"].*SELECT|\.format\s*\(.*SELECT",
+                "sql_injection",
+                "high",
+                "Use parameterized queries instead of string formatting",
+            ),
+            (
+                r"secret|password|api_key|token\s*=\s*['\"]",
+                "hardcoded_secret",
+                "high",
+                "Never hardcode secrets — use environment variables or vault",
+            ),
+            (
+                r"assert\s+",
+                "assert_usage",
+                "medium",
+                "Assertions can be disabled with -O flag — use proper validation",
+            ),
+            (
+                r"\bexcept\s*:",
+                "broad_except",
+                "medium",
+                "Catch specific exceptions instead of bare except:",
+            ),
+            (
+                r"import\s+\*|from\s+\w+\s+import\s+\*",
+                "wildcard_import",
+                "low",
+                "Wildcard imports pollute namespace and hide dependencies",
+            ),
         ]
 
         for chunk in chunks:
@@ -5357,19 +5480,23 @@ class CodeEmbeddingTool:
                 for match in re.finditer(pattern, chunk.text, re.IGNORECASE):
                     if severity_order.get(severity, 0) < min_sev:
                         continue
-                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    line = chunk.start_line + chunk.text[: match.start()].count("\n")
                     # Get the full line for context
                     lines = chunk.text.split("\n")
-                    line_offset = chunk.text[:match.start()].count("\n")
-                    context = lines[line_offset].strip() if line_offset < len(lines) else match.group(0)
-                    vulns.append({
-                        "file": chunk.file,
-                        "line": line,
-                        "type": vuln_type,
-                        "severity": severity,
-                        "context": context,
-                        "fix_suggestion": fix,
-                    })
+                    line_offset = chunk.text[: match.start()].count("\n")
+                    context = (
+                        lines[line_offset].strip() if line_offset < len(lines) else match.group(0)
+                    )
+                    vulns.append(
+                        {
+                            "file": chunk.file,
+                            "line": line,
+                            "type": vuln_type,
+                            "severity": severity,
+                            "context": context,
+                            "fix_suggestion": fix,
+                        }
+                    )
 
         vulns.sort(key=lambda v: -severity_order.get(v.get("severity", "low"), 0))
         return {"status": "ok", "vulnerabilities": vulns, "total": len(vulns)}
@@ -5431,27 +5558,29 @@ class CodeEmbeddingTool:
 
         lines = target.text.split("\n")
         line_count = len(lines)
-        complexity = 1 + len(re.findall(
-            r"\b(if|elif|for|while|except|and|or)\b", target.text
-        ))
+        complexity = 1 + len(re.findall(r"\b(if|elif|for|while|except|and|or)\b", target.text))
 
         # Long function → extract method
         if line_count > 30:
-            suggestions.append({
-                "type": "extract_method",
-                "lines": f"{target.start_line}-{target.end_line}",
-                "benefit": f"Reduce {line_count}-line function to smaller, testable units",
-                "risk": "low" if line_count < 60 else "medium",
-            })
+            suggestions.append(
+                {
+                    "type": "extract_method",
+                    "lines": f"{target.start_line}-{target.end_line}",
+                    "benefit": f"Reduce {line_count}-line function to smaller, testable units",
+                    "risk": "low" if line_count < 60 else "medium",
+                }
+            )
 
         # High complexity → simplify
         if complexity > 8:
-            suggestions.append({
-                "type": "simplify_branches",
-                "lines": f"{target.start_line}-{target.end_line}",
-                "benefit": f"Reduce cyclomatic complexity from {complexity} to <10",
-                "risk": "medium",
-            })
+            suggestions.append(
+                {
+                    "type": "simplify_branches",
+                    "lines": f"{target.start_line}-{target.end_line}",
+                    "benefit": f"Reduce cyclomatic complexity from {complexity} to <10",
+                    "risk": "medium",
+                }
+            )
 
         # Check for duplicate calls (same call repeated)
         calls = getattr(target, "symbols_called", None) or []
@@ -5460,21 +5589,25 @@ class CodeEmbeddingTool:
             call_counts[c] = call_counts.get(c, 0) + 1
         for c_name, count in call_counts.items():
             if count > 2:
-                suggestions.append({
-                    "type": "consolidate_calls",
-                    "symbol": c_name,
-                    "benefit": f"'{c_name}' called {count} times — extract to variable",
-                    "risk": "low",
-                })
+                suggestions.append(
+                    {
+                        "type": "consolidate_calls",
+                        "symbol": c_name,
+                        "benefit": f"'{c_name}' called {count} times — extract to variable",
+                        "risk": "low",
+                    }
+                )
 
         # Missing type hints
         if "def " in target.text and "->" not in target.text:
-            suggestions.append({
-                "type": "add_type_hints",
-                "lines": f"{target.start_line}-{target.end_line}",
-                "benefit": "Add return type annotation for better IDE support and safety",
-                "risk": "low",
-            })
+            suggestions.append(
+                {
+                    "type": "add_type_hints",
+                    "lines": f"{target.start_line}-{target.end_line}",
+                    "benefit": "Add return type annotation for better IDE support and safety",
+                    "risk": "low",
+                }
+            )
 
         # Deep nesting → guard clauses
         max_indent = 0
@@ -5484,12 +5617,14 @@ class CodeEmbeddingTool:
                 max_indent = max(max_indent, indent)
         nesting = max_indent // 4
         if nesting > 3:
-            suggestions.append({
-                "type": "use_guard_clauses",
-                "lines": f"{target.start_line}-{target.end_line}",
-                "benefit": f"Reduce nesting from {nesting} levels using early returns",
-                "risk": "low",
-            })
+            suggestions.append(
+                {
+                    "type": "use_guard_clauses",
+                    "lines": f"{target.start_line}-{target.end_line}",
+                    "benefit": f"Reduce nesting from {nesting} levels using early returns",
+                    "risk": "low",
+                }
+            )
 
         return {"status": "ok", "symbol": symbol, "suggestions": suggestions}
 
@@ -5532,6 +5667,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         import re
+
         hotspots: list[dict[str, Any]] = []
 
         patterns: list[tuple[str, str, str]] = [
@@ -5550,17 +5686,27 @@ class CodeEmbeddingTool:
                 continue
             for pattern, hotspot_type, severity in patterns:
                 for match in re.finditer(pattern, chunk.text, re.DOTALL):
-                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
-                    hotspots.append({
-                        "file": chunk.file, "line": line,
-                        "type": hotspot_type, "severity": severity,
-                        "context": chunk.text.split("\n")[chunk.text[:match.start()].count("\n")].strip()[:200],
-                        "suggestion": f"Review {hotspot_type} pattern for optimization",
-                    })
+                    line = chunk.start_line + chunk.text[: match.start()].count("\n")
+                    hotspots.append(
+                        {
+                            "file": chunk.file,
+                            "line": line,
+                            "type": hotspot_type,
+                            "severity": severity,
+                            "context": chunk.text.split("\n")[
+                                chunk.text[: match.start()].count("\n")
+                            ].strip()[:200],
+                            "suggestion": f"Review {hotspot_type} pattern for optimization",
+                        }
+                    )
 
         # Detect nested loops (O(n^2) or worse)
         for chunk in chunks:
-            if not hasattr(chunk, "text") or not chunk.text or chunk.type not in ("function", "method"):
+            if (
+                not hasattr(chunk, "text")
+                or not chunk.text
+                or chunk.type not in ("function", "method")
+            ):
                 continue
             lines = chunk.text.split("\n")
             nested_indent = 0
@@ -5570,15 +5716,22 @@ class CodeEmbeddingTool:
                 indent = len(line) - len(line.lstrip())
                 if "for " in line or "while " in line:
                     if indent > nested_indent and nested_indent > 0:
-                        hotspots.append({
-                            "file": chunk.file, "line": chunk.start_line + i,
-                            "type": "nested_loop", "severity": "medium",
-                            "context": line.strip()[:200],
-                            "suggestion": "Nested loop detected — consider algorithmic optimization or vectorization",
-                        })
+                        hotspots.append(
+                            {
+                                "file": chunk.file,
+                                "line": chunk.start_line + i,
+                                "type": "nested_loop",
+                                "severity": "medium",
+                                "context": line.strip()[:200],
+                                "suggestion": "Nested loop detected — consider algorithmic optimization or vectorization",
+                            }
+                        )
                     nested_indent = indent
 
-        hotspots.sort(key=lambda h: {"high": 2, "medium": 1, "low": 0}.get(h.get("severity", "low"), 0), reverse=True)
+        hotspots.sort(
+            key=lambda h: {"high": 2, "medium": 1, "low": 0}.get(h.get("severity", "low"), 0),
+            reverse=True,
+        )
         return {"status": "ok", "hotspots": hotspots, "total": len(hotspots)}
 
     def generate_documentation(
@@ -5633,9 +5786,14 @@ class CodeEmbeddingTool:
                 break
 
         if target is None:
-            return self._make_error_response(f"Symbol '{symbol}' not found", buffer_id=buffer_id, operation="generate_documentation")
+            return self._make_error_response(
+                f"Symbol '{symbol}' not found",
+                buffer_id=buffer_id,
+                operation="generate_documentation",
+            )
 
         import re
+
         docstring = ""
         type_hints = {}
         examples = []
@@ -5647,7 +5805,11 @@ class CodeEmbeddingTool:
             return_type = sig_match.group(2)
 
             # Parse parameters
-            params = [p.strip() for p in params_str.split(",") if p.strip() and p.strip() not in ("self", "cls")]
+            params = [
+                p.strip()
+                for p in params_str.split(",")
+                if p.strip() and p.strip() not in ("self", "cls")
+            ]
             param_docs = []
             for param in params:
                 parts = param.split(":")
@@ -5765,7 +5927,9 @@ class CodeEmbeddingTool:
                 return set()
             if len(tokens) < ngram:
                 return {" ".join(tokens)}
-            return {" ".join(tokens[index:index + ngram]) for index in range(len(tokens) - ngram + 1)}
+            return {
+                " ".join(tokens[index : index + ngram]) for index in range(len(tokens) - ngram + 1)
+            }
 
         snippet_shingles = _token_shingles(code_snippet)
         candidate_map: dict[tuple[str, int, int], dict[str, Any]] = {}
@@ -5797,14 +5961,21 @@ class CodeEmbeddingTool:
                 if doc_id is not None:
                     candidate["doc_id"] = doc_id
             else:
-                candidate["syntactic_similarity"] = max(candidate["syntactic_similarity"] or 0.0, similarity)
+                candidate["syntactic_similarity"] = max(
+                    candidate["syntactic_similarity"] or 0.0, similarity
+                )
 
             scores = [
                 value
-                for value in (candidate.get("semantic_score"), candidate.get("syntactic_similarity"))
+                for value in (
+                    candidate.get("semantic_score"),
+                    candidate.get("syntactic_similarity"),
+                )
                 if isinstance(value, (int, float))
             ]
-            candidate["similarity"] = round(sum(scores) / len(scores), 4) if scores else round(similarity, 4)
+            candidate["similarity"] = (
+                round(sum(scores) / len(scores), 4) if scores else round(similarity, 4)
+            )
 
         syntactic_matches: list[dict[str, Any]] = []
         for chunk in chunks:
@@ -5865,7 +6036,9 @@ class CodeEmbeddingTool:
                 "snippet_length": len(code_snippet),
             }
 
-        ranked_candidates = sorted(candidate_map.values(), key=lambda item: item["similarity"], reverse=True)
+        ranked_candidates = sorted(
+            candidate_map.values(), key=lambda item: item["similarity"], reverse=True
+        )
         if top_k:
             ranked_candidates = ranked_candidates[:top_k]
 
@@ -5879,7 +6052,7 @@ class CodeEmbeddingTool:
             start = 0
             for index in range(bucket_count):
                 size = base_size + (1 if index < extra else 0)
-                buckets.append(ranked_candidates[start:start + size])
+                buckets.append(ranked_candidates[start : start + size])
                 start += size
         else:
             for candidate in ranked_candidates:
@@ -5899,7 +6072,11 @@ class CodeEmbeddingTool:
             if not bucket:
                 continue
             avg_similarity = round(sum(item["similarity"] for item in bucket) / len(bucket), 4)
-            max_deviation = max(abs(item["similarity"] - avg_similarity) for item in bucket) if len(bucket) > 1 else 0.0
+            max_deviation = (
+                max(abs(item["similarity"] - avg_similarity) for item in bucket)
+                if len(bucket) > 1
+                else 0.0
+            )
             compactness = round(max(0.0, 1.0 - (max_deviation / max(tolerance, 0.05))), 4)
             compactness_values.append(compactness)
             bucket.sort(key=lambda item: item["similarity"], reverse=True)
@@ -5939,7 +6116,11 @@ class CodeEmbeddingTool:
             "clusters": clusters,
             "snippet_length": len(code_snippet),
             "clustering_method": clustering_method,
-            "quality": round(sum(compactness_values) / len(compactness_values), 4) if compactness_values else 0.0,
+            "quality": (
+                round(sum(compactness_values) / len(compactness_values), 4)
+                if compactness_values
+                else 0.0
+            ),
         }
 
     def find_deprecated(
@@ -5978,6 +6159,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         import re
+
         deprecated: list[dict[str, Any]] = []
 
         # Common deprecated patterns
@@ -5985,7 +6167,7 @@ class CodeEmbeddingTool:
             (r"@deprecated\b", "decorator"),
             (r"warnings\.warn\s*\([^)]*deprecated", "warning"),
             (r"#\s*DEPRECATED", "comment"),
-            (r'DeprecationWarning', "deprecation_warning"),
+            (r"DeprecationWarning", "deprecation_warning"),
         ]
 
         for chunk in chunks:
@@ -5993,16 +6175,19 @@ class CodeEmbeddingTool:
                 continue
             for pattern, method in dep_patterns:
                 for match in re.finditer(pattern, chunk.text, re.IGNORECASE):
-                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
+                    line = chunk.start_line + chunk.text[: match.start()].count("\n")
                     lines = chunk.text.split("\n")
-                    line_offset = chunk.text[:match.start()].count("\n")
+                    line_offset = chunk.text[: match.start()].count("\n")
                     context = lines[line_offset].strip()[:200] if line_offset < len(lines) else ""
-                    deprecated.append({
-                        "file": chunk.file, "line": line,
-                        "detection_method": method,
-                        "context": context,
-                        "symbol": getattr(chunk, "name", ""),
-                    })
+                    deprecated.append(
+                        {
+                            "file": chunk.file,
+                            "line": line,
+                            "detection_method": method,
+                            "context": context,
+                            "symbol": getattr(chunk, "name", ""),
+                        }
+                    )
 
         return {"status": "ok", "deprecated": deprecated, "total": len(deprecated)}
 
@@ -6066,30 +6251,74 @@ class CodeEmbeddingTool:
             try:
                 _ast.parse(chunk.text)
             except SyntaxError as e:
-                type_errors.append({
-                    "file": chunk.file, "line": e.lineno or chunk.start_line,
-                    "message": f"SyntaxError: {e.msg}",
-                })
+                type_errors.append(
+                    {
+                        "file": chunk.file,
+                        "line": e.lineno or chunk.start_line,
+                        "message": f"SyntaxError: {e.msg}",
+                    }
+                )
 
             # Check imports resolve
-            for imp in (getattr(chunk, "imports", None) or []):
+            for imp in getattr(chunk, "imports", None) or []:
                 top_level = imp.split(".")[0]
-                if top_level not in available_modules and top_level not in ("os", "sys", "re", "json",
-                        "logging", "pathlib", "typing", "dataclasses", "collections", "abc",
-                        "functools", "itertools", "datetime", "hashlib", "io", "contextlib",
-                        "asyncio", "subprocess", "shutil", "tempfile", "time", "math",
-                        "unittest", "copy", "ast", "importlib", "inspect", "textwrap",
-                        "enum", "http", "urllib", "email", "csv", "sqlite3",
-                        "fastapi", "pydantic", "uvicorn", "numpy", "torch", "sentence_transformers"):
+                if top_level not in available_modules and top_level not in (
+                    "os",
+                    "sys",
+                    "re",
+                    "json",
+                    "logging",
+                    "pathlib",
+                    "typing",
+                    "dataclasses",
+                    "collections",
+                    "abc",
+                    "functools",
+                    "itertools",
+                    "datetime",
+                    "hashlib",
+                    "io",
+                    "contextlib",
+                    "asyncio",
+                    "subprocess",
+                    "shutil",
+                    "tempfile",
+                    "time",
+                    "math",
+                    "unittest",
+                    "copy",
+                    "ast",
+                    "importlib",
+                    "inspect",
+                    "textwrap",
+                    "enum",
+                    "http",
+                    "urllib",
+                    "email",
+                    "csv",
+                    "sqlite3",
+                    "fastapi",
+                    "pydantic",
+                    "uvicorn",
+                    "numpy",
+                    "torch",
+                    "sentence_transformers",
+                ):
                     # Not found locally or in known stdlib/third-party
-                    broken_imports.append({
-                        "file": chunk.file, "import": imp,
-                        "message": f"Cannot resolve import: {imp}",
-                    })
+                    broken_imports.append(
+                        {
+                            "file": chunk.file,
+                            "import": imp,
+                            "message": f"Cannot resolve import: {imp}",
+                        }
+                    )
 
         # Test impact prediction
-        test_impact = [ch.name for ch in chunks if hasattr(ch, "name") and ch.name
-                       and "test" in getattr(ch, "file", "")]
+        test_impact = [
+            ch.name
+            for ch in chunks
+            if hasattr(ch, "name") and ch.name and "test" in getattr(ch, "file", "")
+        ]
 
         safe_to_commit = len(type_errors) == 0 and len(broken_imports) == 0
 
@@ -6135,6 +6364,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         import re
+
         env_vars: list[dict[str, Any]] = []
         config_files: list[str] = []
         hardcoded_secrets: list[dict[str, Any]] = []
@@ -6145,38 +6375,59 @@ class CodeEmbeddingTool:
                 continue
 
             # Environment variables
-            for match in re.finditer(r'os\.environ\.get\s*\(\s*["\'](\w+)["\']\s*(?:,\s*([^)]+))?\)', chunk.text):
+            for match in re.finditer(
+                r'os\.environ\.get\s*\(\s*["\'](\w+)["\']\s*(?:,\s*([^)]+))?\)', chunk.text
+            ):
                 var_name = match.group(1)
                 default = match.group(2).strip().strip("\"'") if match.group(2) else None
-                env_vars.append({
-                    "name": var_name, "used_in": f"{chunk.file}:{chunk.start_line}",
-                    "required": default is None, "default": default,
-                })
+                env_vars.append(
+                    {
+                        "name": var_name,
+                        "used_in": f"{chunk.file}:{chunk.start_line}",
+                        "required": default is None,
+                        "default": default,
+                    }
+                )
                 if default:
                     default_values[var_name] = default
 
-            for match in re.finditer(r'os\.getenv\s*\(\s*["\'](\w+)["\']\s*(?:,\s*([^)]+))?\)', chunk.text):
+            for match in re.finditer(
+                r'os\.getenv\s*\(\s*["\'](\w+)["\']\s*(?:,\s*([^)]+))?\)', chunk.text
+            ):
                 var_name = match.group(1)
                 default = match.group(2).strip().strip("\"'") if match.group(2) else None
-                env_vars.append({
-                    "name": var_name, "used_in": f"{chunk.file}:{chunk.start_line}",
-                    "required": default is None, "default": default,
-                })
+                env_vars.append(
+                    {
+                        "name": var_name,
+                        "used_in": f"{chunk.file}:{chunk.start_line}",
+                        "required": default is None,
+                        "default": default,
+                    }
+                )
                 if default:
                     default_values[var_name] = default
 
             # Config files
-            for match in re.finditer(r'["\']([^"\']*\.(yaml|yml|toml|ini|cfg|conf|json))["\']', chunk.text):
+            for match in re.finditer(
+                r'["\']([^"\']*\.(yaml|yml|toml|ini|cfg|conf|json))["\']', chunk.text
+            ):
                 config_files.append(match.group(1))
 
             # Hardcoded secrets
-            for match in re.finditer(r'(?:secret|password|api_key|token|auth_key|private_key)\s*=\s*["\'][^"\']{4,}["\']', chunk.text, re.IGNORECASE):
-                line = chunk.start_line + chunk.text[:match.start()].count("\n")
-                hardcoded_secrets.append({
-                    "file": chunk.file, "line": line,
-                    "pattern": match.group(0)[:80],
-                    "severity": "high",
-                })
+            for match in re.finditer(
+                r'(?:secret|password|api_key|token|auth_key|private_key)\s*=\s*["\'][^"\']{4,}["\']',
+                chunk.text,
+                re.IGNORECASE,
+            ):
+                line = chunk.start_line + chunk.text[: match.start()].count("\n")
+                hardcoded_secrets.append(
+                    {
+                        "file": chunk.file,
+                        "line": line,
+                        "pattern": match.group(0)[:80],
+                        "severity": "high",
+                    }
+                )
 
         # Deduplicate
         seen_vars: set[str] = set()
@@ -6228,6 +6479,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         import re
+
         levels = {"debug": 0, "info": 0, "warning": 0, "error": 0, "critical": 0}
         total_logs = 0
         missing_logs: list[dict[str, Any]] = []
@@ -6240,15 +6492,20 @@ class CodeEmbeddingTool:
 
             # Count log levels
             for level in levels:
-                count = len(re.findall(rf'\.{level}\s*\(', chunk.text))
+                count = len(re.findall(rf"\.{level}\s*\(", chunk.text))
                 levels[level] += count
                 total_logs += count
 
             # Check for format string inconsistency
             for match in re.finditer(r'(?:logger|logging)\.\w+\s*\(\s*["\']', chunk.text):
-                if "%" in match.group(0) and "format(" in chunk.text[match.end():match.end()+100]:
-                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
-                    inconsistent_format.append({"file": chunk.file, "line": line, "format_string": "mixed % and .format()"})
+                if (
+                    "%" in match.group(0)
+                    and "format(" in chunk.text[match.end() : match.end() + 100]
+                ):
+                    line = chunk.start_line + chunk.text[: match.start()].count("\n")
+                    inconsistent_format.append(
+                        {"file": chunk.file, "line": line, "format_string": "mixed % and .format()"}
+                    )
 
             # Check for f-string in log (potential performance issue)
             for match in re.finditer(r'(?:logger|logging)\.\w+\s*\(\s*f["\']', chunk.text):
@@ -6259,10 +6516,13 @@ class CodeEmbeddingTool:
                 has_try = "try:" in chunk.text or "try :" in chunk.text
                 has_log = any(f".{l}(" in chunk.text for l in levels)
                 if has_try and not has_log:
-                    missing_logs.append({
-                        "file": chunk.file, "symbol": getattr(chunk, "name", ""),
-                        "issue": "try/except without logging",
-                    })
+                    missing_logs.append(
+                        {
+                            "file": chunk.file,
+                            "symbol": getattr(chunk, "name", ""),
+                            "issue": "try/except without logging",
+                        }
+                    )
 
         return {
             "status": "ok",
@@ -6307,6 +6567,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         import re
+
         try_except_blocks = 0
         uncaught_exceptions: list[dict[str, Any]] = []
         broad_catches: list[dict[str, Any]] = []
@@ -6317,28 +6578,32 @@ class CodeEmbeddingTool:
             if not hasattr(chunk, "text") or not chunk.text:
                 continue
 
-            try_count = len(re.findall(r'\btry\s*:', chunk.text))
+            try_count = len(re.findall(r"\btry\s*:", chunk.text))
             try_except_blocks += try_count
 
             # Broad catches
-            for match in re.finditer(r'except\s*:', chunk.text):
-                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+            for match in re.finditer(r"except\s*:", chunk.text):
+                line = chunk.start_line + chunk.text[: match.start()].count("\n")
                 broad_catches.append({"file": chunk.file, "line": line, "catches": "bare except"})
 
-            for match in re.finditer(r'except\s+Exception\s*:', chunk.text):
-                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+            for match in re.finditer(r"except\s+Exception\s*:", chunk.text):
+                line = chunk.start_line + chunk.text[: match.start()].count("\n")
                 broad_catches.append({"file": chunk.file, "line": line, "catches": "Exception"})
 
             # Missing finally for resource operations
             if "open(" in chunk.text or "connect(" in chunk.text:
                 if try_count > 0 and "finally:" not in chunk.text and "with " not in chunk.text:
                     line = chunk.start_line
-                    missing_finally.append({"file": chunk.file, "line": line, "resource": "file/connection"})
+                    missing_finally.append(
+                        {"file": chunk.file, "line": line, "resource": "file/connection"}
+                    )
 
             # Silent catches (just pass)
-            for match in re.finditer(r'except\s+\w+\s*:\s*\n\s*pass', chunk.text):
-                line = chunk.start_line + chunk.text[:match.start()].count("\n")
-                uncaught_exceptions.append({"file": chunk.file, "line": line, "issue": "silent catch (pass)"})
+            for match in re.finditer(r"except\s+\w+\s*:\s*\n\s*pass", chunk.text):
+                line = chunk.start_line + chunk.text[: match.start()].count("\n")
+                uncaught_exceptions.append(
+                    {"file": chunk.file, "line": line, "issue": "silent catch (pass)"}
+                )
 
         if broad_catches:
             suggestions.append("Replace broad exception handlers with specific exception types")
@@ -6390,6 +6655,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         from gigacode import git_utils
+
         features: list[dict[str, Any]] = []
         bugfixes: list[dict[str, Any]] = []
         breaking_changes: list[dict[str, Any]] = []
@@ -6414,7 +6680,9 @@ class CodeEmbeddingTool:
                         features.append(entry)
                     elif any(kw in msg_lower for kw in ["fix", "bug", "patch", "hotfix"]):
                         bugfixes.append(entry)
-                    elif any(kw in msg_lower for kw in ["breaking", "remove", "delete", "deprecate"]):
+                    elif any(
+                        kw in msg_lower for kw in ["breaking", "remove", "delete", "deprecate"]
+                    ):
                         breaking_changes.append(entry)
                     else:
                         other.append(entry)
@@ -6472,41 +6740,57 @@ class CodeEmbeddingTool:
         for chunk in chunks:
             if not hasattr(chunk, "text") or not chunk.text:
                 continue
-            if chunk.type in ("function", "method", "class") and hasattr(chunk, "name") and chunk.name:
+            if (
+                chunk.type in ("function", "method", "class")
+                and hasattr(chunk, "name")
+                and chunk.name
+            ):
                 import re
+
                 # Check for public symbols (no leading underscore)
                 if not chunk.name.startswith("_"):
                     # Extract signature
                     sig_match = re.search(r"def\s+\w+\s*\((.*?)\)", chunk.text, re.DOTALL)
                     params = []
                     if sig_match:
-                        params = [p.strip().split(":")[0].split("=")[0].strip()
-                                  for p in sig_match.group(1).split(",")
-                                  if p.strip() and p.strip() not in ("self", "cls")]
-                    current_api.append({
-                        "symbol": chunk.name, "file": chunk.file,
-                        "parameters": params, "type": chunk.type,
-                    })
+                        params = [
+                            p.strip().split(":")[0].split("=")[0].strip()
+                            for p in sig_match.group(1).split(",")
+                            if p.strip() and p.strip() not in ("self", "cls")
+                        ]
+                    current_api.append(
+                        {
+                            "symbol": chunk.name,
+                            "file": chunk.file,
+                            "parameters": params,
+                            "type": chunk.type,
+                        }
+                    )
 
         # Try to compare with previous commit
         previous_api: list[dict[str, Any]] = []
         changes: list[dict[str, Any]] = []
 
         from gigacode import git_utils
+
         try:
             if since_commit:
-                diff_output = git_utils.run_git(["diff", f"{since_commit}..HEAD", "--name-only"], cwd=self.work_dir)
+                diff_output = git_utils.run_git(
+                    ["diff", f"{since_commit}..HEAD", "--name-only"], cwd=self.work_dir
+                )
                 changed_files = set(diff_output.strip().split("\n")) if diff_output else set()
 
                 for api in current_api:
                     if api["file"] in changed_files:
-                        changes.append({
-                            "symbol": api["symbol"],
-                            "breaking": False,  # Conservative: would need old API to confirm
-                            "parameters_added": [],
-                            "return_type_changed": False,
-                            "migration_guide": f"Review changes to {api['symbol']} in {api['file']}",
-                        })
+                        changes.append(
+                            {
+                                "symbol": api["symbol"],
+                                "breaking": False,  # Conservative: would need old API to confirm
+                                "parameters_added": [],
+                                "return_type_changed": False,
+                                "migration_guide": f"Review changes to {api['symbol']} in {api['file']}",
+                            }
+                        )
         except (OSError, RuntimeError, ValueError) as e:
             logger.warning("API change diff fallback failed: %s", e)
 
@@ -6552,13 +6836,18 @@ class CodeEmbeddingTool:
         info, _ = result
 
         from gigacode import git_utils
+
         try:
             # Get last commit touching this file
             log_output = git_utils.run_git(
                 ["log", "-1", "--format=%H|%s|%ai", "--", file], cwd=self.work_dir
             )
             if not log_output or not log_output.strip():
-                return {"status": "ok", "last_working_commit": None, "message": "No git history for file"}
+                return {
+                    "status": "ok",
+                    "last_working_commit": None,
+                    "message": "No git history for file",
+                }
 
             parts = log_output.strip().split("|", 2)
             last_commit = parts[0] if parts else ""
@@ -6566,9 +6855,9 @@ class CodeEmbeddingTool:
             commit_date = parts[2] if len(parts) > 2 else ""
 
             # Get diff to revert
-            diff_to_revert = git_utils.run_git(
-                ["diff", "HEAD", "--", file], cwd=self.work_dir
-            ) or ""
+            diff_to_revert = (
+                git_utils.run_git(["diff", "HEAD", "--", file], cwd=self.work_dir) or ""
+            )
 
             return {
                 "status": "ok",
@@ -6690,12 +6979,19 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         import re
+
         endpoints: list[dict[str, Any]] = []
 
         # FastAPI patterns
-        fastapi_pattern = re.compile(r'@app\.(get|post|put|delete|patch|head|options)\s*\(\s*["\']([^"\']+)["\']', re.IGNORECASE)
+        fastapi_pattern = re.compile(
+            r'@app\.(get|post|put|delete|patch|head|options)\s*\(\s*["\']([^"\']+)["\']',
+            re.IGNORECASE,
+        )
         # Flask patterns
-        flask_pattern = re.compile(r'@(\w+).route\s*\(\s*["\']([^"\']+)["\']\s*(?:,\s*methods\s*=\s*\[([^\]]+)\])?', re.IGNORECASE)
+        flask_pattern = re.compile(
+            r'@(\w+).route\s*\(\s*["\']([^"\']+)["\']\s*(?:,\s*methods\s*=\s*\[([^\]]+)\])?',
+            re.IGNORECASE,
+        )
 
         for chunk in chunks:
             if not hasattr(chunk, "text") or not chunk.text:
@@ -6706,15 +7002,20 @@ class CodeEmbeddingTool:
                 path = match.group(2)
                 handler = ""
                 # Find handler function
-                rest = chunk.text[match.end():]
-                handler_match = re.search(r'async\s+def\s+(\w+)|def\s+(\w+)', rest[:200])
+                rest = chunk.text[match.end() :]
+                handler_match = re.search(r"async\s+def\s+(\w+)|def\s+(\w+)", rest[:200])
                 if handler_match:
                     handler = handler_match.group(1) or handler_match.group(2) or ""
-                is_async = "async def" in chunk.text[match.end():match.end()+100]
-                endpoints.append({
-                    "method": method, "path": path, "handler": handler,
-                    "is_async": is_async, "file": chunk.file,
-                })
+                is_async = "async def" in chunk.text[match.end() : match.end() + 100]
+                endpoints.append(
+                    {
+                        "method": method,
+                        "path": path,
+                        "handler": handler,
+                        "is_async": is_async,
+                        "file": chunk.file,
+                    }
+                )
 
             # Flask
             for match in flask_pattern.finditer(chunk.text):
@@ -6722,15 +7023,20 @@ class CodeEmbeddingTool:
                 methods_str = match.group(3) or '"GET"'
                 methods = re.findall(r'["\'](\w+)["\']', methods_str)
                 handler = ""
-                rest = chunk.text[match.end():]
-                handler_match = re.search(r'def\s+(\w+)', rest[:200])
+                rest = chunk.text[match.end() :]
+                handler_match = re.search(r"def\s+(\w+)", rest[:200])
                 if handler_match:
                     handler = handler_match.group(1)
                 for m in methods:
-                    endpoints.append({
-                        "method": m.upper(), "path": path, "handler": handler,
-                        "is_async": False, "file": chunk.file,
-                    })
+                    endpoints.append(
+                        {
+                            "method": m.upper(),
+                            "path": path,
+                            "handler": handler,
+                            "is_async": False,
+                            "file": chunk.file,
+                        }
+                    )
 
         return {"status": "ok", "endpoints": endpoints, "total": len(endpoints)}
 
@@ -6766,6 +7072,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         import re
+
         caches_used: list[str] = []
         invalidation_logic: list[dict[str, Any]] = []
         stale_data_risks: list[dict[str, Any]] = []
@@ -6780,17 +7087,35 @@ class CodeEmbeddingTool:
                     caches_used.append(lib)
 
             # Find cache invalidation patterns
-            for match in re.finditer(r'(?:cache|_cache|cached)\s*(?:\.|_)(?:delete|remove|invalidate|clear|evict|pop)', chunk.text, re.IGNORECASE):
-                line = chunk.start_line + chunk.text[:match.start()].count("\n")
-                invalidation_logic.append({"file": chunk.file, "line": line, "pattern": match.group(0)[:80], "safe": True})
+            for match in re.finditer(
+                r"(?:cache|_cache|cached)\s*(?:\.|_)(?:delete|remove|invalidate|clear|evict|pop)",
+                chunk.text,
+                re.IGNORECASE,
+            ):
+                line = chunk.start_line + chunk.text[: match.start()].count("\n")
+                invalidation_logic.append(
+                    {"file": chunk.file, "line": line, "pattern": match.group(0)[:80], "safe": True}
+                )
 
             # Find cache writes without corresponding invalidation
-            for match in re.finditer(r'(?:cache|_cache|cached)\s*(?:\.|_)(?:set|put|add|store|write)', chunk.text, re.IGNORECASE):
-                line = chunk.start_line + chunk.text[:match.start()].count("\n")
+            for match in re.finditer(
+                r"(?:cache|_cache|cached)\s*(?:\.|_)(?:set|put|add|store|write)",
+                chunk.text,
+                re.IGNORECASE,
+            ):
+                line = chunk.start_line + chunk.text[: match.start()].count("\n")
                 # Check if same chunk has invalidation
-                has_invalidation = bool(re.search(r'(?:cache|_cache|cached)\s*(?:\.|_)(?:delete|remove|invalidate|clear|evict)', chunk.text, re.IGNORECASE))
+                has_invalidation = bool(
+                    re.search(
+                        r"(?:cache|_cache|cached)\s*(?:\.|_)(?:delete|remove|invalidate|clear|evict)",
+                        chunk.text,
+                        re.IGNORECASE,
+                    )
+                )
                 if not has_invalidation:
-                    stale_data_risks.append({"file": chunk.file, "line": line, "risk_level": "medium"})
+                    stale_data_risks.append(
+                        {"file": chunk.file, "line": line, "risk_level": "medium"}
+                    )
 
         return {
             "status": "ok",
@@ -6829,6 +7154,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         import re
+
         shared_state: list[dict[str, Any]] = []
         race_conditions: list[dict[str, Any]] = []
         deadlock_risks: list[dict[str, Any]] = []
@@ -6839,34 +7165,51 @@ class CodeEmbeddingTool:
                 continue
             # Module-level mutable assignments
             if chunk.type == "module":
-                for match in re.finditer(r'^(\w+)\s*=\s*(?:\[\]|\{\}|set\(\)|dict\(\)|list\(\))', chunk.text, re.MULTILINE):
+                for match in re.finditer(
+                    r"^(\w+)\s*=\s*(?:\[\]|\{\}|set\(\)|dict\(\)|list\(\))",
+                    chunk.text,
+                    re.MULTILINE,
+                ):
                     var_name = match.group(1)
                     if not var_name.startswith("_"):
-                        shared_state.append({
-                            "name": var_name, "file": chunk.file,
-                            "modified_by": [], "protected_by": "none",
-                        })
+                        shared_state.append(
+                            {
+                                "name": var_name,
+                                "file": chunk.file,
+                                "modified_by": [],
+                                "protected_by": "none",
+                            }
+                        )
 
             # Check for lock usage
-            has_lock = bool(re.search(r'(?:Lock|RLock|Semaphore|threading\.)', chunk.text))
+            has_lock = bool(re.search(r"(?:Lock|RLock|Semaphore|threading\.)", chunk.text))
 
             # Detect non-atomic operations on shared state
-            for match in re.finditer(r'(?:append|extend|remove|pop|update|clear|add|discard)\s*\(', chunk.text):
+            for match in re.finditer(
+                r"(?:append|extend|remove|pop|update|clear|add|discard)\s*\(", chunk.text
+            ):
                 if not has_lock:
-                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
-                    race_conditions.append({
-                        "file": chunk.file, "line": line,
-                        "variables": [], "risk_level": "medium",
-                    })
+                    line = chunk.start_line + chunk.text[: match.start()].count("\n")
+                    race_conditions.append(
+                        {
+                            "file": chunk.file,
+                            "line": line,
+                            "variables": [],
+                            "risk_level": "medium",
+                        }
+                    )
 
             # Detect potential deadlocks (multiple locks)
-            locks = re.findall(r'(?:Lock|RLock)\s*\(\s*\)', chunk.text)
+            locks = re.findall(r"(?:Lock|RLock)\s*\(\s*\)", chunk.text)
             if len(locks) > 1:
-                deadlock_risks.append({
-                    "file": chunk.file, "line": chunk.start_line,
-                    "locks_count": len(locks),
-                    "suggestion": "Multiple locks — ensure consistent acquisition order",
-                })
+                deadlock_risks.append(
+                    {
+                        "file": chunk.file,
+                        "line": chunk.start_line,
+                        "locks_count": len(locks),
+                        "suggestion": "Multiple locks — ensure consistent acquisition order",
+                    }
+                )
 
         return {
             "status": "ok",
@@ -6906,6 +7249,7 @@ class CodeEmbeddingTool:
         info, chunks = result
 
         import re
+
         circular_refs: list[dict[str, Any]] = []
         unbounded_collections: list[dict[str, Any]] = []
         resource_leaks: list[dict[str, Any]] = []
@@ -6916,34 +7260,50 @@ class CodeEmbeddingTool:
 
             # Unbounded collections (append without limit in loops)
             if chunk.type in ("function", "method"):
-                has_loop = bool(re.search(r'\b(for|while)\b', chunk.text))
-                has_append = bool(re.search(r'\.append\s*\(', chunk.text))
-                has_limit = bool(re.search(r'(?:max_|limit|cap|size|len\(|break|return)', chunk.text))
+                has_loop = bool(re.search(r"\b(for|while)\b", chunk.text))
+                has_append = bool(re.search(r"\.append\s*\(", chunk.text))
+                has_limit = bool(
+                    re.search(r"(?:max_|limit|cap|size|len\(|break|return)", chunk.text)
+                )
                 if has_loop and has_append and not has_limit:
-                    unbounded_collections.append({
-                        "file": chunk.file, "line": chunk.start_line,
-                        "symbol": getattr(chunk, "name", ""),
-                        "growth_reason": "append in loop without size limit",
-                    })
+                    unbounded_collections.append(
+                        {
+                            "file": chunk.file,
+                            "line": chunk.start_line,
+                            "symbol": getattr(chunk, "name", ""),
+                            "growth_reason": "append in loop without size limit",
+                        }
+                    )
 
             # Resource leaks (open without with/context)
-            for match in re.finditer(r'(\w+)\s*=\s*open\s*\([^)]*\)', chunk.text):
+            for match in re.finditer(r"(\w+)\s*=\s*open\s*\([^)]*\)", chunk.text):
                 var_name = match.group(1)
                 # Check if 'with' statement or .close() present
-                if f"with {var_name}" not in chunk.text and f"{var_name}.close()" not in chunk.text and "with open" not in chunk.text:
-                    line = chunk.start_line + chunk.text[:match.start()].count("\n")
-                    resource_leaks.append({
-                        "file": chunk.file, "line": line,
-                        "resource": "file handle", "cleanup_missing": True,
-                    })
+                if (
+                    f"with {var_name}" not in chunk.text
+                    and f"{var_name}.close()" not in chunk.text
+                    and "with open" not in chunk.text
+                ):
+                    line = chunk.start_line + chunk.text[: match.start()].count("\n")
+                    resource_leaks.append(
+                        {
+                            "file": chunk.file,
+                            "line": line,
+                            "resource": "file handle",
+                            "cleanup_missing": True,
+                        }
+                    )
 
             # Circular references (self-referential patterns)
-            for match in re.finditer(r'self\.(\w+)\s*=\s*self\b', chunk.text):
-                line = chunk.start_line + chunk.text[:match.start()].count("\n")
-                circular_refs.append({
-                    "file": chunk.file, "line": line,
-                    "symbols": [match.group(1)],
-                })
+            for match in re.finditer(r"self\.(\w+)\s*=\s*self\b", chunk.text):
+                line = chunk.start_line + chunk.text[: match.start()].count("\n")
+                circular_refs.append(
+                    {
+                        "file": chunk.file,
+                        "line": line,
+                        "symbols": [match.group(1)],
+                    }
+                )
 
         return {
             "status": "ok",
@@ -7193,7 +7553,9 @@ class CodeEmbeddingTool:
             try:
                 impact = self.analyze_impact(buffer_id)
                 if impact.get("risk_level") == "high":
-                    warnings.append(f"High impact change: {impact.get('total_impacted_files', 0)} files affected")
+                    warnings.append(
+                        f"High impact change: {impact.get('total_impacted_files', 0)} files affected"
+                    )
             except (ValueError, RuntimeError):
                 pass
 
@@ -7278,8 +7640,12 @@ class CodeEmbeddingTool:
             {"error": 5, "warning": 12, "info": 3}
         """
         lint_result = self.auto_lint(
-            buffer_id=buffer_id, files=files, select=select,
-            auto_fix=False, dry_run=True, exclude_patterns=exclude_patterns,
+            buffer_id=buffer_id,
+            files=files,
+            select=select,
+            auto_fix=False,
+            dry_run=True,
+            exclude_patterns=exclude_patterns,
         )
         if lint_result.get("status") != "ok":
             return lint_result
@@ -7291,9 +7657,13 @@ class CodeEmbeddingTool:
 
         for issue in issues:
             f = issue.get("file", "unknown")
-            by_file.setdefault(f, []).append({
-                "line": issue.get("line"), "code": issue.get("code"), "message": issue.get("message"),
-            })
+            by_file.setdefault(f, []).append(
+                {
+                    "line": issue.get("line"),
+                    "code": issue.get("code"),
+                    "message": issue.get("message"),
+                }
+            )
             code = issue.get("code", "")
             if code.startswith("E") or code.startswith("F"):
                 by_severity["error"] += 1
@@ -7356,8 +7726,11 @@ class CodeEmbeddingTool:
             12
         """
         format_result = self.auto_format(
-            buffer_id=buffer_id, files=files, formatter=formatter,
-            line_length=line_length, dry_run=dry_run,
+            buffer_id=buffer_id,
+            files=files,
+            formatter=formatter,
+            line_length=line_length,
+            dry_run=dry_run,
             exclude_patterns=exclude_patterns,
         )
         if format_result.get("status") != "ok":
@@ -7369,7 +7742,8 @@ class CodeEmbeddingTool:
 
         result: dict[str, Any] = {
             "status": "ok",
-            "total_files": format_result.get("formatted_files", 0) + format_result.get("already_formatted", 0),
+            "total_files": format_result.get("formatted_files", 0)
+            + format_result.get("already_formatted", 0),
             "formatted_files": format_result.get("formatted_files", 0),
             "already_formatted": format_result.get("already_formatted", 0),
             "total_lines_added": total_added,
@@ -7417,6 +7791,7 @@ class CodeEmbeddingTool:
         # Discover config file
         if config_file is None:
             import os
+
             work_dir = self.work_dir
             for candidate in ["ruff.toml", ".ruff.toml", "pyproject.toml", ".flake8", "setup.cfg"]:
                 candidate_path = os.path.join(work_dir, candidate)
@@ -7425,8 +7800,10 @@ class CodeEmbeddingTool:
                     break
 
         result = self.auto_lint(
-            buffer_id=buffer_id, files=files,
-            auto_fix=auto_fix, dry_run=not auto_fix,
+            buffer_id=buffer_id,
+            files=files,
+            auto_fix=auto_fix,
+            dry_run=not auto_fix,
         )
 
         if result.get("status") != "ok":
@@ -7472,6 +7849,7 @@ class CodeEmbeddingTool:
         # Discover config file
         if config_file is None:
             import os
+
             work_dir = self.work_dir
             for candidate in ["pyproject.toml", ".black", "ruff.toml", ".ruff.toml"]:
                 candidate_path = os.path.join(work_dir, candidate)
@@ -7480,7 +7858,8 @@ class CodeEmbeddingTool:
                     break
 
         result = self.auto_format(
-            buffer_id=buffer_id, files=files,
+            buffer_id=buffer_id,
+            files=files,
             dry_run=dry_run,
         )
 
@@ -7802,7 +8181,9 @@ class CodeEmbeddingTool:
 
             # Get dirty files for edit context
             dirty_files = list(info.get("dirty_queue", []))
-            edit_context = [e.get("file") for e in dirty_files if isinstance(e, dict)] if dirty_files else None
+            edit_context = (
+                [e.get("file") for e in dirty_files if isinstance(e, dict)] if dirty_files else None
+            )
 
             annotated = annotator.annotate_search_results(
                 buffer_id=buffer_id,

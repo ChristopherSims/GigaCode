@@ -397,7 +397,9 @@ def pack_context_smart(
                 "granularity": (
                     granularity
                     if rank < 3
-                    else "signature" if granularity == "smart" else granularity
+                    else "signature"
+                    if granularity == "smart"
+                    else granularity
                 ),
                 "text_preview": text[:120] + "..." if len(text) > 120 else text,
             }

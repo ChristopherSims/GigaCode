@@ -310,9 +310,7 @@ class SearchService:
                     )
                     # Enrich with type inference if requested
                     if include_types:
-                        type_info = self._infer_type_for_chunk(
-                            chunk, method=type_inference_method
-                        )
+                        type_info = self._infer_type_for_chunk(chunk, method=type_inference_method)
                         if type_info:
                             match.signature = type_info.get("signature")
                             match.parameter_types = type_info.get("parameters")
@@ -1205,8 +1203,7 @@ class SearchService:
             sig = sigs[0]  # Take the first (most relevant) signature
             # Build a human-readable signature string
             params_str = ", ".join(
-                f"{p['name']}: {p['type']}" if p.get("type") else p["name"]
-                for p in sig.parameters
+                f"{p['name']}: {p['type']}" if p.get("type") else p["name"] for p in sig.parameters
             )
             signature = f"def {sig.name}({params_str})"
             if sig.return_type:
@@ -1224,7 +1221,11 @@ class SearchService:
                 # LLM-assisted: use embedding similarity to estimate confidence
                 # Compare the chunk's embedding with a synthesized type-query embedding
                 try:
-                    type_desc = f"function returning {sig.return_type}" if sig.return_type else f"function {sig.name}"
+                    type_desc = (
+                        f"function returning {sig.return_type}"
+                        if sig.return_type
+                        else f"function {sig.name}"
+                    )
                     type_embedding = self._embedder.encode([type_desc], batch_size=1)
                     chunk_embedding = self._embedder.encode([chunk.text[:500]], batch_size=1)
                     if type_embedding is not None and chunk_embedding is not None:

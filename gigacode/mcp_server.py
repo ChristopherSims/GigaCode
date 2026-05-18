@@ -86,7 +86,9 @@ async def _run_stdio(tool: Any) -> None:
             return [
                 TextContent(
                     type="text",
-                    text=json.dumps({"status": "error", "message": f"Tool execution failed: {name}"}),
+                    text=json.dumps(
+                        {"status": "error", "message": f"Tool execution failed: {name}"}
+                    ),
                 )
             ]
         return [TextContent(type="text", text=_result_to_text(result))]
@@ -168,7 +170,9 @@ def _run_sse(tool: Any, host: str, port: int) -> None:
             return [
                 TextContent(
                     type="text",
-                    text=json.dumps({"status": "error", "message": f"Tool execution failed: {name}"}),
+                    text=json.dumps(
+                        {"status": "error", "message": f"Tool execution failed: {name}"}
+                    ),
                 )
             ]
         return [TextContent(type="text", text=_result_to_text(result))]
