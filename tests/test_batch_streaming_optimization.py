@@ -23,6 +23,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -65,14 +67,13 @@ def test_optimized_embedder():
         assert processor is not None
         print(f"[OK] Batch processor available: {type(processor).__name__}")
 
-        return True
     except ImportError as e:
         print(f"[WARNING] Model unavailable (expected): {e}")
         print("   OptimizedEmbedder structure is correct, model loading depends on environment")
-        return True
+        pytest.skip(f"Model unavailable in this environment: {e}")
     except Exception as e:
         print(f"[FAILED] Error: {e}")
-        return False
+        pytest.fail(f"OptimizedEmbedder test failed: {e}")
 
 
 def test_streaming_support():
@@ -120,13 +121,12 @@ def test_streaming_support():
             if chunks:
                 print(f"   First chunk: {chunks[0].type} - {chunks[0].name}")
 
-            return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Streaming support test failed: {e}")
 
 
 def test_large_file_detection():
@@ -150,10 +150,9 @@ def test_large_file_detection():
         assert not supports_streaming(large_size, threshold_mb=200)
         print("[OK] Custom threshold (200MB) working correctly")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
-        return False
+        pytest.fail(f"Large file detection test failed: {e}")
 
 
 if __name__ == "__main__":

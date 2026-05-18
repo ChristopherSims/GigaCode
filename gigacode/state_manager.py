@@ -10,7 +10,7 @@ import logging
 import os
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -23,6 +23,11 @@ except ImportError:
     HAS_FCNTL = False
 
 logger = logging.getLogger(__name__)
+
+
+def _utc_now_iso_z() -> str:
+    """Return an ISO-8601 UTC timestamp with a trailing Z."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 __all__ = [
@@ -212,7 +217,7 @@ class StateManager:
         """Append entry to write-ahead log."""
         entry = TransactionLog(
             transaction_id=transaction_id,
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=_utc_now_iso_z(),
             operation=operation,
             buffer_id=buffer_id,
             file_path=file_path,
@@ -279,9 +284,7 @@ class StateManager:
         if "dirty_files" not in self.registry[buffer_id]:
             self.registry[buffer_id]["dirty_files"] = {}
 
-        self.registry[buffer_id]["dirty_files"][file_path] = {
-            "modified_at": datetime.utcnow().isoformat() + "Z"
-        }
+        self.registry[buffer_id]["dirty_files"][file_path] = {"modified_at": _utc_now_iso_z()}
 
     def clear_dirty_files(self, buffer_id: str) -> None:
         """Clear dirty file tracking after commit."""
@@ -308,7 +311,7 @@ class StateManager:
 
         for cache_type in cache_types:
             self.registry[buffer_id]["cache_invalid"][cache_type] = {
-                "invalidated_at": datetime.utcnow().isoformat() + "Z"
+                "invalidated_at": _utc_now_iso_z()
             }
 
         logger.debug(f"Invalidated {cache_types} caches for buffer {buffer_id}")
@@ -375,7 +378,7 @@ class StateManager:
                     {
                         "transaction_id": transaction_id,
                         "status": "committed",
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso_z(),
                     }
                 )
                 + "\n"
@@ -390,7 +393,7 @@ class StateManager:
                     {
                         "transaction_id": transaction_id,
                         "status": "rolled_back",
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _utc_now_iso_z(),
                     }
                 )
                 + "\n"

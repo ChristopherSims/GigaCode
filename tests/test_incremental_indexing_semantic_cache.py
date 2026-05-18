@@ -22,6 +22,11 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
+if sys.version_info < (3, 10):
+    pytest.skip("GigaCode supports Python 3.10+ only", allow_module_level=True)
+
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -113,13 +118,12 @@ def test_chunk_diff_tracker():
         assert len(changed) == 1, "1 addition expected"
         print("[OK] Correctly detected 1 added chunk")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Chunk diff tracker test failed: {e}")
 
 
 def test_incremental_index_manager():
@@ -163,13 +167,12 @@ def test_incremental_index_manager():
         # Verify only changed chunk was embedded
         print(f"[OK] Embedded {new_embs.shape[0]} changed chunks (vs 2 total)")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Incremental index manager test failed: {e}")
 
 
 def test_semantic_cache():
@@ -217,13 +220,12 @@ def test_semantic_cache():
         assert len(cache_small._cache) == 2
         print(f"[OK] LRU eviction working (size: {len(cache_small._cache)}/2)")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Semantic cache test failed: {e}")
 
 
 def test_search_result_cache():
@@ -262,13 +264,12 @@ def test_search_result_cache():
         assert "search_cache_size" in stats
         print(f"[OK] Cache stats available: {stats['search_cache_size']} entries")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Search result cache test failed: {e}")
 
 
 def test_performance_comparison():
@@ -317,13 +318,12 @@ def test_performance_comparison():
         )
         print(f"[OK] Expected speedup: ~{100 / metadata['changed_count']:.1f}x (for this scenario)")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Performance comparison test failed: {e}")
 
 
 if __name__ == "__main__":

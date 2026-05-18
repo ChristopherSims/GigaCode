@@ -66,13 +66,12 @@ def test_index_type_selection():
         assert index_type == "ivf", f"Expected ivf override, got {index_type}"
         print(f"[OK] Force type override: {index_type}")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Index type selection test failed: {e}")
 
 
 def test_index_parameters():
@@ -106,13 +105,12 @@ def test_index_parameters():
             f"[OK] HNSW parameters: nlinks={params['nlinks']}, efConstruction={params['efConstruction']}"
         )
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Index parameter test failed: {e}")
 
 
 def test_faiss_integration():
@@ -157,16 +155,15 @@ def test_faiss_integration():
         assert info["ntotal"] == vector_count
         print(f"[OK] Index info: {info}")
 
-        return True
     except ImportError:
         print("[WARNING] FAISS not installed, skipping FAISS integration tests")
-        return True
+        pytest.skip("FAISS not installed")
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"FAISS integration test failed: {e}")
 
 
 def test_index_creation_performance():
@@ -232,16 +229,15 @@ def test_index_creation_performance():
             assert flat_times[1] > flat_times[0], "Creation time should increase with vector count"
             print("[OK] Performance scaling verified")
 
-        return True
     except ImportError:
         print("[WARNING] FAISS not installed, skipping performance tests")
-        return True
+        pytest.skip("FAISS not installed")
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Index creation performance test failed: {e}")
 
 
 def test_distance_metrics():
@@ -273,7 +269,7 @@ def test_distance_metrics():
 
         if index is None:
             print("[WARNING] FAISS not available")
-            return True
+            pytest.skip("FAISS not available")
 
         distances, indices = optimizer.search_index(index, query, k=3)
 
@@ -287,16 +283,15 @@ def test_distance_metrics():
             assert distances[i] <= distances[i + 1], "Distances should be sorted"
         print("[OK] Results sorted by distance")
 
-        return True
     except ImportError:
         print("[WARNING] FAISS not installed, skipping distance metric tests")
-        return True
+        pytest.skip("FAISS not installed")
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Distance metrics test failed: {e}")
 
 
 if __name__ == "__main__":

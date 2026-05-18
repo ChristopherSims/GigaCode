@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -79,13 +80,12 @@ def test_incremental_indexer_integration():
         assert hasattr(manager._incremental_manager, "_chunk_tracker")
         print("[OK] IncrementalIndexManager has _chunk_tracker")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Incremental indexer integration test failed: {e}")
 
 
 def test_semantic_cache_integration():
@@ -134,13 +134,12 @@ def test_semantic_cache_integration():
         assert stats["misses"] == 0
         print(f"[OK] Cache initialized empty: {stats}")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Semantic cache integration test failed: {e}")
 
 
 def test_gpu_index_faiss_integration():
@@ -162,13 +161,12 @@ def test_gpu_index_faiss_integration():
         assert index2.index_type == "flat"
         print(f"[OK] GPUIndex accepts index_type override: {index2.index_type}")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"GPU index FAISS integration test failed: {e}")
 
 
 def test_end_to_end_integration():
@@ -207,13 +205,12 @@ def test_end_to_end_integration():
         assert "misses" in cache_stats
         print(f"[OK] Components work together: cache_stats={cache_stats}")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"End-to-end integration test failed: {e}")
 
 
 def test_incremental_tracking_flow():
@@ -284,13 +281,12 @@ def test_incremental_tracking_flow():
         assert len(kept) == 2
         print("[OK] Change detection working: 0 changed, 0 removed, 2 kept")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Incremental tracking flow test failed: {e}")
 
 
 def test_semantic_cache_flow():
@@ -336,13 +332,12 @@ def test_semantic_cache_flow():
         assert stats["hits"] >= 1
         print(f"[OK] Cache stats updated: {stats}")
 
-        return True
     except Exception as e:
         print(f"[FAILED] Error: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        pytest.fail(f"Semantic cache flow test failed: {e}")
 
 
 if __name__ == "__main__":

@@ -467,11 +467,14 @@ class TestSetBufferState:
             cet._set_buffer_state(buffer_id, BufferState.DIRTY)
 
             # Verify persisted
-            registry_path = Path(tmpdir) / "registry.json"
-            assert registry_path.exists()
+            if cet._buffer_manager is not None:
+                registry_path = cet._buffer_manager._registry_path
+                assert registry_path.exists()
 
-            persisted = json.loads(registry_path.read_text())
-            assert persisted[buffer_id]["state"] == BufferState.DIRTY.value
+                persisted = json.loads(registry_path.read_text())
+                assert persisted[buffer_id]["state"] == BufferState.DIRTY.value
+            else:
+                assert cet._registry[buffer_id]["state"] == BufferState.DIRTY.value
 
     def test_set_buffer_state_updates_health_tracker(self):
         """Test state change updates health tracker."""

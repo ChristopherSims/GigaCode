@@ -9,11 +9,16 @@ import json
 import logging
 import difflib
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _utc_now_iso_z() -> str:
+    """Return an ISO-8601 UTC timestamp with a trailing Z."""
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 __all__ = [
@@ -126,7 +131,7 @@ class SnapshotManager:
         Returns:
             Created SnapshotManifest
         """
-        now = datetime.utcnow().isoformat() + "Z"
+        now = _utc_now_iso_z()
         file_metadata = {}
 
         for rel_path, file_path in files.items():
@@ -374,7 +379,7 @@ class SnapshotManager:
         if not self.manifest:
             return
 
-        now = datetime.utcnow().isoformat() + "Z"
+        now = _utc_now_iso_z()
 
         # Update metadata for changed files
         for rel_path, file_path in updated_files.items():
