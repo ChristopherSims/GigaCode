@@ -12,6 +12,7 @@ import ast
 import hashlib
 import logging
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -283,10 +284,18 @@ class SandboxExecutor:
         # Build wrapper script that injects root into sys.path and restricts builtins
         wrapper = self._build_python_wrapper(code)
 
-        # Write to temp file inside root_dir (so relative imports work)
-        script_path = self.root_dir / ".sandbox_exec.py"
+        # Write to a unique temp file inside root_dir so relative imports work
         try:
-            script_path.write_text(wrapper, encoding="utf-8")
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                suffix=".py",
+                prefix=".sandbox_exec_",
+                dir=self.root_dir,
+                delete=False,
+            ) as temp_file:
+                temp_file.write(wrapper)
+                script_path = Path(temp_file.name)
         except OSError as e:
             return ExecutionResult(
                 status="error",
@@ -438,9 +447,17 @@ class SandboxExecutor:
                 violations=violations,
             )
 
-        script_path = self.root_dir / ".sandbox_exec.js"
         try:
-            script_path.write_text(code, encoding="utf-8")
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                suffix=".js",
+                prefix=".sandbox_exec_",
+                dir=self.root_dir,
+                delete=False,
+            ) as temp_file:
+                temp_file.write(code)
+                script_path = Path(temp_file.name)
         except OSError as e:
             return ExecutionResult(
                 status="error",
