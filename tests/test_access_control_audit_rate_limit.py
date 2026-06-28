@@ -117,9 +117,15 @@ class TestAccessControl:
         """Test get_user creates if not exists."""
         ac = AccessControl()
 
+        # Default: unknown users get READER (read-only)
         user = ac.get_user("new_user")
         assert user.user_id == "new_user"
-        assert user.role == Role.ANALYST  # Default
+        assert user.role == Role.READER
+
+        # Opt-in: allow_auto_register=True gives ANALYST
+        user2 = ac.get_user("new_user2", allow_auto_register=True)
+        assert user2.user_id == "new_user2"
+        assert user2.role == Role.ANALYST
 
     def test_check_permission_allowed(self):
         """Test permission check when allowed."""

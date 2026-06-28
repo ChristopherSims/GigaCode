@@ -96,6 +96,30 @@ class IndexManager:
             embedder=self._embedder,
         )
 
+    @property
+    def index_cache(self):
+        """Public read-only access to the FAISS index cache."""
+        return self._index_cache
+
+    @property
+    def lexical_cache(self):
+        """Public read-only access to the BM25 lexical index cache."""
+        return self._lexical_cache
+
+    @property
+    def query_cache(self):
+        """Public read-only access to the query result cache."""
+        return self._query_cache
+
+    @property
+    def prometheus_exporter(self):
+        """Public access to the Prometheus metrics exporter."""
+        return self._prometheus_exporter
+
+    @prometheus_exporter.setter
+    def prometheus_exporter(self, value):
+        self._prometheus_exporter = value
+
     # ------------------------------------------------------------------
     # Index Caching
     # ------------------------------------------------------------------

@@ -10,7 +10,7 @@ def load_csv_rows(filepath):
         headers = [h.strip() for h in f.readline().split(",")]
         for line in f:
             values = line.strip().split(",")
-            rows.append(dict(zip(headers, values)))
+            rows.append(dict(zip(headers, values, strict=False)))
     return rows
 
 

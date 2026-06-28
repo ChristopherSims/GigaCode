@@ -5,6 +5,28 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-06-28
+
+### Fixed
+
+- **Thread-safety bug in `export_schemas()`** — `tool_schema.py` no longer swaps the module-level `ALL_SCHEMAS` global without a lock. Converter functions (`to_openai_functions`, `to_mcp_tools`, `to_anthropic_tools`, `to_ollama_tools`) now accept an optional `schemas` parameter instead of reading the global directly.
+- **Sandbox `sys` escape vector** — `execution_sandbox.py` now deletes `sys` from the wrapper's global namespace after sandbox setup, preventing user code from accessing `sys.modules` to reach banned modules.
+- **Non-constant-time API key comparison** — `gigacode_api.py` now uses `secrets.compare_digest()` instead of `!=` for API key validation.
+- **AGENT role ownership bypass** — `access_control.py` now enforces buffer ownership checks for `Role.AGENT` in addition to `Role.ANALYST`, matching the documented permission matrix.
+- **Unknown user auto-creation** — `get_user()` now defaults unknown users to `Role.VIEWER` (read-only). The previous behavior (auto-register as `Role.ANALYST`) is available via `allow_auto_register=True`.
+- **`__class__` in sandbox dunder whitelist** — removed `__class__` from the allowed dunder attributes in the sandbox AST scanner, closing a class-introspection escape path.
+- **Stale `__all__` exports** — removed non-existent `tokenizer` and `flatten` from `gigacode/__init__.py` `__all__`.
+- **Circular import `chunker` ↔ `context_assembler`** — `context_assembler.py` now uses `TYPE_CHECKING` for `CodeChunk` import with a lazy import at the single runtime construction site.
+
+### Changed
+
+- **Dependency sync** — `requirements.txt` rewritten to match `pyproject.toml` version floors. `torch` uncommented, `filelock` added.
+- **Formatter config** — removed `[tool.black]` section from `pyproject.toml`, added `[tool.ruff.format]` section. `black` removed from dev dependencies.
+- **CI quality gate** — removed `continue-on-error: true` from the test matrix job so test failures now block CI.
+- **Test exclusions** — `test_faiss_optimizer.py` and `test_gpu_id_integration.py` now use `pytest.mark.skipif` with conditional imports instead of CI `--ignore` flags.
+- **Private member access** — added public properties (`audit_logger`, `current_user_id`, `index_cache`, `lexical_cache`, `query_cache`, `prometheus_exporter`) to `ToolSecurityLayer`, `IndexManager`, and `SearchService`. `gigacode_tool.py` updated to use them instead of accessing private attributes directly.
+- **`sitecustomize.py` removed** — warning suppression is already handled by `tests/conftest.py`.
+
 ## [0.6.2] - 2026-05-18
 
 ### Added

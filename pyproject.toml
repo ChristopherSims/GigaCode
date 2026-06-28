@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gigacode"
-version = "0.6.1"
+version = "0.6.3"
 description = "GPU-accelerated code embedding and semantic search for AI agents"
 readme = "README.md"
 license = {text = "MIT"}
@@ -83,27 +83,13 @@ Issues = "https://github.com/gigacode-ai/gigacode/issues"
 packages = ["gigacode"]
 include-package-data = true
 
-[tool.black]
-line-length = 100
-target-version = ["py310", "py311", "py312", "py313"]
-extend-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
-
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.format]
+quote-style = "double"
+line-ending = "auto"
 
 [tool.ruff.lint]
 select = [
@@ -115,7 +101,7 @@ select = [
     "B",    # flake8-bugbear
 ]
 ignore = [
-    "E501",  # line too long (handled by black)
+    "E501",  # line too long (handled by ruff formatter)
     "B008",  # do not perform function calls in argument defaults
     "W293",  # blank line contains whitespace (docstrings)
     "F841",  # local variable assigned but never used (stubs, TODOs)

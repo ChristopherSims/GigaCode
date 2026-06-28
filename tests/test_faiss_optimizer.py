@@ -6,18 +6,6 @@ Tests cover:
 - Search performance comparison
 """
 
-# CRITICAL: Initialize sklearn FIRST before any gigacode imports
-import types
-
-try:
-    import sklearn
-
-    if getattr(sklearn, "__spec__", None) is None:
-        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
-except Exception:
-    pass
-
-
 import sys
 import time
 from pathlib import Path
@@ -28,7 +16,16 @@ import pytest
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from gigacode.faiss_optimizer import FAISSIndexOptimizer
+try:
+    from gigacode.faiss_optimizer import FAISSIndexOptimizer
+    _HAS_FAISS_OPTIMIZER = True
+except ImportError:
+    _HAS_FAISS_OPTIMIZER = False
+
+pytestmark = pytest.mark.skipif(
+    not _HAS_FAISS_OPTIMIZER,
+    reason="FAISS optimizer not available (GPU/FAISS dependency missing)",
+)
 
 
 class MockFAISS:

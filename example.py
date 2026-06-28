@@ -1,7 +1,8 @@
 """Fake example module for GigaCode skill demo."""
 
-import os
 import json
+import os
+
 
 def fetch_data(path):
     f = open(path, "r")
@@ -13,7 +14,7 @@ def fetch_data(path):
 def process(items):
     out = []
     for i in items:
-        if i.get("active") == True:
+        if i.get("active"):
             val = i["value"] * 2
             out.append(val)
     return out

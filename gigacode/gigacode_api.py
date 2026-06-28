@@ -27,6 +27,7 @@ FastAPI dependency injection:
 from __future__ import annotations
 
 import logging
+import secrets
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 
@@ -1284,7 +1285,7 @@ def create_production_app(
                 return await call_next(request)
 
             key = request.headers.get("X-API-Key")
-            if key != api_key:
+            if not secrets.compare_digest(key or "", api_key):
                 return JSONResponse(
                     status_code=401,
                     content={"status": "error", "message": "Invalid or missing API key"},

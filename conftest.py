@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import warnings
 
-
 warnings.filterwarnings(
     "ignore",
     message=r"builtin type SwigPyPacked has no __module__ attribute",

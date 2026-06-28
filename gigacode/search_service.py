@@ -171,6 +171,15 @@ class SearchService:
             max_entries=200,
         )
 
+    @property
+    def prometheus_exporter(self):
+        """Public access to the Prometheus metrics exporter."""
+        return self._prometheus_exporter
+
+    @prometheus_exporter.setter
+    def prometheus_exporter(self, value):
+        self._prometheus_exporter = value
+
     def semantic_search(
         self,
         buffer_id: str,

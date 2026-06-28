@@ -1,23 +1,23 @@
-# CRITICAL: Initialize sklearn FIRST before any gigacode imports
-import types
+"""Test GPU ID configuration integration across modules."""
 
-try:
-    import sklearn
-
-    if getattr(sklearn, "__spec__", None) is None:
-        sklearn.__spec__ = types.ModuleSpec("sklearn", getattr(sklearn, "__file__", None))
-except Exception:
-    pass
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add workspace root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from gigacode.gpu_index import GpuIndex
+try:
+    from gigacode.gpu_index import GpuIndex
+    _HAS_GPU_INDEX = True
+except ImportError:
+    _HAS_GPU_INDEX = False
 
-#!/usr/bin/env python3
-"""Test GPU ID configuration integration across modules."""
+pytestmark = pytest.mark.skipif(
+    not _HAS_GPU_INDEX,
+    reason="GpuIndex not available (GPU/FAISS dependency missing)",
+)
 
 
 def test_gpu_index_gpu_id_parameter():

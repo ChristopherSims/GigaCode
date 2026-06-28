@@ -25,11 +25,9 @@ import os
 os.environ["TORCH_COMPILE"] = "0"
 os.environ["TORCH_COMPILE_DEBUG"] = "0"
 
-__version__ = "0.6.1"
+__version__ = "0.6.3"
 __all__ = [
-    "tokenizer",
     "embedder",
-    "flatten",
     "diff_engine",
     "size_guard",
     "metadata_store",

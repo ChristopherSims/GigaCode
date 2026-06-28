@@ -66,6 +66,16 @@ class ToolSecurityLayer:
         # Register default user with AGENT role (full operational access for AI agents)
         self._access_control.register_user("default", Role.AGENT)
 
+    @property
+    def audit_logger(self):
+        """Public access to the audit logger."""
+        return self._audit_logger
+
+    @property
+    def current_user_id(self) -> str:
+        """Public access to the current user ID."""
+        return self._current_user_id
+
     def get_current_user(self):
         """Get current user object for role/permission checks."""
         return self._access_control.get_user(self._current_user_id)
