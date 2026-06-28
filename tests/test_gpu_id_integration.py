@@ -7,9 +7,9 @@ import pytest
 
 # Add workspace root to path
 sys.path.insert(0, str(Path(__file__).parent))
+from gigacode.gpu_index import GpuIndex
 
 try:
-    from gigacode.gpu_index import GpuIndex
     _HAS_GPU_INDEX = True
 except ImportError:
     _HAS_GPU_INDEX = False

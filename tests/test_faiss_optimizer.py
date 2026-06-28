@@ -15,9 +15,9 @@ import pytest
 
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from gigacode.faiss_optimizer import FAISSIndexOptimizer
 
 try:
-    from gigacode.faiss_optimizer import FAISSIndexOptimizer
     _HAS_FAISS_OPTIMIZER = True
 except ImportError:
     _HAS_FAISS_OPTIMIZER = False
