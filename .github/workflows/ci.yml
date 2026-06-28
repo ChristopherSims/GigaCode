@@ -119,7 +119,7 @@ jobs:
   # ------------------------------------------------------------------
   test:
     name: Test ${{ matrix.os }} / Py${{ matrix.python-version }}
-    needs: [lint, typecheck]
+    needs: [lint]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
