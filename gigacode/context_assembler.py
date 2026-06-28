@@ -10,11 +10,12 @@ import logging
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import numpy as np
 
-from gigacode.chunker import CodeChunk
+if TYPE_CHECKING:
+    from gigacode.chunker import CodeChunk
 
 logger = logging.getLogger(__name__)
 
@@ -342,6 +343,8 @@ class ContextAssembler:
 
         if target_chunk is None:
             # Create a synthetic chunk for the query range
+            from gigacode.chunker import CodeChunk  # lazy import to break circular dep
+
             target_chunk = CodeChunk(
                 id=-1,
                 file=file,

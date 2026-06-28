@@ -1,9 +1,8 @@
 # Core dependencies for GigaCode GPU-accelerated code embedding
-# Pin minor versions for reproducibility while allowing patch updates
-# Note: transformers>=4.42.0 fixes sklearn.__spec__ compatibility issue
-# scikit-learn 1.4.x uses pre-built wheels (1.5.0+ requires C compiler on Windows)
+# Generated from pyproject.toml — canonical source of truth
+# Install: pip install -e .  or  pip install -r requirements.txt
 numpy>=2.0.0
-#torch>=2.0.0,<2.10.0
+torch>=2.0.0
 scikit-learn>=1.6.0
 sentence-transformers>=5.0.0
 transformers>=5.8.0
@@ -33,6 +32,7 @@ pydantic>=2.13.0
 # Optional utilities
 watchdog>=6.0.0
 prometheus-client>=0.22.0
+filelock>=3.13.0
 
 # MCP (optional)
 mcp>=1.27.1
@@ -40,6 +40,5 @@ mcp>=1.27.1
 # Dev / test
 pytest>=9.0.0
 pytest-cov>=7.0.0
-black>=26.1.0
 ruff>=0.15.12
 mypy>=1.8.0

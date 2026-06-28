@@ -179,7 +179,7 @@ class _SecurityScanner(ast.NodeVisitor):
         # Detect dunder attribute access like __class__, __bases__, etc.
         if isinstance(node.attr, str) and node.attr.startswith("__") and node.attr.endswith("__"):
             # Allow a few safe dunders
-            if node.attr not in ("__name__", "__file__", "__doc__", "__class__"):
+            if node.attr not in ("__name__", "__file__", "__doc__"):
                 self.violations.append(f"Suspicious dunder access: {node.attr}")
         self.generic_visit(node)
 
@@ -388,6 +388,8 @@ class SandboxExecutor:
         wrapper_lines.append("}")
         wrapper_lines.append("builtins.__dict__.clear()")
         wrapper_lines.append("builtins.__dict__.update(_allowed)")
+        # Remove sys from wrapper globals to prevent sandbox escape via sys.modules
+        wrapper_lines.append("del sys")
         wrapper_lines.append("")
 
         # Ban file open attempts at runtime (last-resort guard)

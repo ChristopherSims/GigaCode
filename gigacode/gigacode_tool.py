@@ -188,8 +188,8 @@ class CodeEmbeddingTool:
                 state_manager=self._state_manager,
                 embedding_dim=self._embedding_dim,
                 threshold_mb=threshold_mb,
-                audit_logger=self._security._audit_logger,
-                user_id=self._security._current_user_id,
+                audit_logger=self._security.audit_logger,
+                user_id=self._security.current_user_id,
             )
 
             self._index_manager = IndexManager(
@@ -230,9 +230,9 @@ class CodeEmbeddingTool:
         # These are read-only views; mutations must go through IndexManager.
         # Guard against None managers for graceful degradation.
         if self._index_manager is not None:
-            self._index_cache = self._index_manager._index_cache
-            self._lexical_cache = self._index_manager._lexical_cache
-            self._query_cache = self._index_manager._query_cache
+            self._index_cache = self._index_manager.index_cache
+            self._lexical_cache = self._index_manager.lexical_cache
+            self._query_cache = self._index_manager.query_cache
         else:
             # Fallback empty caches when IndexManager unavailable
             from gigacode.lru_cache import LRUDict
@@ -248,7 +248,7 @@ class CodeEmbeddingTool:
         self._type_inference_cache = TypeInferenceCache()
 
         # Audit logger reference (shared with security layer)
-        self._audit_logger = self._security._audit_logger if self._security is not None else None
+        self._audit_logger = self._security.audit_logger if self._security is not None else None
 
         # Multi-buffer orchestration manager (aliases and virtual buffers)
         self._multi_buffer_manager = MultiBufferManager(self.work_dir)
@@ -270,8 +270,8 @@ class CodeEmbeddingTool:
                 self._prometheus_exporter.set_embedding_dimension(self._embedding_dim)
 
                 # Share Prometheus exporter with managers (always available now)
-                self._index_manager._prometheus_exporter = self._prometheus_exporter
-                self._search_service._prometheus_exporter = self._prometheus_exporter
+                self._index_manager.prometheus_exporter = self._prometheus_exporter
+                self._search_service.prometheus_exporter = self._prometheus_exporter
 
                 logger.info(f"Prometheus metrics endpoint enabled on port {prometheus_port}")
             except ImportError:

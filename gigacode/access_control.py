@@ -272,10 +272,17 @@ class AccessControl:
         self.users[user_id] = user
         return user
 
-    def get_user(self, user_id: str) -> User:
-        """Get or create user."""
+    def get_user(self, user_id: str, allow_auto_register: bool = False) -> User:
+        """Get or create user.
+
+        Args:
+            user_id: User identifier.
+            allow_auto_register: If True, auto-register unknown users as ANALYST.
+                If False (default), unknown users get VIEWER (read-only).
+        """
         if user_id not in self.users:
-            return self.register_user(user_id)
+            role = Role.ANALYST if allow_auto_register else Role.READER
+            return self.register_user(user_id, role=role)
         return self.users[user_id]
 
     def check_permission(
@@ -311,7 +318,7 @@ class AccessControl:
         }
 
         if permission in ownership_required:
-            if buffer_owner and user.role == Role.ANALYST:
+            if buffer_owner and user.role in (Role.ANALYST, Role.AGENT):
                 if not user.can_access_buffer("dummy", buffer_owner):
                     return (
                         False,

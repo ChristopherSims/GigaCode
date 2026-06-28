@@ -4523,14 +4523,21 @@ def get_all_schemas() -> list[dict[str, Any]]:
     return list(ALL_SCHEMAS)
 
 
-def to_openai_functions() -> list[dict[str, Any]]:
+def to_openai_functions(
+    schemas: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """Convert schemas to OpenAI function-calling format.
 
     Includes category, tags, read_only, side_effects, and composition hints
     as top-level metadata alongside the standard function definition.
+
+    Args:
+        schemas: Schema list to convert. Defaults to ALL_SCHEMAS.
     """
+    if schemas is None:
+        schemas = ALL_SCHEMAS
     functions: list[dict[str, Any]] = []
-    for schema in ALL_SCHEMAS:
+    for schema in schemas:
         func: dict[str, Any] = {
             "type": "function",
             "function": {
@@ -4552,13 +4559,20 @@ def to_openai_functions() -> list[dict[str, Any]]:
     return functions
 
 
-def to_mcp_tools() -> list[dict[str, Any]]:
+def to_mcp_tools(
+    schemas: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """Convert schemas to MCP tool format.
 
     Includes enriched metadata as annotations per the MCP spec.
+
+    Args:
+        schemas: Schema list to convert. Defaults to ALL_SCHEMAS.
     """
+    if schemas is None:
+        schemas = ALL_SCHEMAS
     tools: list[dict[str, Any]] = []
-    for schema in ALL_SCHEMAS:
+    for schema in schemas:
         tool: dict[str, Any] = {
             "name": schema["name"],
             "description": schema["description"],
@@ -4610,6 +4624,7 @@ class SchemaFormat(str, Enum):
 
 def to_anthropic_tools(
     *,
+    schemas: list[dict[str, Any]] | None = None,
     include_metadata: bool = True,
 ) -> list[dict[str, Any]]:
     """Convert schemas to Anthropic tool-use format.
@@ -4618,14 +4633,17 @@ def to_anthropic_tools(
     and optional ``cache_control`` for prompt caching.
 
     Args:
+        schemas: Schema list to convert. Defaults to ALL_SCHEMAS.
         include_metadata: If True, attach category/tags/read_only/side_effects
             as a ``x-gigacode`` extension dict. Default: True.
 
     Returns:
         List of Anthropic tool dicts ready for ``client.messages.create()``.
     """
+    if schemas is None:
+        schemas = ALL_SCHEMAS
     tools: list[dict[str, Any]] = []
-    for schema in ALL_SCHEMAS:
+    for schema in schemas:
         tool: dict[str, Any] = {
             "name": schema["name"],
             "description": schema["description"],
@@ -4649,6 +4667,7 @@ def to_anthropic_tools(
 
 def to_ollama_tools(
     *,
+    schemas: list[dict[str, Any]] | None = None,
     include_metadata: bool = True,
 ) -> list[dict[str, Any]]:
     """Convert schemas to Ollama tool format.
@@ -4657,6 +4676,7 @@ def to_ollama_tools(
     This is an alias for ``to_openai_functions()`` with metadata support.
 
     Args:
+        schemas: Schema list to convert. Defaults to ALL_SCHEMAS.
         include_metadata: If True, attach enriched metadata as top-level
             extension fields. Default: True.
 
@@ -4664,7 +4684,7 @@ def to_ollama_tools(
         List of Ollama-compatible function dicts.
     """
     # Ollama uses the OpenAI function-calling format
-    functions = to_openai_functions()
+    functions = to_openai_functions(schemas=schemas)
     if not include_metadata:
         # Strip metadata fields
         for func in functions:
@@ -4714,30 +4734,22 @@ def export_schemas(
     fmt = SchemaFormat(format)
 
     # Filter schemas if requested
-    global ALL_SCHEMAS
     source = ALL_SCHEMAS
     if category:
         source = [s for s in source if s.get("category") == category]
     if read_only_only:
         source = [s for s in source if s.get("read_only") is True]
 
-    # Temporarily swap ALL_SCHEMAS so converters work on the filtered set
-    original = ALL_SCHEMAS
-    ALL_SCHEMAS = source  # type: ignore[assignment]
-
-    try:
-        if fmt == SchemaFormat.OPENAI:
-            result = to_openai_functions()
-        elif fmt == SchemaFormat.ANTHROPIC:
-            result = to_anthropic_tools(include_metadata=include_metadata)
-        elif fmt == SchemaFormat.MCP:
-            result = to_mcp_tools()
-        elif fmt == SchemaFormat.OLLAMA:
-            result = to_ollama_tools(include_metadata=include_metadata)
-        else:
-            raise ValueError(f"Unsupported format: {format}")
-    finally:
-        ALL_SCHEMAS = original
+    if fmt == SchemaFormat.OPENAI:
+        result = to_openai_functions(schemas=source)
+    elif fmt == SchemaFormat.ANTHROPIC:
+        result = to_anthropic_tools(schemas=source, include_metadata=include_metadata)
+    elif fmt == SchemaFormat.MCP:
+        result = to_mcp_tools(schemas=source)
+    elif fmt == SchemaFormat.OLLAMA:
+        result = to_ollama_tools(schemas=source, include_metadata=include_metadata)
+    else:
+        raise ValueError(f"Unsupported format: {format}")
 
     return result
 
