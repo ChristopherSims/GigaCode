@@ -1,21 +1,15 @@
-# Core dependencies for GigaCode GPU-accelerated code embedding
+# Core dependencies for GigaCode
 # Generated from pyproject.toml — canonical source of truth
 # Install: pip install -e .  or  pip install -r requirements.txt
+#
+# For full semantic search: pip install -e ".[embed]"
+# For API server: pip install -e ".[server]"
+# For everything: pip install -e ".[all]"
+
+# Core (always required)
 numpy>=2.0.0
-torch>=2.0.0
-scikit-learn>=1.6.0
-sentence-transformers>=5.0.0
-transformers>=5.8.0
-
-# Vector search — install faiss-gpu for CUDA, faiss-cpu for CPU-only (default)
-# For GPU support, run: pip install ".[gpu]" or pip install faiss-gpu>=1.8.0
-faiss-cpu>=1.8.0
-
-# Code parsing and AST chunking
 tree-sitter>=0.23.0
 tree-sitter-python>=0.23.0
-
-# Multi-language tree-sitter grammars for AST-based chunking
 tree-sitter-javascript>=0.23.0
 tree-sitter-typescript>=0.23.0
 tree-sitter-rust>=0.23.0
@@ -23,18 +17,23 @@ tree-sitter-cpp>=0.23.0
 tree-sitter-go>=0.23.0
 tree-sitter-java>=0.23.0
 tree-sitter-c>=0.23.0
+filelock>=3.13.0
 
-# Server (optional — falls back to stdlib)
+# Embedding + semantic search (install with: pip install -e ".[embed]")
+torch>=2.0.0
+sentence-transformers>=5.0.0
+transformers>=5.8.0
+scikit-learn>=1.6.0
+faiss-cpu>=1.8.0
+
+# Server (install with: pip install -e ".[server]")
 fastapi>=0.128.0
 uvicorn[standard]>=0.39.0
 pydantic>=2.13.0
-
-# Optional utilities
 watchdog>=6.0.0
 prometheus-client>=0.22.0
-filelock>=3.13.0
 
-# MCP (optional)
+# MCP (install with: pip install -e ".[mcp]")
 mcp>=1.27.1
 
 # Dev / test

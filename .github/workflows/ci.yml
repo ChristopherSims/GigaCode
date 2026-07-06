@@ -12,10 +12,34 @@ env:
 
 jobs:
   # ------------------------------------------------------------------
+  # Version Consistency Check
+  # ------------------------------------------------------------------
+  version-check:
+    name: Version Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version consistency
+        run: |
+          V_INIT=$(grep '__version__' gigacode/__init__.py | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          V_TOML=$(grep '^version' pyproject.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          V_FILE=$(cat VERSION | tr -d '[:space:]')
+          echo "__init__.py: $V_INIT"
+          echo "pyproject.toml: $V_TOML"
+          echo "VERSION: $V_FILE"
+          if [ "$V_INIT" != "$V_TOML" ] || [ "$V_INIT" != "$V_FILE" ]; then
+            echo "ERROR: Version mismatch!"
+            exit 1
+          fi
+          echo "Version consistent: $V_INIT"
+
+  # ------------------------------------------------------------------
   # Lint & Format (fast feedback)
   # ------------------------------------------------------------------
   lint:
     name: Lint & Format
+    needs: [version-check]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

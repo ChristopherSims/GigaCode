@@ -1,0 +1,13 @@
+services:
+  gigacode:
+    build: .
+    ports:
+      - "8765:8765"
+    volumes:
+      - gigacode-buffers:/app/buffers
+    environment:
+      - GIGACODE_API_KEY=${GIGACODE_API_KEY:-}
+    restart: unless-stopped
+
+volumes:
+  gigacode-buffers:

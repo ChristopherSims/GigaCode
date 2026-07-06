@@ -47,7 +47,7 @@ jobs:
           retention-days: 5
 
   # ------------------------------------------------------------------
-  # Create GitHub Release
+  # Create GitHub Release (build + attach artifacts, no PyPI publish)
   # ------------------------------------------------------------------
   github-release:
     name: Create GitHub Release
@@ -72,6 +72,9 @@ jobs:
           echo "### Installation" >> RELEASE_NOTES.md
           echo '```bash' >> RELEASE_NOTES.md
           echo "pip install gigacode==$VERSION" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "# With semantic search support:" >> RELEASE_NOTES.md
+          echo "pip install 'gigacode[embed]==$VERSION'" >> RELEASE_NOTES.md
           echo '```' >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "### What's Changed" >> RELEASE_NOTES.md
@@ -84,5 +87,3 @@ jobs:
           files: dist/*
           draft: false
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
-
-

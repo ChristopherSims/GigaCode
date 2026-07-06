@@ -5,6 +5,41 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-07-03
+
+### Added — PyPI Deployment Readiness
+
+- **CLI entry points** — `gigacode`, `gigacode-server`, `gigacode-mcp`, `gigacode-skill` commands available after `pip install`.
+- **`__main__.py`** — `python -m gigacode` now works.
+- **`MANIFEST.in`** — sdist includes LICENSE, README, CHANGELOG, VERSION, and config examples.
+- **Optional dependency extras** — `embed`, `server`, `mcp`, `gpu`, `all` install profiles. Core install (`pip install gigacode`) now only requires tree-sitter + numpy (~50MB). Heavy ML deps (torch, sentence-transformers, faiss) are opt-in via `pip install "gigacode[embed]"`.
+- **PyPI trusted publishing** — release workflow uses OIDC trusted publishing (no API token needed). Pre-releases (rc/alpha/beta) go to TestPyPI; stable tags go to PyPI.
+- **TestPyPI pre-release pipeline** — alpha/beta/rc tags auto-publish to TestPyPI for testing before stable release.
+- **CI version consistency check** — CI job verifies `__init__.py`, `pyproject.toml`, and `VERSION` all match before running any other job.
+- **Dockerfile** (CPU) — Python 3.12-slim, pre-downloads embedding model, healthcheck, `gigacode-server` entrypoint.
+- **Dockerfile.gpu** — NVIDIA CUDA 12.1 base, faiss-gpu, for GPU-accelerated deployment.
+- **docker-compose.yml** — single-command deployment with persistent volume.
+- **`.dockerignore`** — excludes tests, docs, scripts, caches from Docker builds.
+- **`SECURITY.md`** — vulnerability reporting policy, sandbox limitations, API key guidance.
+- **`CONTRIBUTING.md`** — development setup, code style, testing, PR process, architecture overview.
+- **Model download warning** — `Embedder._load()` now logs a message before downloading a model on first use.
+- **Embedder install hint** — clear `pip install 'gigacode[embed]'` error message when sentence-transformers is missing.
+- **FastAPI import guard** — `gigacode_api.py` gracefully handles missing fastapi with clear install hint.
+- **README rewritten for PyPI** — install profiles, CLI commands, Docker quick start, PyPI badges, model download warning, links to all docs.
+
+### Changed
+
+- **Dependency split** — `torch`, `sentence-transformers`, `transformers`, `faiss-cpu`, `scikit-learn` moved from core deps to `[embed]` extra. `fastapi`, `uvicorn`, `pydantic`, `watchdog`, `prometheus-client` moved to `[server]` extra. `mcp` moved to `[mcp]` extra.
+- **`setuptools.packages.find`** — replaces hardcoded `packages = ["gigacode"]` for robust package discovery.
+- **`pyproject.toml` dependency versions** — synced with `requirements.txt` (numpy>=2.0.0, tree-sitter>=0.23.0, scikit-learn>=1.6.0, fastapi>=0.128.0, pydantic>=2.13.0, mcp>=1.27.1, watchdog>=6.0.0).
+- **`embedder.py`** — removed redundant `TORCH_COMPILE` env var setup and `import types` (handled by `__init__.py`).
+- **Release notes** — now include `pip install 'gigacode[embed]==$VERSION'` for extras-aware install.
+
+### Removed
+
+- **`black`** — removed from dev dependencies (project uses ruff for formatting).
+- **`sitecustomize.py`** — removed (warning suppression handled by `conftest.py`).
+
 ## [0.6.3] - 2026-06-28
 
 ### Fixed

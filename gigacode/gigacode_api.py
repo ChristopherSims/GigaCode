@@ -31,40 +31,53 @@ import secrets
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+try:
+    from fastapi import Depends, FastAPI, HTTPException, Request
+    from fastapi.responses import JSONResponse
+    from pydantic import BaseModel, Field
+    _HAS_FASTAPI = True
+except ImportError:
+    _HAS_FASTAPI = False
+    Depends = None  # type: ignore
+    FastAPI = None  # type: ignore
+    HTTPException = None  # type: ignore
+    Request = None  # type: ignore
+    JSONResponse = None  # type: ignore
+    BaseModel = object  # type: ignore
+    Field = None  # type: ignore
 
 from gigacode.gigacode_tool import CodeEmbeddingTool
-from gigacode.pydantic_models import (
-    AnalyzeChangeRequest,
-    AnalyzeChangeResponse,
-    AutoFormatRequest,
-    AutoLintRequest,
-    AutoPolishRequest,
-    AutoPolishResponse,
-    GetFullContextResponse,
-    GetReferencesRequest,
-    # Response models
-    GetReferencesResponse,
-    GetTestCoverageRequest,
-    GetTestCoverageResponse,
-    InferTypesRequest,
-    InferTypesResponse,
-    PolishBeforeCommitRequest,
-    PolishBeforeCommitResponse,
-    SearchBatchResponse,
-    SymbolMetadataResponse,
-)
-from gigacode.pydantic_models import (
-    GetFullContextRequest as FullContextRequest,
-)
-from gigacode.pydantic_models import (
-    GetSymbolMetadataRequest as SymbolMetadataRequest,
-)
-from gigacode.pydantic_models import (
-    SearchBatchRequest as BatchSearchRequest,
-)
+
+if _HAS_FASTAPI:
+    from gigacode.pydantic_models import (
+        AnalyzeChangeRequest,
+        AnalyzeChangeResponse,
+        AutoFormatRequest,
+        AutoLintRequest,
+        AutoPolishRequest,
+        AutoPolishResponse,
+        GetFullContextResponse,
+        GetReferencesRequest,
+        # Response models
+        GetReferencesResponse,
+        GetTestCoverageRequest,
+        GetTestCoverageResponse,
+        InferTypesRequest,
+        InferTypesResponse,
+        PolishBeforeCommitRequest,
+        PolishBeforeCommitResponse,
+        SearchBatchResponse,
+        SymbolMetadataResponse,
+    )
+    from gigacode.pydantic_models import (
+        GetFullContextRequest as FullContextRequest,
+    )
+    from gigacode.pydantic_models import (
+        GetSymbolMetadataRequest as SymbolMetadataRequest,
+    )
+    from gigacode.pydantic_models import (
+        SearchBatchRequest as BatchSearchRequest,
+    )
 from gigacode.server_dispatch import resolve_tool_method
 
 logger = logging.getLogger(__name__)
@@ -459,6 +472,11 @@ class AdaptSearchRequest(BaseModel):
 
 
 def create_app(tool: Any) -> FastAPI:
+    if not _HAS_FASTAPI:
+        raise ImportError(
+            "FastAPI is not installed. "
+            "Install with: pip install 'gigacode[server]'"
+        )
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.tool = tool

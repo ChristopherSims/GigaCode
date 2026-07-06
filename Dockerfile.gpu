@@ -1,0 +1,25 @@
+FROM nvidia/cuda:12.1-runtime-ubuntu22.04
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 python3-pip python3.12-venv \
+    build-essential libffi-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.12 /usr/bin/python
+
+WORKDIR /app
+
+COPY pyproject.toml README.md LICENSE VERSION CHANGELOG.md ./
+COPY gigacode/ gigacode/
+
+# Install with GPU extras (faiss-gpu instead of faiss-cpu)
+RUN pip install --no-cache-dir ".[embed,gpu,server]"
+
+# Pre-download the default embedding model (~160MB)
+RUN python -c "from gigacode.embedder import Embedder; Embedder()"
+
+EXPOSE 8765
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8765/health')" || exit 1
+
+ENTRYPOINT ["gigacode-server", "--host", "0.0.0.0", "--port", "8765"]

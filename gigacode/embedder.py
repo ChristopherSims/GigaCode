@@ -6,14 +6,9 @@ back to all-MiniLM-L6-v2 if unavailable.
 
 from __future__ import annotations
 
-# CRITICAL: Disable torch._dynamo before importing to prevent sklearn.__spec__ errors
-import os
-
-os.environ["TORCH_COMPILE"] = "0"
-os.environ["TORCH_COMPILE_DEBUG"] = "0"
+# torch._dynamo env vars are set in gigacode/__init__.py (runs on package import)
 
 import logging
-import types
 from typing import Any
 
 import numpy as np
@@ -65,8 +60,15 @@ class Embedder:
         )
 
     def _load(self, name: str) -> None:
-        from sentence_transformers import SentenceTransformer
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as exc:
+            raise ImportError(
+                "sentence-transformers is not installed. "
+                "Install with: pip install 'gigacode[embed]'"
+            ) from exc
 
+        logger.info("Loading embedding model '%s' (first use may download ~160MB)...", name)
         self._model = SentenceTransformer(name, device=self.device)
         self.model_name = name
         self._embedding_dim = int(self._model.get_embedding_dimension())

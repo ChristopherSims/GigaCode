@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+buffers/
+tests/
+scripts/
+examplecode/
+docs/
+*.egg-info/
+dist/
+build/
+sitecustomize.py
+IMPROVEMENT_PLAN.md
+PYPI_DEPLOYMENT_PLAN.md
