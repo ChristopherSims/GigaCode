@@ -6,11 +6,27 @@ import sys
 # Add parent directory to path to import gigacode
 sys.path.insert(0, os.path.abspath('..'))
 
+
+def _read_version() -> str:
+    """Read the single-source-of-truth version (pyproject -> VERSION)."""
+    version_file = os.path.join(os.path.abspath('..'), 'VERSION')
+    if os.path.exists(version_file):
+        with open(version_file, encoding='utf-8') as handle:
+            return handle.read().strip()
+    try:
+        from gigacode import __version__  # noqa: WPS433
+
+        return __version__
+    except Exception:  # pragma: no cover - docs must never fail on version read
+        return '0.0.0'
+
+
 # -- Project information
 project = 'GigaCode'
 copyright = '2025, GigaCode Contributors'
 author = 'GigaCode Contributors'
-release = '0.5.1'
+release = _read_version()
+version = release
 
 # -- General configuration
 extensions = [
@@ -21,7 +37,30 @@ extensions = [
 ]
 
 templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', '_build_check', 'Thumbs.db', '.DS_Store']
+
+# Optional / heavy imports are mocked so the docs build without the full
+# runtime dependency set installed.
+autodoc_mock_imports = [
+    'torch',
+    'sentence_transformers',
+    'transformers',
+    'sklearn',
+    'faiss',
+    'fastapi',
+    'uvicorn',
+    'pydantic',
+    'watchdog',
+    'prometheus_client',
+    'mcp',
+    'starlette',
+]
+
+# Docstring RST style issues in legacy docstrings should not fail the build;
+# all structural warnings (references, toctrees, duplicates) remain errors.
+suppress_warnings = [
+    'docutils',
+]
 
 # -- Options for HTML output
 html_theme = 'sphinx_rtd_theme'

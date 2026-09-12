@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gigacode"
-version = "0.7.0"
+version = "0.8.0"
 description = "GPU-accelerated code embedding and semantic search for AI agents"
 readme = "README.md"
 license = {text = "MIT"}
@@ -33,7 +33,9 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "numpy>=2.0.0",
+    # >=1.24 keeps compatibility with NGC PyTorch images built against numpy 1.x;
+    # the code uses no numpy-2-only APIs.
+    "numpy>=1.24",
     "tree-sitter>=0.23.0",
     "tree-sitter-python>=0.23.0",
     "tree-sitter-javascript>=0.23.0",
@@ -56,7 +58,9 @@ embed = [
 ]
 gpu = [
     "gigacode[embed]",
-    "faiss-gpu>=1.8.0",
+    # PyPI's legacy faiss-gpu does not resolve on current Python/CUDA; the
+    # community CUDA 12 build is the supported pip path on Linux.
+    "faiss-gpu-cu12>=1.8.0; sys_platform == 'linux'",
 ]
 server = [
     "fastapi>=0.128.0",
@@ -66,7 +70,8 @@ server = [
     "prometheus-client>=0.22.0",
 ]
 mcp = [
-    "mcp>=1.27.1",
+    # 1.x is the supported API surface (2.x changed Server/CallToolResult).
+    "mcp>=1.27.1,<2",
 ]
 all = [
     "gigacode[embed,server,mcp]",
@@ -76,6 +81,24 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.15.12",
     "mypy>=1.8.0",
+]
+# Dependencies required to run the full test suite.  Intentionally excludes the
+# heavy embedding stack (torch / sentence-transformers / faiss) so CI stays
+# fast; the embedding interface is exercised with lightweight doubles, and
+# tests that need the real stack opt in via importorskip.
+test = [
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.15.12",
+    "mypy>=1.8.0",
+    "fastapi>=0.128.0",
+    "uvicorn[standard]>=0.39.0",
+    "pydantic>=2.13.0",
+    "watchdog>=6.0.0",
+    "prometheus-client>=0.22.0",
+    "mcp>=1.27.1,<2",
+    "scikit-learn>=1.6.0",
+    "httpx>=0.27.0",
 ]
 docs = [
     "sphinx>=7.2.0",
@@ -101,6 +124,9 @@ exclude = ["tests*", "scripts*", "examplecode*"]
 
 [tool.setuptools]
 include-package-data = true
+
+[tool.setuptools.package-data]
+gigacode = ["gigacode.toml.example"]
 
 [tool.ruff]
 line-length = 100

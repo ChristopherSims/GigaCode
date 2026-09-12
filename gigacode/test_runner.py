@@ -270,7 +270,9 @@ class TestRunner:
         if extra_args:
             cmd.extend(extra_args)
 
-        # Try JSON report (pytest-json-report plugin)
+        # Try JSON report (pytest-json-report plugin).  The plugin may be
+        # missing, in which case pytest exits with a usage error without
+        # running anything — we must not treat that as a successful run.
         json_output: dict[str, Any] | None = None
         json_path = self.root_dir / ".pytest_test_runner_output.json"
         json_cmd = cmd + [
@@ -281,7 +283,7 @@ class TestRunner:
 
         t0 = __import__("time").perf_counter()
         try:
-            proc = subprocess.run(
+            json_proc = subprocess.run(
                 json_cmd,
                 capture_output=True,
                 text=True,
@@ -293,15 +295,18 @@ class TestRunner:
                     with open(json_path, "r", encoding="utf-8") as f:
                         json_output = json.load(f)
                 except (json.JSONDecodeError, OSError):
-                    pass
+                    json_output = None
                 finally:
                     try:
                         json_path.unlink()
                     except OSError:
                         pass
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-            # pytest not available — fall back to plain run
-            logger.warning(f"JSON report pytest failed ({e}), falling back to plain.")
+            logger.warning(f"JSON report pytest failed ({e}); falling back to plain run.")
+
+        # Fall back to a plain pytest run when the JSON report was unavailable
+        # (missing plugin, unreadable report, or the JSON invocation errored).
+        if json_output is None:
             try:
                 proc = subprocess.run(
                     cmd,
@@ -317,19 +322,22 @@ class TestRunner:
                     failed=0,
                     skipped=0,
                     total=0,
-                    duration_sec=0.0,
+                    duration_sec=__import__("time").perf_counter() - t0,
                     test_file_count=len(test_paths),
                     stdout="",
                     stderr=f"Could not run pytest: {e2}",
                     token_estimate=100,
                     impacted_files=test_paths,
                 )
+        else:
+            proc = json_proc
 
         duration = __import__("time").perf_counter() - t0
 
         # Parse results
         tests: list[TestResult] = []
         passed = failed = skipped = 0
+        collection_error = False
 
         if json_output:
             for test in json_output.get("tests", []):
@@ -361,20 +369,41 @@ class TestRunner:
 
             summary = json_output.get("summary", {})
             total = summary.get("total", len(tests))
+            if summary.get("error", 0):
+                collection_error = True
+            exit_code = json_output.get("exitcode")
+            if exit_code not in (None, 0, 1, 5):
+                collection_error = True
         else:
-            # Plain-text parse
-            total, passed, failed, skipped = self._parse_plain_output(
-                proc.stdout + proc.stderr, tests
-            )
+            output = proc.stdout + proc.stderr
+            total, passed, failed, skipped = self._parse_plain_output(output, tests)
+            lowered = output.lower()
+            if "error" in lowered and ("during collection" in lowered or "collecting" in lowered):
+                collection_error = True
+            rc = getattr(proc, "returncode", 0)
+            if rc not in (0, 1, 5) and total == 0:
+                collection_error = True
 
         token_estimate = len(proc.stdout + proc.stderr) // 4
+        total = total or len(tests)
+
+        # A run that collected zero tests is never a success.  Distinguish
+        # "nothing to run" from "pytest could not run / collection failed".
+        if total == 0:
+            status = (
+                "error"
+                if (collection_error or getattr(proc, "returncode", 0) not in (0, 5))
+                else "no_tests"
+            )
+        else:
+            status = "ok"
 
         return TestRunSummary(
-            status="ok",
+            status=status,
             passed=passed,
             failed=failed,
             skipped=skipped,
-            total=total or len(tests),
+            total=total,
             duration_sec=duration,
             test_file_count=len(test_paths),
             tests=tests,
@@ -394,37 +423,30 @@ class TestRunner:
         Returns (total, passed, failed, skipped).
         """
         total = passed = failed = skipped = 0
-        # Summary line: "3 passed, 1 failed, 2 skipped in 0.05s"
+        # Summary line: "3 passed, 1 failed, 2 skipped in 0.05s".  Prefer the
+        # final summary line; using a regex (rather than splitting on commas)
+        # tolerates the leading "====" decoration pytest prints around it.
+        count_re = re.compile(r"(\d+)\s+(passed|failed|skipped|error|errors)")
+        summary_line = None
         for line in output.splitlines():
             lower = line.lower()
-            if "passed" in lower or "failed" in lower or "skipped" in lower or "error" in lower:
-                # Try to extract counts
-                for token in lower.split(","):
-                    token = token.strip()
-                    for keyword, dest in [
-                        ("passed", "passed"),
-                        ("failed", "failed"),
-                        ("skipped", "skipped"),
-                        ("error", "failed"),
-                    ]:
-                        if keyword in token:
-                            try:
-                                count = int(token.split()[0])
-                                if dest == "passed":
-                                    passed += count
-                                elif dest == "failed":
-                                    failed += count
-                                elif dest == "skipped":
-                                    skipped += count
-                            except ValueError:
-                                pass
-                # Total
-                try:
-                    parts = lower.split("in")
-                    if len(parts) >= 2 and "s" in parts[-1]:
-                        total = passed + failed + skipped
-                except Exception:
-                    pass
+            if " in " in lower and count_re.search(lower):
+                summary_line = lower
+        if summary_line is None:
+            matches = count_re.findall(output.lower())
+        else:
+            matches = count_re.findall(summary_line)
+
+        for count_str, keyword in matches:
+            count = int(count_str)
+            if keyword.startswith("passed"):
+                passed += count
+            elif keyword.startswith("fail") or keyword.startswith("error"):
+                failed += count
+            elif keyword.startswith("skip"):
+                skipped += count
+        if matches:
+            total = passed + failed + skipped
 
         # Extract failures for tests_out
         current_failure: dict[str, Any] = {}

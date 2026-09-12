@@ -22,7 +22,7 @@ Make sure you have embedded a project. If not, see :doc:`basic_embed`:
 
     from gigacode import CodeEmbeddingTool
     
-    tool = CodeEmbeddingTool()
+    tool = CodeEmbeddingTool(work_dir="./buffers")
     buffer_id = tool.embed_codebase("/path/to/project")
 
 Basic Semantic Search
@@ -343,24 +343,18 @@ Group similar search results:
 
 .. code-block:: python
 
-    # Semantic search with clustering
+    # Semantic search
     results = tool.semantic_search(
-        buffer_id="my_project",
+        buffer_id=buffer_id,
         query="database access",
-        top_k=20
+        top_k=20,
     )
-    
-    # Cluster the results
-    clusters = tool.cluster_results(
-        results["matches"],
-        n_clusters=3
-    )
-    
-    # Display clusters
-    for i, cluster in enumerate(clusters):
-        print(f"\nCluster {i+1} ({len(cluster)} matches):")
-        for match in cluster:
-            print(f"  - {match['name']} ({match['file']})")
+
+    # NOTE: cluster_code() is not available in the current build and returns an
+    # explicit status="unavailable" result. Use find_duplicates() (below) to
+    # locate near-duplicate code instead.
+    for match in results["matches"]:
+        print(f"{match['file']}:{match['start_line']} - {match['name']}")
 
 Advanced: Finding Duplicates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -418,7 +412,7 @@ Here's a complete search workflow:
     from gigacode import CodeEmbeddingTool
     
     # Initialize
-    tool = CodeEmbeddingTool()
+    tool = CodeEmbeddingTool(work_dir="./buffers")
     buffer_id = tool.embed_codebase("/path/to/project")
     
     # Step 1: Broad semantic search

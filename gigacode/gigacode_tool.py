@@ -91,6 +91,31 @@ logger = logging.getLogger(__name__)
 json_logger = StructuredJsonLogger("tool")
 
 
+class _BaseChunkerAdapter:
+    """Minimal ``.chunk(code, file_path)`` adapter for profile chunking.
+
+    ``AdaptiveChunker`` expects a base chunker exposing ``chunk``; the module
+    level helpers in :mod:`gigacode.chunker` use ``chunk_text``.  This bridges
+    the two so the agent-profile tools have the component they require.
+    """
+
+    @staticmethod
+    def chunk(code: str, file_path: str) -> list[dict[str, Any]]:
+        try:
+            chunks = chunk_text(code, filename_hint=file_path)
+        except (OSError, ValueError, TypeError):
+            return []
+        return [
+            {
+                "content": getattr(chunk, "text", "") or "",
+                "type": str(getattr(chunk, "type", "code")),
+                "file": file_path,
+                "score": 1.0,
+            }
+            for chunk in chunks
+        ]
+
+
 class CodeEmbeddingTool:
     """Embed a codebase into GPU/CPU buffers and expose search + cluster.
 
@@ -127,6 +152,12 @@ class CodeEmbeddingTool:
         max_buffers: int = 10,
         enable_prometheus: bool = False,
         prometheus_port: int = DEFAULT_PROMETHEUS_PORT,
+        embedder: Any | None = None,
+        lazy_embedder: bool = True,
+        local_files_only: bool = False,
+        cache_folder: str | None = None,
+        tool_profile: str = "read_only",
+        allowed_tools: Any | None = None,
     ) -> None:
         """Initialize CodeEmbeddingTool.
 
@@ -140,7 +171,40 @@ class CodeEmbeddingTool:
             max_buffers: Max embedded codebases in memory (LRU limit, default 10).
             enable_prometheus: Enable Prometheus metrics export via HTTP (default False).
             prometheus_port: Port for /metrics endpoint (default 9090).
+            embedder: Optional caller-supplied embedding provider. Must expose a
+                positive integer ``embedding_dim`` and ``encode(texts)``.
+                When supplied, the bundled SentenceTransformers model is not
+                loaded and the embedding extra is not required.
+            lazy_embedder: When True (default) the bundled model is loaded on
+                first semantic use rather than at construction.
+            local_files_only: Do not download models; require a local cache.
+            cache_folder: Model cache directory (useful for offline operation).
+            tool_profile: Curated tool surface exposed to agents/servers. One of
+                ``"read_only"`` (default), ``"editing"``, or ``"full"``.
+            allowed_tools: Optional explicit iterable of tool names; overrides
+                ``tool_profile`` when provided.
         """
+        from gigacode.tool_schema import (
+            DEFAULT_TOOL_PROFILE,
+            get_profile_tool_names,
+            list_tool_profiles,
+        )
+
+        self.tool_profile = tool_profile
+        if allowed_tools is not None:
+            self._allowed_tools = frozenset(allowed_tools)
+        else:
+            if tool_profile not in list_tool_profiles():
+                raise ValueError(
+                    f"Unknown tool_profile: {tool_profile!r}. Choose from {list_tool_profiles()}."
+                )
+            self._allowed_tools = get_profile_tool_names(tool_profile)
+        if tool_profile == DEFAULT_TOOL_PROFILE and allowed_tools is None:
+            logger.info(
+                "Tool profile 'read_only': editing tools are hidden. Pass "
+                "tool_profile='editing' or 'full' to enable them."
+            )
+
         self.work_dir = Path(work_dir)
         self.work_dir.mkdir(parents=True, exist_ok=True)
         self.threshold_mb = threshold_mb
@@ -150,9 +214,24 @@ class CodeEmbeddingTool:
 
         from gigacode.embedder_optimizer import wrap_embedder_with_optimization
 
-        embedder = Embedder(model_name=model_name, device=device)
+        if embedder is not None:
+            from gigacode.embedding_provider import validate_embedding_provider
+
+            validate_embedding_provider(embedder)
+            base_embedder: Any = embedder
+            self._supplied_embedder = True
+        else:
+            base_embedder = Embedder(
+                model_name=model_name,
+                device=device,
+                lazy=lazy_embedder,
+                local_files_only=local_files_only,
+                cache_folder=cache_folder,
+            )
+            self._supplied_embedder = False
+
         self._embedder = wrap_embedder_with_optimization(
-            embedder=embedder,
+            embedder=base_embedder,
             use_batch_optimization=True,
             batch_threshold=100,
         )
@@ -209,6 +288,11 @@ class CodeEmbeddingTool:
             )
 
             logger.info("Integration: BufferManager, IndexManager, SearchService initialized")
+
+            # Reject an embedding provider whose dimension is incompatible with
+            # buffers already persisted in this workspace.
+            if self._supplied_embedder and self._embedding_dim > 0:
+                self._validate_embedding_compatibility()
         except (ImportError, ModuleNotFoundError) as e:
             # Optional dependencies (sklearn for SearchService) may be missing
             # Managers are still required for core functionality
@@ -284,6 +368,9 @@ class CodeEmbeddingTool:
         self._fallback_registry: dict[str, Any] = {}
         self._fallback_snapshot_managers: dict[str, Any] = {}
 
+        # Base chunker required by the agent-profile tooling
+        self._chunker = _BaseChunkerAdapter()
+
         # Lazy-initialized profile adapter for agent profile operations
         self._profile_adapter: ProfileAdapter | None = None
 
@@ -358,9 +445,19 @@ class CodeEmbeddingTool:
 
     @staticmethod
     def get_tool_schemas() -> list[dict[str, Any]]:
+        """Return the full tool catalog (all profiles)."""
         from gigacode.tool_schema import get_all_schemas
 
         return get_all_schemas()
+
+    def get_exposed_tool_schemas(self) -> list[dict[str, Any]]:
+        """Return only the schemas enabled by this instance's tool profile."""
+        schemas = self.get_tool_schemas()
+        return [s for s in schemas if s.get("name") in self._allowed_tools]
+
+    def is_tool_allowed(self, tool_name: str) -> bool:
+        """Return True if *tool_name* is enabled for this instance's profile."""
+        return tool_name in self._allowed_tools
 
     @staticmethod
     def validate_schemas() -> dict[str, Any]:
@@ -451,6 +548,46 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any] | None:
         """Thin wrapper to tool_validation.validate_search_params."""
         return tool_validation.validate_search_params(query, top_k=top_k, max_results=max_results)
+
+    def _validate_embedding_compatibility(self) -> None:
+        """Ensure a caller-supplied embedder matches persisted buffer dimensions.
+
+        Raises:
+            ValueError: If any existing buffer was indexed with a different
+                embedding dimension, which would make its vectors unusable.
+        """
+        if self._buffer_manager is None or self._embedding_dim <= 0:
+            return
+        mismatched: list[str] = []
+        for buffer_id, info in self._buffer_manager._registry.items():
+            stored = info.get("embedding_dim")
+            if isinstance(stored, int) and stored > 0 and stored != self._embedding_dim:
+                mismatched.append(f"{buffer_id} (dim={stored})")
+        if mismatched:
+            raise ValueError(
+                "Embedding dimension mismatch: supplied embedder has dim="
+                f"{self._embedding_dim}, but existing buffers use a different "
+                f"dimension: {', '.join(mismatched)}. Use a matching embedder or "
+                "re-embed those buffers."
+            )
+
+    def _ensure_embedder(self) -> None:
+        """Load the embedding backend before a semantic operation.
+
+        Lazily loading the bundled model keeps construction cheap and offline
+        safe.  Once a model reports its dimension, the manager layers are
+        updated so their indices use the real vector size.
+        """
+        ensure = getattr(self._embedder, "ensure_loaded", None)
+        if callable(ensure):
+            ensure()
+        dim = int(self._embedder.embedding_dim or 0)
+        if dim > 0 and dim != self._embedding_dim:
+            self._embedding_dim = dim
+            if self._index_manager is not None:
+                self._index_manager._embedding_dim = dim
+            if self._buffer_manager is not None:
+                self._buffer_manager._embedding_dim = dim
 
     # ------------------------------------------------------------------
     # Unified diff helper: Return the Diff
@@ -577,6 +714,10 @@ class CodeEmbeddingTool:
         """
         t0 = time.perf_counter()
         try:
+            # Load the model (if lazy) before size checks and index creation so
+            # the effective embedding dimension is known.
+            self._ensure_embedder()
+
             # Delegate to BufferManager: handle chunking, validation, registration
             buffer_id, chunks, files = self._buffer_manager.embed_codebase(
                 path=Path(path).resolve(),
@@ -642,6 +783,13 @@ class CodeEmbeddingTool:
                 message=str(e),
             )
             return {"status": "warning", "message": str(e)}
+        except ImportError as e:
+            json_logger.error(
+                operation="embed_codebase",
+                status="error",
+                message=f"Embedding backend unavailable: {e}",
+            )
+            return {"status": "error", "message": f"Embedding backend unavailable: {e}"}
         except (OSError, RuntimeError) as e:
             json_logger.error(
                 operation="embed_codebase",
@@ -654,8 +802,24 @@ class CodeEmbeddingTool:
     # Reload without re-embedding
     # ------------------------------------------------------------------
     def reload_codebase(self, buffer_id: str) -> dict[str, Any]:
-        """Reload codebase from disk, detecting external changes."""
-        return self._buffer_manager.reload_codebase(buffer_id, index_manager=self._index_manager)
+        """Reload codebase from disk, detecting external changes.
+
+        The buffer layer updates the source snapshot and dirty bookkeeping;
+        the re-chunking/embedding of externally changed files is performed
+        here so the semantic and lexical indexes stay consistent with the
+        reloaded content.
+        """
+        result = self._buffer_manager.reload_codebase(buffer_id, index_manager=None)
+        if result.get("status") in {"ok", "conflict"}:
+            merged = [
+                r["file"] for r in result.get("merge_results", []) if r.get("status") == "merged"
+            ]
+            if merged:
+                try:
+                    self._rebuild_files(buffer_id, merged)
+                except (OSError, ValueError, RuntimeError) as exc:
+                    logger.warning(f"Failed to rebuild index after reload: {exc}")
+        return result
 
     # ------------------------------------------------------------------
     # Search
@@ -3167,10 +3331,6 @@ class CodeEmbeddingTool:
             )
 
         try:
-            # Rebuild embeddings for dirty files before writing to disk
-            if not dry_run:
-                self._rebuild_files(buffer_id, list(dirty.keys()))
-
             # Use SnapshotManager for 3-way merge conflict handling
             snapshot_mgr = self._get_snapshot_manager(buffer_id)
             if snapshot_mgr is None:
@@ -3234,9 +3394,10 @@ class CodeEmbeddingTool:
                         # Successfully written
                         written.append(rel_path)
                         updated_files[rel_path] = disk_path
-                        new_hashes[rel_path] = hashlib.sha256(
-                            "\n".join(lines).encode("utf-8")
-                        ).hexdigest()
+                        new_hashes[rel_path] = (
+                            merge_result.get("hash")
+                            or hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
+                        )
                     else:
                         # Write error (not a conflict, but a real error)
                         self._state_manager.rollback_transaction(transaction_id)
@@ -3273,7 +3434,11 @@ class CodeEmbeddingTool:
 
                 # Commit transaction (WAL is updated)
                 self._state_manager.commit_transaction(transaction_id)
-                self._state_manager.save_registry()
+
+                # Rebuild the semantic/lexical indexes from the freshly written
+                # on-disk content, not the pre-edit disk contents.
+                if written:
+                    self._rebuild_files(buffer_id, written)
 
             result = {
                 "status": "conflict" if conflicts else "ok",
@@ -3409,22 +3574,57 @@ class CodeEmbeddingTool:
                         pass
 
         runner = TestRunner(chunks, root, language)
-        summary = runner.run_impacted(
+        impacted = runner.find_impacted_tests(
             modified_files=list(dirty.keys()),
             modified_symbols=modified_symbols if modified_symbols else None,
             top_k=top_k,
-            timeout=timeout,
         )
+        if not impacted:
+            return runner.run_tests([], timeout=timeout).to_dict()
 
-        # Append extra_args if provided
-        if extra_args and summary.status == "ok":
-            # Re-run with extra args (rare, but supported)
-            summary2 = runner.run_tests(
-                summary.impacted_files,
+        test_paths = [ch.file for ch in impacted]
+
+        # Stage the pending buffer edits in an isolated temporary copy of the
+        # workspace so tests exercise the uncommitted changes without touching
+        # the user's working files.
+        import shutil
+        import tempfile
+
+        temp_root = Path(tempfile.mkdtemp(prefix="gigacode-test-"))
+        try:
+            shutil.copytree(
+                root,
+                temp_root,
+                dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns(
+                    ".git",
+                    "__pycache__",
+                    "*.pyc",
+                    ".mypy_cache",
+                    ".pytest_cache",
+                    ".ruff_cache",
+                    ".venv",
+                    "venv",
+                    "node_modules",
+                ),
+            )
+            if snapshot is not None:
+                for rel_path in dirty:
+                    lines = snapshot.get(rel_path)
+                    if lines is None:
+                        continue
+                    target = temp_root / rel_path
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes("\n".join(lines).encode("utf-8"))
+
+            staged_runner = TestRunner(chunks, temp_root, language)
+            summary = staged_runner.run_tests(
+                test_paths,
                 timeout=timeout,
                 extra_args=extra_args,
             )
-            return summary2.to_dict()
+        finally:
+            shutil.rmtree(temp_root, ignore_errors=True)
 
         return summary.to_dict()
 
@@ -3935,6 +4135,7 @@ class CodeEmbeddingTool:
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return
+        self._ensure_embedder()
         buffer_dir = Path(info["buffer_dir"])
         chunks = self._load_chunks(buffer_id)
         if chunks is None:
@@ -7902,7 +8103,11 @@ class CodeEmbeddingTool:
             from gigacode.intent_router import IntentRouter
             from gigacode.solver import SolveExecutor, Solver
 
-            intent_router = IntentRouter()
+            intent_router = IntentRouter(
+                buffer_manager=self._buffer_manager,
+                search_service=self._search_service,
+                diff_engine=None,
+            )
             executor = SolveExecutor(
                 buffer_manager=self._buffer_manager,
                 search_service=self._search_service,

@@ -136,12 +136,29 @@ class IndexManager:
         # Try to load from disk
         buffer_dir = self.work_dir / f"{buffer_id}.gcbuff"
         index_path = buffer_dir / "index.faiss"
+        embeddings_path = buffer_dir / "embeddings.npy"
 
-        if not index_path.exists():
+        if not index_path.exists() and not embeddings_path.exists():
             return None
 
         try:
-            index = GpuIndex.load(str(index_path), use_gpu=self.use_gpu, gpu_id=self.gpu_id)
+            index = GpuIndex(
+                dim=self._embedding_dim,
+                use_gpu=self.use_gpu,
+                gpu_id=self.gpu_id,
+            )
+            if index_path.exists():
+                index.load(str(index_path))
+            else:
+                # Brute-force builds do not serialize an index.faiss; rebuild
+                # the index from the persisted embedding matrix instead.
+                embeddings = np.load(embeddings_path)
+                if embeddings.size == 0:
+                    return None
+                self._embedding_dim = int(embeddings.shape[1])
+                index.dim = self._embedding_dim
+                ids = np.arange(len(embeddings), dtype=np.int64)
+                index.add(ids, embeddings)
 
             # Pre-sync to GPU if enabled
             if self.use_gpu:

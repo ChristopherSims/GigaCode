@@ -32,27 +32,24 @@ Embed a codebase and run your first search:
 .. code-block:: python
 
     from gigacode import CodeEmbeddingTool
-    
-    # Initialize GigaCode
-    tool = CodeEmbeddingTool(work_dir="/tmp/gigacode")
-    
-    # Embed a codebase
-    buffer_id = tool.embed_codebase(
-        path="/path/to/my/project",
-        buffer_id="my_project"
-    )
-    print(f"✓ Embedded project: {buffer_id}")
-    
-    # Search for code
-    results = tool.semantic_search(
-        buffer_id=buffer_id,
-        query="find the initialization function",
-        top_k=5
-    )
-    
-    # Display results
-    for match in results["matches"]:
-        print(f"{match['file']}:{match['start_line']} - {match['name']}")
+
+    # Initialize GigaCode (buffers are persisted under work_dir)
+    with CodeEmbeddingTool(work_dir="/tmp/gigacode", device="cpu") as tool:
+        # Embed a codebase
+        result = tool.embed_codebase("/path/to/my/project", pattern="*.py")
+        buffer_id = result["buffer_id"]
+        print(f"Embedded project: {buffer_id}")
+
+        # Search for code
+        results = tool.semantic_search(
+            buffer_id=buffer_id,
+            query="find the initialization function",
+            top_k=5,
+        )
+
+        # Display results
+        for match in results["matches"]:
+            print(f"{match['file']}:{match['start_line']} - {match['name']}")
 
 What's Next?
 ~~~~~~~~~~~~
@@ -79,35 +76,36 @@ Common Tasks
 
 .. code-block:: python
 
+    # Replace line 12 of database.py (buffer only; disk unchanged until commit)
     tool.write_code(
-        buffer_id="my_project",
+        buffer_id=buffer_id,
         file="database.py",
-        content=new_content
+        start_line=12,
+        new_lines=["    pool = create_pool(max_size=10)"],
+        end_line=12,
     )
-    
-    tool.commit(
-        buffer_id="my_project",
-        files=["database.py"],
-        message="Optimize connection pooling"
-    )
+    tool.diff(buffer_id)                 # preview the change
+    tool.commit(buffer_id)               # write to disk
 
 **Find duplicate code:**
 
 .. code-block:: python
 
     duplicates = tool.find_duplicates(
-        buffer_id="my_project",
-        threshold=0.95
+        buffer_id=buffer_id,
+        threshold=0.95,
     )
 
 **Cluster similar functions:**
 
+.. note::
+
+   Clustering is not available in the current build; ``cluster_code`` returns
+   an explicit ``status: "unavailable"`` result rather than an empty success.
+
 .. code-block:: python
 
-    clusters = tool.cluster_code(
-        buffer_id="my_project",
-        n_clusters=10
-    )
+    clusters = tool.cluster_code(buffer_id=buffer_id, threshold=0.75)
 
 Troubleshooting
 ~~~~~~~~~~~~~~~

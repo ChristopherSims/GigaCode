@@ -6,9 +6,21 @@ from collections.abc import Callable
 from typing import Any
 
 
+def get_published_schemas(tool: Any) -> list[Any]:
+    """Return the schemas a tool actually exposes.
+
+    Prefers ``get_exposed_tool_schemas`` (profile-filtered) so the tool
+    profile is enforced at execution time, not just during discovery.
+    """
+    exposed = getattr(tool, "get_exposed_tool_schemas", None)
+    if callable(exposed):
+        return exposed()
+    return tool.get_tool_schemas()
+
+
 def get_allowed_tool_names(tool: Any) -> set[str]:
-    """Return the published tool names exposed by the schema layer."""
-    schemas = tool.get_tool_schemas()
+    """Return the tool names actually exposed by the tool's profile."""
+    schemas = get_published_schemas(tool)
     return {
         schema["name"]
         for schema in schemas

@@ -21,6 +21,15 @@ def _utc_now_iso_z() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _detect_newline(raw: bytes) -> str:
+    """Detect the dominant line ending used by a file's raw bytes."""
+    if b"\r\n" in raw:
+        return "\r\n"
+    if b"\r" in raw:
+        return "\r"
+    return "\n"
+
+
 __all__ = [
     "FileMetadata",
     "SnapshotManifest",
@@ -38,6 +47,8 @@ class FileMetadata:
     size: int
     hash: str  # SHA-256 of file content at snapshot time
     lines: Optional[int] = None  # Number of lines (cached for reference)
+    newline: str = "\n"  # Dominant line ending ("\n", "\r\n", or "\r")
+    final_newline: bool = True  # Whether the file ended with a newline
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dict for JSON serialization."""
@@ -57,7 +68,13 @@ class FileMetadata:
         lines = len(content.decode("utf-8", errors="ignore").splitlines())
 
         return cls(
-            path=str(file_path), mtime=stat.st_mtime, size=stat.st_size, hash=hash_val, lines=lines
+            path=str(file_path),
+            mtime=stat.st_mtime,
+            size=stat.st_size,
+            hash=hash_val,
+            lines=lines,
+            newline=_detect_newline(content),
+            final_newline=content.endswith((b"\n", b"\r")),
         )
 
 
@@ -284,6 +301,7 @@ class SnapshotManager:
         if not self.manifest:
             return {
                 "disk_lines": None,
+                "disk_changed": False,
                 "snapshot_lines": None,
                 "buffer_lines": buffer_lines,
                 "has_conflict": False,
@@ -295,31 +313,60 @@ class SnapshotManager:
         # Get snapshot metadata
         meta = self.manifest.files.get(relative_path)
         snapshot_line_count = meta.lines if meta else None
+        snapshot_hash = meta.hash if meta else None
+
+        # Detect external changes by content hash, not line count.  An external
+        # edit that preserves the line count must still be detected.
+        disk_changed = self.is_disk_changed(relative_path)
 
         # If buffer not provided, use disk
         if buffer_lines is None:
             buffer_lines = disk_lines
 
-        # Detect 3-way conflicts
-        has_conflict = False
-        if disk_lines and buffer_lines:
-            # Conflict if disk changed AND buffer is different from snapshot
-            if len(disk_lines) != snapshot_line_count:
-                # Disk was modified externally
-                if buffer_lines != disk_lines:
-                    # Buffer also has changes
-                    has_conflict = True
-                    logger.warning(
-                        f"3-way merge conflict in {relative_path}: "
-                        f"disk modified AND buffer modified"
-                    )
+        # Conflict if the file changed on disk AND the buffer differs from the
+        # current disk contents (i.e. the buffer also holds unsaved edits).
+        has_conflict = bool(
+            disk_changed and buffer_lines is not None and buffer_lines != disk_lines
+        )
+        if has_conflict:
+            logger.warning(
+                f"3-way merge conflict in {relative_path}: disk modified AND buffer modified"
+            )
 
         return {
             "disk_lines": disk_lines,
+            "disk_changed": disk_changed,
             "snapshot_line_count": snapshot_line_count,
+            "snapshot_hash": snapshot_hash,
             "buffer_lines": buffer_lines,
             "has_conflict": has_conflict,
         }
+
+    def is_disk_changed(self, relative_path: str) -> bool:
+        """Return True if the file on disk differs from the snapshot hash.
+
+        Uses content hashes rather than line counts so external edits that
+        preserve the number of lines are still detected.  Files that are
+        missing on disk are treated as changed.
+        """
+        if not self.manifest:
+            return False
+
+        meta = self.manifest.files.get(relative_path)
+        if meta is None:
+            return False
+
+        file_path = Path(self.manifest.root_path) / relative_path
+        if not file_path.exists():
+            return True
+
+        try:
+            new_hash = hashlib.sha256(file_path.read_bytes()).hexdigest()
+        except OSError as e:
+            logger.warning(f"Failed to hash {relative_path}: {e}")
+            return True
+
+        return new_hash != meta.hash
 
     def write_file_with_merge(
         self, relative_path: str, buffer_lines: list[str], allow_conflicts: bool = False
@@ -336,6 +383,7 @@ class SnapshotManager:
             - "status": "ok" or "error"
             - "conflict": True if 3-way conflict detected
             - "merged": True if automatic merge applied
+            - "hash": SHA-256 of the bytes written (when status == "ok")
             - "message": Error/info message
         """
         if not self.manifest:
@@ -356,14 +404,36 @@ class SnapshotManager:
         file_path = root / relative_path
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Preserve the original line endings and trailing-newline behaviour so a
+        # commit of a CRLF file does not silently rewrite it as LF (or vice versa).
+        meta = self.manifest.files.get(relative_path)
+        newline = meta.newline if meta else "\n"
+        final_newline = meta.final_newline if meta else True
+        if meta is None:
+            try:
+                existing = file_path.read_bytes()
+                newline = _detect_newline(existing)
+                final_newline = existing.endswith((b"\n", b"\r"))
+            except OSError:
+                pass
+
         try:
-            file_path.write_text("\n".join(buffer_lines), encoding="utf-8")
+            text = newline.join(buffer_lines)
+            if final_newline and buffer_lines:
+                text += newline
+            data = text.encode("utf-8")
+            # write_bytes avoids the platform newline translation that
+            # write_text() performs (LF -> CRLF on Windows).
+            file_path.write_bytes(data)
+            new_hash = hashlib.sha256(data).hexdigest()
             logger.debug(f"Wrote {relative_path} ({len(buffer_lines)} lines)")
 
             return {
                 "status": "ok",
                 "conflict": diff["has_conflict"],
                 "merged": True,
+                "hash": new_hash,
+                "bytes": len(data),
                 "message": "File written successfully",
             }
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:

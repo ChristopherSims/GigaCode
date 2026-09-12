@@ -48,9 +48,9 @@ def test_embed_and_search(tmp_path: Path) -> None:
     else:
         assert search.get("message") or search.get("error")
 
-    # Clustering
+    # Clustering (may report "unavailable" in builds without the capability)
     clusters = tool.cluster_code(buf_id, threshold=0.5)
-    assert clusters["status"] in {"ok", "error"}
+    assert clusters["status"] in {"ok", "error", "unavailable"}
     if clusters["status"] == "ok":
         assert len(clusters["clusters"]) >= 0
     else:

@@ -84,12 +84,13 @@ def _install_sentence_transformers_shim() -> None:
     shim.__spec__ = importlib.util.spec_from_loader(module_name, loader=None)
 
     class SentenceTransformer:
-        def __init__(self, model_name: str, device: Optional[str] = None):
+        def __init__(self, model_name: str, device: Optional[str] = None, **kwargs):
             self.model_name = model_name
             self.device = device
+            self.extra_kwargs = kwargs
             self._embedding_dim = 384
 
-        def get_embedding_dimension(self) -> int:
+        def get_sentence_embedding_dimension(self) -> int:
             return self._embedding_dim
 
         def encode(

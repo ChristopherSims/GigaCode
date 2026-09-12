@@ -47,11 +47,49 @@ jobs:
           retention-days: 5
 
   # ------------------------------------------------------------------
-  # Create GitHub Release (build + attach artifacts, no PyPI publish)
+  # Verify the exact artifacts that will be released
+  # ------------------------------------------------------------------
+  verify:
+    name: Verify Artifacts
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-dist
+          path: dist/
+
+      - name: Install core wheel, run pip check and smoke test
+        shell: bash
+        run: |
+          python -m venv .venv-verify
+          WHL=$(ls dist/*.whl | head -1)
+          .venv-verify/bin/python -m pip install "$WHL"
+          .venv-verify/bin/python -m pip check
+          .venv-verify/bin/python scripts/smoke_test.py
+
+      - name: Install server + MCP wheel and import surfaces
+        shell: bash
+        run: |
+          WHL=$(ls dist/*.whl | head -1)
+          .venv-verify/bin/python -m pip install "gigacode[server,mcp] @ file://$PWD/$WHL"
+          .venv-verify/bin/python -m pip check
+          .venv-verify/bin/python -c "from gigacode.gigacode_server import main; from gigacode.mcp_server import main as mcp_main; print('server+mcp OK')"
+
+  # ------------------------------------------------------------------
+  # Create GitHub Release (build + attach artifacts)
   # ------------------------------------------------------------------
   github-release:
     name: Create GitHub Release
-    needs: [build]
+    needs: [verify]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,12 +108,20 @@ jobs:
           echo "## GigaCode $VERSION" > RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "### Installation" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "Download the wheel (or sdist) from the assets below, then install it locally:" >> RELEASE_NOTES.md
           echo '```bash' >> RELEASE_NOTES.md
-          echo "pip install gigacode==$VERSION" >> RELEASE_NOTES.md
+          echo "pip install ./gigacode-$VERSION-py3-none-any.whl" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "# With semantic search support:" >> RELEASE_NOTES.md
-          echo "pip install 'gigacode[embed]==$VERSION'" >> RELEASE_NOTES.md
+          echo "pip install './gigacode-$VERSION-py3-none-any.whl[embed]'" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "# With API server / MCP:" >> RELEASE_NOTES.md
+          echo "pip install './gigacode-$VERSION-py3-none-any.whl[embed,server,mcp]'" >> RELEASE_NOTES.md
           echo '```' >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "MCP servers expose a curated read-only tool profile by default;" >> RELEASE_NOTES.md
+          echo "run with \`--tool-profile editing\` to enable write/commit tools." >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "### What's Changed" >> RELEASE_NOTES.md
           echo "See [CHANGELOG.md](https://github.com/gigacode-ai/gigacode/blob/main/CHANGELOG.md) for full details." >> RELEASE_NOTES.md

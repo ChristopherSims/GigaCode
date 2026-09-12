@@ -387,6 +387,7 @@ class SearchService:
         query: str,
         top_k: int = DEFAULT_TOP_K,
         semantic_weight: float = 0.6,
+        lexical_weight: float | None = None,
     ) -> SearchResponse | dict[str, Any]:
         """Perform hybrid search (semantic + lexical).
 
@@ -395,6 +396,8 @@ class SearchService:
             query: Search query string
             top_k: Number of top results to return
             semantic_weight: Weight for semantic results (0.0-1.0)
+            lexical_weight: Weight for lexical results (0.0-1.0).  Defaults to
+                ``1 - semantic_weight`` when not supplied.
 
         Returns:
             SearchResponse with deduplicated matches or error dict
@@ -415,7 +418,10 @@ class SearchService:
                 top_k = min(max(top_k, 1), 1000)
 
             semantic_weight = max(0.0, min(semantic_weight, 1.0))
-            lexical_weight = 1.0 - semantic_weight
+            if lexical_weight is None:
+                lexical_weight = 1.0 - semantic_weight
+            else:
+                lexical_weight = max(0.0, min(lexical_weight, 1.0))
 
             # Get indices
             semantic_index = self._index_manager._get_index(buffer_id)
@@ -438,24 +444,33 @@ class SearchService:
             )
 
             # Lexical search
-            lexical_results = lexical_index.search(normalized_query, k=top_k)
+            lexical_results = lexical_index.search(normalized_query, top_k=top_k)
 
-            # Combine results
-            combined_matches = []
+            # Combine the two ranked lists with weighted Reciprocal Rank Fusion.
+            from gigacode.hybrid_search import reciprocal_rank_fusion
 
-            # Manual combination (RRF approach)
-            semantic_dict = {}
-            for idx, score in zip(
-                semantic_indices[0][:top_k], semantic_scores[0][:top_k], strict=False
-            ):
-                if idx >= 0 and idx < len(chunks):
-                    chunk = chunks[idx]
-                    key = (chunk.file, chunk.start_line)
-                    if key not in semantic_dict:
-                        semantic_dict[key] = (score, chunk)
+            semantic_results = [
+                {"doc_id": int(idx), "score": float(score)}
+                for idx, score in zip(
+                    semantic_indices[0][:top_k], semantic_scores[0][:top_k], strict=False
+                )
+                if 0 <= int(idx) < len(chunks)
+            ]
 
-            for match in semantic_dict.values():
-                score, chunk = match
+            fused = reciprocal_rank_fusion(
+                semantic_results=semantic_results,
+                lexical_results=lexical_results,
+                semantic_weight=semantic_weight,
+                lexical_weight=lexical_weight,
+                top_k=top_k,
+            )
+
+            combined_matches: list[SearchMatch] = []
+            for entry in fused:
+                idx = entry.get("doc_id")
+                if not isinstance(idx, int) or not (0 <= idx < len(chunks)):
+                    continue
+                chunk = chunks[idx]
                 combined_matches.append(
                     SearchMatch(
                         file=chunk.file,
@@ -463,7 +478,7 @@ class SearchService:
                         end_line=chunk.end_line,
                         type=chunk.type,
                         name=chunk.name,
-                        score=float(score) * semantic_weight,
+                        score=float(entry.get("rrf_score", 0.0)),
                         text=chunk.text,
                     )
                 )
@@ -826,13 +841,8 @@ class SearchService:
         operation = "cluster_code"
 
         try:
-            if not HAS_SKLEARN:
-                return {
-                    "status": "error",
-                    "error": "sklearn not available for clustering",
-                    "buffer_id": buffer_id,
-                }
-
+            # Validate inputs before checking optional dependencies so invalid
+            # requests are reported as errors regardless of the environment.
             if not buffer_id or n_clusters < 1:
                 return {
                     "status": "error",
@@ -851,10 +861,23 @@ class SearchService:
                     "buffer_id": buffer_id,
                 }
 
-            # Get embeddings from index - skip clustering for now due to FAISS API issues
-            logger.warning("Clustering disabled due to FAISS API instability")
+            if not HAS_SKLEARN:
+                return {
+                    "status": "unavailable",
+                    "message": "Clustering requires scikit-learn (install 'gigacode[embed]').",
+                    "buffer_id": buffer_id,
+                }
+
+            # Clustering is not implemented in this build.  Report it as
+            # unavailable rather than returning a successful empty result.
+            logger.warning("Clustering requested but the capability is unavailable")
             return {
-                "status": "ok",
+                "status": "unavailable",
+                "message": (
+                    "Clustering is not available in this build. It will be "
+                    "reported as an explicit capability gap rather than an "
+                    "empty successful result."
+                ),
                 "clusters": {},
                 "buffer_id": buffer_id,
             }

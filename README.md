@@ -1,6 +1,5 @@
 # GigaCode
 
-[![PyPI version](https://img.shields.io/pypi/v/gigacode.svg?style=for-the-badge)](https://pypi.org/project/gigacode/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-yellow?style=for-the-badge)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/github/actions/workflow/status/gigacode-ai/gigacode/ci.yml?style=for-the-badge)](https://github.com/gigacode-ai/gigacode/actions)
@@ -15,24 +14,39 @@ Optimized for AI agent loops: fast AST chunking, sub-millisecond search on GPU, 
 
 ## Install
 
+GigaCode is distributed as source and as prebuilt wheels attached to
+[GitHub releases](https://github.com/gigacode-ai/gigacode/releases). It is not
+published to PyPI.
+
 ```bash
+# From a checkout
+git clone https://github.com/gigacode-ai/gigacode.git
+cd gigacode
+
 # Core only (chunking + lexical search, ~50MB deps)
-pip install gigacode
+pip install .
 
 # With semantic search (torch + sentence-transformers + faiss, ~3GB deps)
-pip install "gigacode[embed]"
+pip install ".[embed]"
 
 # With API server
-pip install "gigacode[embed,server]"
+pip install ".[embed,server]"
 
-# With GPU acceleration (requires CUDA)
-pip install "gigacode[embed,gpu]"
+# With GPU acceleration (requires CUDA; Linux)
+pip install ".[embed,gpu]"
 
 # Everything
-pip install "gigacode[all]"
+pip install ".[all]"
 
-# Development
-pip install "gigacode[all,dev]"
+# Development / tests
+pip install ".[test]"
+```
+
+From a downloaded release wheel instead of a checkout:
+
+```bash
+pip install ./gigacode-<version>-py3-none-any.whl
+pip install './gigacode-<version>-py3-none-any.whl[embed,server]'
 ```
 
 **System Requirements:**
@@ -78,6 +92,43 @@ gigacode-skill example.py
 # Or via python -m
 python -m gigacode --work-dir ./buffers
 ```
+
+## MCP Client Configuration
+
+MCP servers expose a curated **read-only** tool profile by default. Add `--tool-profile editing` (or `full`) to enable `write_code`, `commit`, and other mutating tools.
+
+**Local stdio (Claude Desktop, most agents):**
+
+```json
+{
+  "mcpServers": {
+    "gigacode": {
+      "command": "gigacode-mcp",
+      "args": ["--work-dir", "/absolute/path/to/buffers"]
+    }
+  }
+}
+```
+
+**Remote Streamable HTTP (requires auth for non-local bind):**
+
+```bash
+gigacode-mcp --transport streamable-http --host 0.0.0.0 --port 8766 \
+  --api-key "$GIGACODE_API_KEY" --tool-profile read_only
+```
+
+```json
+{
+  "mcpServers": {
+    "gigacode": {
+      "url": "http://127.0.0.1:8766/mcp",
+      "headers": { "X-API-Key": "your-api-key" }
+    }
+  }
+}
+```
+
+See [SECURITY.md](SECURITY.md#transports-and-network-deployment) for authentication, workspace boundaries, and deployment assumptions.
 
 ## Docker
 

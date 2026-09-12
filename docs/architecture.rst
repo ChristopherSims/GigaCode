@@ -424,7 +424,7 @@ Debugging & Monitoring
     import logging
     logging.basicConfig(level=logging.DEBUG)
     
-    tool = CodeEmbeddingTool()  # Now logs detailed info
+    tool = CodeEmbeddingTool(work_dir="./buffers")  # Now logs detailed info
 
 **Metrics:**
 

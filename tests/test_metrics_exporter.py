@@ -20,6 +20,9 @@ import urllib.request
 
 import pytest
 
+# Metrics are an optional (server extra) feature: skip cleanly when absent.
+pytest.importorskip("prometheus_client")
+
 from gigacode.metrics_exporter import (
     PrometheusMetricsExporter,
     configure_prometheus,

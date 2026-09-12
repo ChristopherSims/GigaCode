@@ -12,7 +12,7 @@ Enable these first for immediate improvements:
 
 .. code-block:: python
 
-    tool = CodeEmbeddingTool(enable_gpu=True)  # Auto-detect CUDA
+    tool = CodeEmbeddingTool(use_gpu=True)  # Auto-detect CUDA
 
 **2. Use semantic cache (50% faster searches)**
 
@@ -74,7 +74,7 @@ Embedding Performance
 .. code-block:: python
 
     tool = CodeEmbeddingTool(
-        embedding_model="all-MiniLM-L6-v2"  # Fast (384-dim)
+        model_name="all-MiniLM-L6-v2"  # Fast (384-dim)
         # vs default "all-mpnet-base-v2" (768-dim, slower)
     )
 
@@ -256,7 +256,7 @@ System-Level Tuning
     
     # Enable GPU features
     tool = CodeEmbeddingTool(
-        enable_gpu=True,
+        use_gpu=True,
         gpu_device=0  # Device ID
     )
 
@@ -269,7 +269,7 @@ System-Level Tuning
     os.environ['OMP_NUM_THREADS'] = str(os.cpu_count())
     
     # NumPy will use all cores
-    tool = CodeEmbeddingTool(enable_gpu=False)
+    tool = CodeEmbeddingTool(use_gpu=False)
 
 **Memory Management**
 
@@ -307,7 +307,7 @@ Workload-Specific Optimization
 
     # Goal: Fast response time
     
-    tool = CodeEmbeddingTool(enable_gpu=True)
+    tool = CodeEmbeddingTool(use_gpu=True)
     
     results = tool.semantic_search(
         buffer_id="my_project",
@@ -385,7 +385,7 @@ Create a benchmark script:
     import time
     from gigacode import CodeEmbeddingTool
     
-    tool = CodeEmbeddingTool(enable_gpu=True)
+    tool = CodeEmbeddingTool(use_gpu=True)
     
     # Benchmark 1: Embedding
     start = time.time()
@@ -423,7 +423,7 @@ Common Performance Issues
 1. Check cache hit rate (low? adjust threshold)
 2. Reduce top_k
 3. Add file/directory filters
-4. Use GPU: ``enable_gpu=True``
+4. Use GPU: ``use_gpu=True``
 
 **Commits are slow:**
 

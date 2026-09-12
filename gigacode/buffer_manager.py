@@ -94,6 +94,12 @@ class BufferManager:
                 logger.warning("Corrupted registry.json — starting with empty registry")
                 self._registry = {}
 
+        # The BufferManager is the single owner of the registry.  Share the
+        # same mapping with the StateManager so its persistence path can never
+        # overwrite the registry with a stale in-memory copy.
+        if state_manager is not None:
+            state_manager.registry = self._registry
+
         # Snapshot managers: buffer_id -> SnapshotManager (one per buffer)
         self._snapshot_managers: dict[str, SnapshotManager] = {}
 
@@ -161,6 +167,30 @@ class BufferManager:
     # ------------------------------------------------------------------
     # Session persistence
     # ------------------------------------------------------------------
+    def _session_path(self, alias: str) -> Path:
+        """Resolve a session alias to a path inside the sessions directory.
+
+        Rejects empty aliases, path separators, traversal sequences, and any
+        alias whose resolved path escapes ``work_dir/.sessions``.  This prevents
+        aliases such as ``../registry`` from reading or overwriting files
+        outside the sessions directory.
+
+        Raises:
+            ValueError: If the alias is invalid.
+        """
+        if not isinstance(alias, str) or alias.strip() == "":
+            raise ValueError("Session alias must be a non-empty string")
+        if alias in {".", ".."}:
+            raise ValueError(f"Invalid session alias: {alias!r}")
+        if any(ch in alias for ch in ("/", "\\", "\x00")):
+            raise ValueError(f"Invalid session alias: {alias!r}")
+
+        sessions_dir = (self.work_dir / ".sessions").resolve()
+        candidate = (sessions_dir / f"{alias}.json").resolve()
+        if candidate.parent != sessions_dir:
+            raise ValueError(f"Invalid session alias: {alias!r}")
+        return candidate
+
     def save_session(
         self,
         alias: str,
@@ -178,9 +208,12 @@ class BufferManager:
         Returns:
             ``{"status": "ok", "alias": ..., "session_path": ...}``
         """
-        sessions_dir = self.work_dir / ".sessions"
-        sessions_dir.mkdir(parents=True, exist_ok=True)
-        session_path = sessions_dir / f"{alias}.json"
+        try:
+            session_path = self._session_path(alias)
+        except ValueError as exc:
+            return {"status": "error", "message": str(exc)}
+
+        session_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "alias": alias,
             "buffer_ids": buffer_ids,
@@ -207,7 +240,11 @@ class BufferManager:
             buffer IDs are no longer present in the registry, they are
             listed under the ``missing_buffer_ids`` key.
         """
-        session_path = self.work_dir / ".sessions" / f"{alias}.json"
+        try:
+            session_path = self._session_path(alias)
+        except ValueError as exc:
+            return {"status": "error", "message": str(exc)}
+
         if not session_path.exists():
             return {
                 "status": "error",
@@ -829,10 +866,6 @@ class BufferManager:
             )
 
         try:
-            # Rebuild embeddings for dirty files
-            if not dry_run and index_manager:
-                index_manager._rebuild_files(buffer_id, list(dirty.keys()))
-
             # Get snapshot manager
             snapshot_mgr = self._get_snapshot_manager(buffer_id)
             if snapshot_mgr is None:
@@ -871,9 +904,10 @@ class BufferManager:
                     elif merge_result["status"] == "ok":
                         written.append(rel_path)
                         updated_files[rel_path] = disk_path
-                        new_hashes[rel_path] = hashlib.sha256(
-                            "\n".join(lines).encode("utf-8")
-                        ).hexdigest()
+                        new_hashes[rel_path] = (
+                            merge_result.get("hash")
+                            or hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
+                        )
                     else:
                         if transaction_id:
                             self._state_manager.rollback_transaction(transaction_id)
@@ -890,7 +924,11 @@ class BufferManager:
 
                 if transaction_id:
                     self._state_manager.commit_transaction(transaction_id)
-                    self._state_manager.save_registry()
+
+                # Rebuild the index from the freshly written on-disk content,
+                # not the pre-edit disk contents.
+                if index_manager and written:
+                    index_manager._rebuild_files(buffer_id, written)
 
             status = "conflict" if conflicts else "ok"
             self._audit_log(
@@ -1068,14 +1106,9 @@ class BufferManager:
             diff_result = snapshot_mgr.compute_diff(fname, snapshot.get(fname, []))
             diffs[fname] = diff_result
 
-            # Determine if disk changed vs snapshot (by line count or content)
+            # Determine if disk changed vs snapshot using content hashes
             disk_lines = diff_result.get("disk_lines")
-            snap_line_count = diff_result.get("snapshot_line_count")
-            disk_changed = (
-                disk_lines is not None
-                and snap_line_count is not None
-                and len(disk_lines) != snap_line_count
-            )
+            disk_changed = bool(diff_result.get("disk_changed"))
 
             if disk_changed:
                 if dirty.get(fname, False):

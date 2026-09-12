@@ -22,12 +22,14 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
+import secrets
 import sys
 from pathlib import Path
 from typing import Any
 
 from gigacode.constants import DEFAULT_HTTP_PORT
-from gigacode.server_dispatch import resolve_tool_method
+from gigacode.server_dispatch import get_published_schemas, resolve_tool_method
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +44,23 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-def _run_fastapi(tool: Any, host: str, port: int) -> None:
+def _run_fastapi(tool: Any, host: str, port: int, api_key: str | None = None) -> None:
     import uvicorn
 
-    from gigacode.gigacode_api import create_app
+    if api_key:
+        from gigacode.gigacode_api import create_production_app
 
-    app = create_app(tool)
-    logger.info("GigaCode FastAPI server listening on http://%s:%d", host, port)
+        app = create_production_app(tool, api_key=api_key)
+        logger.info("GigaCode FastAPI server (API key auth enabled) on http://%s:%d", host, port)
+    else:
+        from gigacode.gigacode_api import create_app
+
+        app = create_app(tool)
+        logger.warning(
+            "GigaCode server starting without authentication; bind to localhost or set "
+            "an API key via --api-key or GIGACODE_API_KEY for untrusted networks."
+        )
+        logger.info("GigaCode FastAPI server listening on http://%s:%d", host, port)
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 
@@ -57,12 +69,18 @@ def _run_fastapi(tool: Any, host: str, port: int) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _make_handler(tool: Any) -> type:
+def _make_handler(tool: Any, api_key: str | None = None) -> type:
     from http.server import BaseHTTPRequestHandler
 
     class _GigacodeHandler(BaseHTTPRequestHandler):
         def log_message(self, fmt: str, *args: Any) -> None:
             logger.info(fmt, *args)
+
+        def _authorized(self) -> bool:
+            if not api_key:
+                return True
+            supplied = self.headers.get("X-API-Key") or ""
+            return secrets.compare_digest(supplied, api_key)
 
         def _send_json(self, status: int, payload: dict[str, Any]) -> None:
             body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
@@ -74,7 +92,10 @@ def _make_handler(tool: Any) -> type:
 
         def do_GET(self) -> None:
             if self.path == "/schemas":
-                schemas = tool.get_tool_schemas()
+                if not self._authorized():
+                    self._send_json(401, {"error": "Invalid or missing API key"})
+                    return
+                schemas = get_published_schemas(tool)
                 self._send_json(200, {"schemas": schemas})
                 return
             if self.path == "/health":
@@ -89,6 +110,10 @@ def _make_handler(tool: Any) -> type:
             self._send_json(404, {"error": "Not found. Try POST /call or GET /schemas"})
 
         def _handle_call(self) -> None:
+            if not self._authorized():
+                self._send_json(401, {"error": "Invalid or missing API key"})
+                return
+
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length == 0:
                 self._send_json(400, {"error": "Empty body"})
@@ -128,10 +153,15 @@ def _make_handler(tool: Any) -> type:
     return _GigacodeHandler
 
 
-def _run_stdlib(tool: Any, host: str, port: int) -> None:
+def _run_stdlib(tool: Any, host: str, port: int, api_key: str | None = None) -> None:
     from http.server import HTTPServer
 
-    handler = _make_handler(tool)
+    if not api_key:
+        logger.warning(
+            "GigaCode stdlib server starting without authentication; bind to localhost or "
+            "set an API key via --api-key or GIGACODE_API_KEY for untrusted networks."
+        )
+    handler = _make_handler(tool, api_key=api_key)
     server = HTTPServer((host, port), handler)
     logger.info("GigaCode stdlib server listening on http://%s:%d", host, port)
     try:
@@ -149,7 +179,11 @@ def _run_stdlib(tool: Any, host: str, port: int) -> None:
 
 
 def run_server(
-    tool: Any, host: str = "127.0.0.1", port: int = DEFAULT_HTTP_PORT, use_fastapi: bool = True
+    tool: Any,
+    host: str = "127.0.0.1",
+    port: int = DEFAULT_HTTP_PORT,
+    use_fastapi: bool = True,
+    api_key: str | None = None,
 ) -> None:
     """Start the HTTP server.
 
@@ -158,14 +192,15 @@ def run_server(
         host: Bind address.
         port: Port number.
         use_fastapi: If True (default), try FastAPI + Uvicorn first.
+        api_key: If set, require an ``X-API-Key`` header on protected routes.
     """
     if use_fastapi:
         try:
-            _run_fastapi(tool, host, port)
+            _run_fastapi(tool, host, port, api_key=api_key)
             return
         except ImportError:
             logger.warning("FastAPI/uvicorn not installed; falling back to stdlib HTTPServer.")
-    _run_stdlib(tool, host, port)
+    _run_stdlib(tool, host, port, api_key=api_key)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -178,6 +213,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--device", "-d", default=None, help="torch device (cpu / cuda / auto)")
     parser.add_argument("--no-gpu", action="store_true", help="Disable GPU FAISS mirror")
     parser.add_argument("--no-fastapi", action="store_true", help="Force stdlib HTTPServer")
+    parser.add_argument(
+        "--tool-profile",
+        default="read_only",
+        choices=["read_only", "editing", "full"],
+        help="Curated tool surface exposed by the server (default: read_only)",
+    )
+    parser.add_argument(
+        "--api-key",
+        default=os.environ.get("GIGACODE_API_KEY"),
+        help=(
+            "Require this key in the X-API-Key header. Defaults to the "
+            "GIGACODE_API_KEY environment variable. When unset, the server "
+            "runs unauthenticated and should only be bound to a trusted host."
+        ),
+    )
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
     args = parser.parse_args(argv)
 
@@ -197,8 +247,15 @@ def main(argv: list[str] | None = None) -> int:
         work_dir=args.work_dir,
         device=args.device,
         use_gpu=not args.no_gpu,
+        tool_profile=args.tool_profile,
     )
-    run_server(tool, host=args.host, port=args.port, use_fastapi=not args.no_fastapi)
+    run_server(
+        tool,
+        host=args.host,
+        port=args.port,
+        use_fastapi=not args.no_fastapi,
+        api_key=args.api_key,
+    )
     return 0
 
 

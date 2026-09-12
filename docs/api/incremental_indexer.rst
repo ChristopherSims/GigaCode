@@ -132,7 +132,7 @@ Example: Commit with Incremental Updates
     from gigacode import CodeEmbeddingTool
     import time
     
-    tool = CodeEmbeddingTool()
+    tool = CodeEmbeddingTool(work_dir="./buffers")
     buffer_id = tool.embed_codebase("/path/to/project")
     
     # Make small changes (1% of chunks)

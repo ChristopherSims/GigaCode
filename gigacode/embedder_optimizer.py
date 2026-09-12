@@ -41,7 +41,9 @@ class OptimizedEmbedder:
         """Initialize OptimizedEmbedder.
 
         Args:
-            embedder: Base Embedder instance
+            embedder: Any embedding provider exposing ``embedding_dim`` and
+                ``encode`` (a bundled :class:`Embedder`, a custom provider, or
+                an object that is lazily loaded).
             use_batch_optimization: Whether to use batch optimization
             batch_threshold: Number of texts above which to use batch optimization
         """
@@ -50,11 +52,14 @@ class OptimizedEmbedder:
         self._batch_threshold = batch_threshold
         self._batch_processor: Optional[BatchEmbedder] = None
 
-        if use_batch_optimization:
+        model = getattr(embedder, "_model", None)
+        # A lazily-loaded embedder has no model yet; batch optimization will
+        # simply be unavailable until (and unless) a model is configured.
+        if use_batch_optimization and model is not None:
             try:
                 self._batch_processor = BatchEmbedder(
-                    model=embedder._model,
-                    device=embedder.device or "cpu",
+                    model=model,
+                    device=getattr(embedder, "device", None) or "cpu",
                     cache_enabled=True,
                 )
                 logger.info(
@@ -67,6 +72,20 @@ class OptimizedEmbedder:
                 )
                 self._batch_processor = None
 
+    def ensure_loaded(self) -> None:
+        """Forward lazy loading to the wrapped embedder, if supported."""
+        ensure = getattr(self._embedder, "ensure_loaded", None)
+        if callable(ensure):
+            ensure()
+
+    @property
+    def is_loaded(self) -> bool:
+        """Return True once the underlying provider is ready."""
+        loaded = getattr(self._embedder, "is_loaded", None)
+        if loaded is None:
+            return True
+        return bool(loaded)
+
     @property
     def embedding_dim(self) -> int:
         """Get embedding dimension."""
@@ -75,12 +94,12 @@ class OptimizedEmbedder:
     @property
     def device(self) -> str:
         """Get device (cpu or cuda)."""
-        return self._embedder.device or "cpu"
+        return getattr(self._embedder, "device", None) or "cpu"
 
     @property
     def model_name(self) -> str:
         """Get model name."""
-        return self._embedder.model_name
+        return getattr(self._embedder, "model_name", None) or "custom"
 
     def encode(
         self,
@@ -131,10 +150,18 @@ class OptimizedEmbedder:
 
         # Fall back to standard encoder
         logger.debug("Using standard encoding for %d texts", len(texts))
-        return self._embedder.encode(
-            texts,
-            batch_size=batch_size,
-        )
+        try:
+            return self._embedder.encode(texts, batch_size=batch_size)
+        except TypeError:
+            # Custom providers may accept only the texts argument.
+            return self._embedder.encode(texts)
+
+    def embed(self, text: str) -> np.ndarray:
+        """Embed a single string, returning a 1-D vector."""
+        embed = getattr(self._embedder, "embed", None)
+        if callable(embed):
+            return embed(text)
+        return self.encode([text])[0]
 
     def get_batch_processor(self) -> Optional[BatchEmbedder]:
         """Get the underlying batch processor (if available).

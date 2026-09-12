@@ -25,10 +25,25 @@ import os
 os.environ["TORCH_COMPILE"] = "0"
 os.environ["TORCH_COMPILE_DEBUG"] = "0"
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 __all__ = [
+    "CodeEmbeddingTool",
     "embedder",
     "diff_engine",
     "size_guard",
     "metadata_store",
 ]
+
+
+def __getattr__(name: str):
+    """Lazily expose the main public interface without importing heavy deps.
+
+    ``from gigacode import CodeEmbeddingTool`` is the documented entry point;
+    importing it eagerly here would pull in sentence-transformers, FAISS, and
+    the manager layers on every ``import gigacode``.
+    """
+    if name == "CodeEmbeddingTool":
+        from gigacode.gigacode_tool import CodeEmbeddingTool
+
+        return CodeEmbeddingTool
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

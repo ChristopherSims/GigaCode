@@ -1,4 +1,5 @@
 """CLI entry point: python -m gigacode"""
+
 from gigacode.gigacode_server import main
 
 if __name__ == "__main__":

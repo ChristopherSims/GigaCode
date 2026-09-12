@@ -93,6 +93,12 @@ __all__ = [
     "get_schemas_by_category",
     "get_read_only_tools",
     "get_write_tools",
+    "TOOL_PROFILES",
+    "DEFAULT_TOOL_PROFILE",
+    "STABLE_READ_TOOLS",
+    "list_tool_profiles",
+    "get_profile_tool_names",
+    "get_profile_schemas",
     "to_openai_functions",
     "to_anthropic_tools",
     "to_ollama_tools",
@@ -4493,6 +4499,82 @@ _enrich_all_schemas()
 
 # Categories for filtering
 TOOL_CATEGORIES = sorted({schema["category"] for schema in ALL_SCHEMAS})
+
+# ---------------------------------------------------------------------------
+# Tool profiles
+# ---------------------------------------------------------------------------
+# A small, curated, stable surface is exposed by default.  Editing and
+# advanced capabilities must be opted into explicitly.  Profiles are enforced
+# at execution time by the server dispatch layer, not merely through discovery
+# filtering.
+STABLE_READ_TOOLS: frozenset[str] = frozenset(
+    {
+        "embed_codebase",
+        "semantic_search",
+        "hybrid_search",
+        "search_for",
+        "search_symbols",
+        "read_code",
+        "list_buffers",
+        "check_codebase",
+        "diff",
+        "pack_context",
+        "look_for_file",
+        "get_references",
+        "get_symbol_metadata",
+        "analyze_change",
+        "get_test_coverage",
+    }
+)
+
+_EDITING_TOOLS: frozenset[str] = frozenset(
+    {
+        "write_code",
+        "commit",
+        "discard",
+        "reload_codebase",
+        "undo",
+        "redo",
+        "auto_format",
+        "auto_polish",
+        "format_buffer",
+        "format_with_config",
+        "polish_before_commit",
+        "create_branch",
+        "checkout_branch",
+        "delete_buffer",
+    }
+)
+
+_ALL_TOOL_NAMES: frozenset[str] = frozenset(s["name"] for s in ALL_SCHEMAS)
+
+TOOL_PROFILES: dict[str, frozenset[str]] = {
+    "read_only": STABLE_READ_TOOLS,
+    "editing": STABLE_READ_TOOLS | _EDITING_TOOLS,
+    "full": _ALL_TOOL_NAMES,
+}
+
+DEFAULT_TOOL_PROFILE = "read_only"
+
+
+def list_tool_profiles() -> list[str]:
+    """Return the names of available tool profiles."""
+    return sorted(TOOL_PROFILES)
+
+
+def get_profile_tool_names(profile: str) -> frozenset[str]:
+    """Return the set of tool names enabled by *profile*.
+
+    Unknown profile names enable nothing so a typo cannot accidentally expose
+    the full surface.
+    """
+    return TOOL_PROFILES.get(profile, frozenset())
+
+
+def get_profile_schemas(profile: str = DEFAULT_TOOL_PROFILE) -> list[dict[str, Any]]:
+    """Return the schemas enabled by *profile* (curated by default)."""
+    allowed = get_profile_tool_names(profile)
+    return [s for s in ALL_SCHEMAS if s.get("name") in allowed]
 
 
 def get_schemas_by_category(category: str) -> list[dict[str, Any]]:

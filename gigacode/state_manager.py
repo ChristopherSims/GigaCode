@@ -167,19 +167,28 @@ class StateManager:
         if not self.wal_path.exists():
             return
 
-        pending = []
+        # Resolve the latest status per transaction so a committed/rolled-back
+        # marker cancels its earlier pending entry.
+        latest_status: dict[str, str] = {}
+        entries = []
         with open(self.wal_path, "r", encoding="utf-8") as f:
             for line in f:
-                if line.strip():
-                    entry_dict = json.loads(line)
-                    # Skip status-update entries (entries with only transaction_id, status, timestamp)
-                    # These are minimal entries written by commit_transaction() and rollback_transaction()
-                    if "operation" not in entry_dict or "buffer_id" not in entry_dict:
-                        continue
+                if not line.strip():
+                    continue
+                entry_dict = json.loads(line)
+                txn_id = entry_dict.get("transaction_id")
+                status = entry_dict.get("status")
+                if txn_id and status:
+                    latest_status[txn_id] = status
+                # Status-update entries carry no operation/buffer_id.
+                if "operation" in entry_dict and "buffer_id" in entry_dict:
+                    entries.append(entry_dict)
 
-                    entry = TransactionLog.from_dict(entry_dict)
-                    if entry.status == "pending":
-                        pending.append(entry)
+        pending = []
+        for entry_dict in entries:
+            txn_id = entry_dict.get("transaction_id")
+            if latest_status.get(txn_id, entry_dict.get("status")) == "pending":
+                pending.append(TransactionLog.from_dict(entry_dict))
 
         for tx in pending:
             logger.warning(

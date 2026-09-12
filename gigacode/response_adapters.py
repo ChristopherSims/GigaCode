@@ -127,7 +127,11 @@ def adapt_cluster_response(
     SearchService returns ClusterResult with dict of clusters
     CodeEmbeddingTool expects list of ClusterItem with file/start_line/end_line/size/avg_score
     """
-    if isinstance(service_result, dict) and service_result.get("status") == "error":
+    if isinstance(service_result, dict) and service_result.get("status") in {
+        "error",
+        "unavailable",
+        "blocked",
+    }:
         return service_result
 
     # Convert ClusterResult to dict if needed

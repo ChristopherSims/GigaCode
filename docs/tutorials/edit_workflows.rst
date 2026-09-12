@@ -23,7 +23,7 @@ You need an embedded project. If not, see :doc:`basic_embed`:
 
     from gigacode import CodeEmbeddingTool
     
-    tool = CodeEmbeddingTool()
+    tool = CodeEmbeddingTool(work_dir="./buffers")
     buffer_id = tool.embed_codebase("/path/to/project")
 
 Step 1: Write Code
@@ -42,18 +42,22 @@ Update code in your buffer:
         "new_function_name"
     )
     
-    # Write modified code to buffer
+    # Write modified code to buffer (replace the whole file)
     tool.write_code(
         buffer_id="my_project",
         file="example.py",
-        content=new_code
+        start_line=1,
+        new_lines=new_code.splitlines(),
+        end_line=None,  # replace through end of file
     )
 
 **Key parameters:**
 
 - ``buffer_id`` (str): Your project identifier
 - ``file`` (str): File path relative to project root
-- ``content`` (str): New file content
+- ``start_line`` (int): First line to replace (1-indexed)
+- ``new_lines`` (list[str]): Replacement lines
+- ``end_line`` (int | None): Last line to replace; ``None`` replaces through EOF
 
 **Write multiple files:**
 
@@ -69,7 +73,9 @@ Update code in your buffer:
         tool.write_code(
             buffer_id="my_project",
             file=file_path,
-            content=content
+            start_line=1,
+            new_lines=content.splitlines(),
+            end_line=None,
         )
 
 **Read and modify:**
@@ -89,7 +95,9 @@ Update code in your buffer:
     tool.write_code(
         buffer_id="my_project",
         file="example.py",
-        content=new_content
+        start_line=1,
+        new_lines=new_content.splitlines(),
+        end_line=None,
     )
 
 Step 2: Commit Changes
@@ -216,14 +224,16 @@ Efficiently process multiple changes:
     
     # Apply changes
     for file_path, content in changes:
-        tool.write_code(buffer_id="my_project", file=file_path, content=content)
-    
-    # Single commit for all changes (more efficient)
-    result = tool.commit(
-        buffer_id="my_project",
-        files=[f[0] for f in changes],
-        message="Batch update: multiple modules"
-    )
+        tool.write_code(
+            buffer_id="my_project",
+            file=file_path,
+            start_line=1,
+            new_lines=content.splitlines(),
+            end_line=None,
+        )
+
+    # Single commit for all buffered changes (more efficient)
+    result = tool.commit(buffer_id="my_project")
     
     print(f"✓ Committed {result['files_updated']} files")
     print(f"✓ {result['chunks_changed']} chunks changed")
@@ -312,7 +322,7 @@ Here's a full edit workflow:
     from pathlib import Path
     
     # Initialize
-    tool = CodeEmbeddingTool()
+    tool = CodeEmbeddingTool(work_dir="./buffers")
     buffer_id = tool.embed_codebase("/path/to/project")
     
     # Step 1: Make changes
@@ -332,16 +342,14 @@ Here's a full edit workflow:
     tool.write_code(
         buffer_id=buffer_id,
         file="module1.py",
-        content=updated_content1
+        start_line=1,
+        new_lines=updated_content1.splitlines(),
+        end_line=None,
     )
-    
+
     # Step 3: Commit with timing
     start = time.time()
-    result = tool.commit(
-        buffer_id=buffer_id,
-        files=["module1.py"],
-        message="Rename: old_function -> new_function"
-    )
+    result = tool.commit(buffer_id=buffer_id)
     elapsed = time.time() - start
     
     # Step 4: Display results

@@ -5,16 +5,122 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-12
+
+Dependability release. Focuses on persistence safety, search correctness, the
+Python and MCP contracts, and a trustworthy release pipeline rather than new
+capabilities.
+
+### Fixed
+
+**Persistence safety**
+
+- **Conflict safety** — commit compares content hashes (not line counts), so an
+  external edit that preserves the line count is detected and never overwritten;
+  detection is consistent across write, diff, commit, and reload.
+- **Registry durability** — the buffer registry has a single owner; a stale
+  state-manager copy can no longer erase registrations on commit/restart.
+- **Session safety** — session aliases are validated and cannot escape the
+  sessions directory (path separators/traversal rejected).
+- **File formatting** — commit preserves the original line endings and
+  final-newline behaviour (LF/CRLF, with or without a trailing newline).
+- **WAL recovery** — committed transactions are no longer rolled back on restart.
+
+**Search and indexing**
+
+- **Hybrid search** — `hybrid_search()` accepts `lexical_weight` and actually
+  fuses semantic + lexical results via Reciprocal Rank Fusion (previously the
+  lexical results were computed and discarded, and the call raised `TypeError`).
+- **Post-edit indexing** — indices rebuild from the committed content, not the
+  pre-edit disk contents; `reload_codebase()` re-chunks externally changed files.
+- **Small-index search** — requests for more neighbours than the index holds are
+  clamped and padded instead of raising.
+- **Embedding dimension API** — prefer SentenceTransformers 6.x
+  `get_embedding_dimension()` with a fallback to 5.x
+  `get_sentence_embedding_dimension()`.
+- **Restart correctness (found via Docker testing)** — the lexical index is
+  queried with the correct `top_k` argument; a saved FAISS index is no longer
+  double-wrapped in an `IndexIDMap` on reload; and the index is rebuilt from the
+  persisted embeddings when `index.faiss` is absent (brute-force builds), so
+  search works after a restart on every backend.
+
+**Contracts**
+
+- **Test-after-edit trustworthiness** — a missing `pytest-json-report` can no
+  longer report success with zero tests; exit codes and collection failures are
+  handled; outcomes distinguish passed/failed/skipped/error/no-tests; and staged
+  changes are evaluated in an isolated temporary workspace.
+- **MCP failures** — tool failures return `CallToolResult(isError=True)` with
+  structured content; discovery, invocation, and error handling are shared
+  across transports; the server reports the package version.
+- **Server authentication** — `--api-key` / `GIGACODE_API_KEY` are honored by the
+  FastAPI server and by both MCP network transports.
+- **Public import** — the documented `from gigacode import CodeEmbeddingTool`
+  now works (lazy top-level attribute).
+- **Lint/format** — the repository now passes `ruff check` and `ruff format`.
+
+### Added
+
+- **Embedding providers** — a small `EmbeddingProvider` protocol and
+  `CodeEmbeddingTool(embedder=...)` for caller-supplied local or hosted
+  providers, with vector-dimension/index-compatibility validation. Lazy,
+  offline-safe model loading (`lazy_embedder`, `local_files_only`,
+  `cache_folder`); `Embedder.embed()` single-text helper.
+- **Tool profiles** — a curated `read_only` default plus `editing` / `full`,
+  enforced at execution time (MCP/REST dispatch), selectable via
+  `CodeEmbeddingTool(tool_profile=...)` and `--tool-profile`.
+- **MCP Streamable HTTP** transport (`--transport streamable-http`) with API-key
+  authentication, plus MCP tool annotations and output schemas.
+- **Capability reporting** — disabled clustering now returns an explicit
+  `unavailable` status instead of a successful empty result; `solve()` builds its
+  `IntentRouter` correctly; profile tools have their required base chunker.
+- **Packaging/tooling** — a `test` extra; `scripts/smoke_test.py` (dependency-free
+  end-to-end smoke test) and `scripts/sync_version.py`; the example config
+  `gigacode.toml.example` now ships inside the package.
+- **Documentation examples test suite** — executes the README quick start, schema
+  export formats, and CLI help against the package.
+- **Container CI** — `.github/workflows/docker.yml` builds the CPU and GPU images
+  on push/PR and publishes them to GHCR (`ghcr.io/<owner>/gigacode` and
+  `...-gpu`) on `main` and version tags.
+- **Slim Docker images** — `Dockerfile.gpu` now builds on `python:3.12-slim` with
+  CUDA-12.6 PyTorch wheels (which bundle the CUDA runtime) and `faiss-gpu-cu12`
+  instead of a ~35 GB NVIDIA PyTorch base; `Dockerfile` uses CPU-only PyTorch.
+  Both drop the compiler toolchain and `triton`. Verified end-to-end on GPU
+  (index mirrored to GPU; embed/search/commit/restart) and on CPU; container
+  content is ~1.1 GB (CPU) and ~7.4 GB (GPU).
+- **New tests** — `test_phase1_persistence.py`, `test_phase2_embedding.py`,
+  `test_phase3_contracts.py`, `test_phase3_mcp.py`, `test_phase4_capabilities.py`,
+  `test_documentation_examples.py`.
+
+### Changed
+
+- **`numpy` requirement** relaxed from `>=2.0.0` to `>=1.24` (no numpy-2-only
+  APIs are used) to support environments built against numpy 1.x.
+- **CI dependency set** — the test job installs a `test` extra that includes the
+  server/MCP dependencies; optional-feature tests skip cleanly when their
+  dependency is absent instead of failing.
+- **Release workflow** — added an artifact-verification job (`pip check`, smoke
+  test, server/MCP imports) that runs before the GitHub Release is created.
+- **Documentation** — the Sphinx build now completes with zero warnings and is a
+  hard CI gate; the version is read from `VERSION`, optional imports are mocked,
+  missing API pages were added, and stale examples/arguments were corrected.
+
+### Removed
+
+- **PyPI publishing integration** — the release workflow no longer publishes to
+  PyPI; releases attach the wheel and sdist to a GitHub Release for local
+  installation. README, docs, and contributor guides no longer reference PyPI
+  installs.
+
 ## [0.7.0] - 2026-07-03
 
-### Added — PyPI Deployment Readiness
+### Added — Packaging & Distribution Readiness
 
 - **CLI entry points** — `gigacode`, `gigacode-server`, `gigacode-mcp`, `gigacode-skill` commands available after `pip install`.
 - **`__main__.py`** — `python -m gigacode` now works.
 - **`MANIFEST.in`** — sdist includes LICENSE, README, CHANGELOG, VERSION, and config examples.
 - **Optional dependency extras** — `embed`, `server`, `mcp`, `gpu`, `all` install profiles. Core install (`pip install gigacode`) now only requires tree-sitter + numpy (~50MB). Heavy ML deps (torch, sentence-transformers, faiss) are opt-in via `pip install "gigacode[embed]"`.
-- **PyPI trusted publishing** — release workflow uses OIDC trusted publishing (no API token needed). Pre-releases (rc/alpha/beta) go to TestPyPI; stable tags go to PyPI.
-- **TestPyPI pre-release pipeline** — alpha/beta/rc tags auto-publish to TestPyPI for testing before stable release.
+- **GitHub Releases distribution** — release workflow builds the wheel/sdist and attaches them to a GitHub Release. (Superseded: this project is no longer published to PyPI.)
 - **CI version consistency check** — CI job verifies `__init__.py`, `pyproject.toml`, and `VERSION` all match before running any other job.
 - **Dockerfile** (CPU) — Python 3.12-slim, pre-downloads embedding model, healthcheck, `gigacode-server` entrypoint.
 - **Dockerfile.gpu** — NVIDIA CUDA 12.1 base, faiss-gpu, for GPU-accelerated deployment.
@@ -25,7 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Model download warning** — `Embedder._load()` now logs a message before downloading a model on first use.
 - **Embedder install hint** — clear `pip install 'gigacode[embed]'` error message when sentence-transformers is missing.
 - **FastAPI import guard** — `gigacode_api.py` gracefully handles missing fastapi with clear install hint.
-- **README rewritten for PyPI** — install profiles, CLI commands, Docker quick start, PyPI badges, model download warning, links to all docs.
+- **README rewritten for distribution** — install profiles, CLI commands, Docker quick start, model download warning, links to all docs.
 
 ### Changed
 
@@ -265,7 +371,6 @@ The CI/CD pipeline was previously non-functional due to multiple root causes. Al
 - **`.github/workflows/release.yml`** — new 3-job release pipeline:
   - `build` — wheel + sdist on tag push
   - `github-release` — auto-generated release notes, draft/prerelease detection from tag name
-  - `pypi-publish` — `pypa/gh-action-pypi-publish` with OIDC/trusted publishing
 - **`.pre-commit-config.yaml`** — new with 6 hooks:
   - ruff (lint + auto-fix), black, mypy (fast), trailing-whitespace, end-of-file-fixer, check-yaml, check-json, check-toml, check-added-large-files, check-merge-conflict
   - local hook: verifies `VERSION` file matches `pyproject.toml` version

@@ -1,18 +1,35 @@
-FROM nvidia/cuda:12.1-runtime-ubuntu22.04
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 python3-pip python3.12-venv \
-    build-essential libffi-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -sf /usr/bin/python3.12 /usr/bin/python
+# GPU image: slim Python base + CUDA-enabled PyTorch and CUDA FAISS wheels.
+#
+# PyTorch wheels bundle the CUDA runtime, so a full CUDA toolkit or the ~35GB
+# NVIDIA PyTorch image is not required. The host provides the NVIDIA driver
+# through `--gpus all` (NVIDIA Container Toolkit).
+#
+# Run with GPU access:
+#   docker run --gpus all -p 8765:8765 -e GIGACODE_API_KEY=secret gigacode:gpu
+FROM python:3.12-slim
 
 WORKDIR /app
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 COPY pyproject.toml README.md LICENSE VERSION CHANGELOG.md ./
 COPY gigacode/ gigacode/
 
-# Install with GPU extras (faiss-gpu instead of faiss-cpu)
-RUN pip install --no-cache-dir ".[embed,gpu,server]"
+# CUDA 12.6 PyTorch (bundles the CUDA runtime). Remove triton immediately so
+# it never occupies a layer: it is only used by torch.compile, not inference.
+RUN pip install torch --index-url https://download.pytorch.org/whl/cu126 \
+    && pip uninstall -y triton
+
+# App with server extras, the CUDA FAISS wheel, and the embedding stack.
+RUN pip install ".[server]" faiss-gpu-cu12 \
+       "sentence-transformers>=5.0.0" "transformers>=5.8.0" "scikit-learn>=1.6.0"
+
+# Make the CUDA libraries bundled inside the torch wheels discoverable by FAISS.
+RUN SITE=$(python -c "import site; print(site.getsitepackages()[0])") \
+    && for d in "$SITE"/nvidia/*/lib; do echo "$d" >> /etc/ld.so.conf.d/nvidia.conf; done \
+    && ldconfig
 
 # Pre-download the default embedding model (~160MB)
 RUN python -c "from gigacode.embedder import Embedder; Embedder()"

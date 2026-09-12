@@ -1,0 +1,21 @@
+# GigaCode configuration
+# Place in project root or working directory.
+# Alternatively, add a [tool.gigacode] section to pyproject.toml.
+
+# Schema export format for AI agent integration.
+# Options: "openai", "anthropic", "mcp", "ollama"
+schema_format = "openai"
+
+# Include enriched metadata (category, tags, read_only, side_effects,
+# composition hints, error schemas) in exported tool schemas.
+include_metadata = true
+
+# Filter schemas to a single category by default.
+# Options: "analysis", "editing", "indexing", "navigation",
+#          "quality", "safety", "search", "security"
+# Set to null (or omit) to export all categories.
+# default_category = "search"
+
+# Only export read-only (safe) tools by default.
+# Set to true for agents that should never modify files.
+read_only_only = false

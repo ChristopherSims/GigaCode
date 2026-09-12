@@ -258,7 +258,7 @@ The threshold controls what counts as a cache hit:
     cache.get("show me database code")      # Hit (0.85)
 
 Manual Cache Management
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -300,7 +300,7 @@ Example: Complete Caching Workflow
 
     from gigacode import CodeEmbeddingTool
     
-    tool = CodeEmbeddingTool()
+    tool = CodeEmbeddingTool(work_dir="./buffers")
     buffer_id = tool.embed_codebase("/path/to/project")
     
     import time

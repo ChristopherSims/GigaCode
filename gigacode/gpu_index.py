@@ -190,14 +190,35 @@ class GpuIndex:
             distances: float32 array ``(n_queries, k)``.
             indices: int64 array ``(n_queries, k)``.
         """
+        n_queries = queries.shape[0]
         if self._cpu_index is None:
-            return np.zeros((queries.shape[0], k), dtype=np.float32), np.full(
-                (queries.shape[0], k), -1, dtype=np.int64
+            return np.zeros((n_queries, k), dtype=np.float32), np.full(
+                (n_queries, k), -1, dtype=np.int64
             )
 
+        # Searching for more neighbours than the index holds is an error in
+        # both FAISS and the brute-force fallback; clamp and pad with -1 so the
+        # returned shape always matches the requested k.
+        total = self.ntotal()
+        if total == 0:
+            return np.zeros((n_queries, k), dtype=np.float32), np.full(
+                (n_queries, k), -1, dtype=np.int64
+            )
+
+        effective_k = min(k, total)
         # Use GPU if available and synced; no lazy sync (sync happens in embed_codebase)
         index = self._gpu_index if self._gpu_index is not None else self._cpu_index
-        return index.search(queries, k)
+        distances, indices = index.search(queries, effective_k)
+
+        if effective_k < k:
+            pad = k - effective_k
+            distances = np.concatenate(
+                [distances, np.zeros((n_queries, pad), dtype=np.float32)], axis=1
+            )
+            indices = np.concatenate(
+                [indices, np.full((n_queries, pad), -1, dtype=np.int64)], axis=1
+            )
+        return distances, indices
 
     def reset(self) -> None:
         """Clear all vectors."""
@@ -227,12 +248,36 @@ class GpuIndex:
     def load(self, path: str | Path) -> None:
         """Load CPU index from disk and wrap with IDMap."""
         if faiss is None:
+            # Brute-force fallback: rebuild from the persisted embeddings so
+            # searches work after a restart even without FAISS installed.
+            embeddings_path = Path(path).with_name("embeddings.npy")
+            if embeddings_path.exists():
+                vectors = np.load(embeddings_path)
+                if vectors.size:
+                    self.dim = vectors.shape[1]
+                    self._cpu_index = _BruteForceIndex(self.dim)
+                    ids = np.arange(len(vectors), dtype=np.int64)
+                    self._cpu_index.add_with_ids(vectors, ids)
+                    self._next_id = len(vectors)
             return
         base = faiss.read_index(str(path))
-        self._cpu_index = faiss.IndexIDMap(base)
+        # Saved indices are already wrapped in an IndexIDMap; wrapping again
+        # raises because the inner index is non-empty.
+        idmap_types = tuple(
+            t
+            for t in (getattr(faiss, "IndexIDMap", None), getattr(faiss, "IndexIDMap2", None))
+            if t is not None
+        )
+        if idmap_types and isinstance(base, idmap_types):
+            self._cpu_index = base
+        else:
+            self._cpu_index = faiss.IndexIDMap(base)
         self._gpu_dirty = True
         self._gpu_index = None
         self._next_id = base.ntotal
+        # Adopt the persisted vector dimension (callers may not know it yet,
+        # e.g. when the embedder loads lazily on first use).
+        self.dim = getattr(base, "d", self.dim)
 
     # ------------------------------------------------------------------
     # Properties
@@ -271,11 +316,8 @@ class _BruteForceIndex:
         ids = np.array(list(self._vectors.keys()), dtype=np.int64)
         all_vecs = np.stack([self._vectors[int(v)] for v in ids], axis=0)
         scores = np.dot(all_vecs, queries.T).T  # (n_queries, n_vectors)
-        # Top-k partial sort
-        if k >= scores.shape[1]:
-            top_k = k
-        else:
-            top_k = k
+        # Top-k partial sort (never ask for more neighbours than exist)
+        top_k = min(k, scores.shape[1])
         top_idx = np.argpartition(-scores, top_k - 1, axis=1)[:, :top_k]
         # Sort each row
         rows = []

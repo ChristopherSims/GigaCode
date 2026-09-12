@@ -35,6 +35,7 @@ try:
     from fastapi import Depends, FastAPI, HTTPException, Request
     from fastapi.responses import JSONResponse
     from pydantic import BaseModel, Field
+
     _HAS_FASTAPI = True
 except ImportError:
     _HAS_FASTAPI = False
@@ -78,7 +79,7 @@ if _HAS_FASTAPI:
     from gigacode.pydantic_models import (
         SearchBatchRequest as BatchSearchRequest,
     )
-from gigacode.server_dispatch import resolve_tool_method
+from gigacode.server_dispatch import get_published_schemas, resolve_tool_method
 
 logger = logging.getLogger(__name__)
 
@@ -473,10 +474,8 @@ class AdaptSearchRequest(BaseModel):
 
 def create_app(tool: Any) -> FastAPI:
     if not _HAS_FASTAPI:
-        raise ImportError(
-            "FastAPI is not installed. "
-            "Install with: pip install 'gigacode[server]'"
-        )
+        raise ImportError("FastAPI is not installed. Install with: pip install 'gigacode[server]'")
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.tool = tool
@@ -501,7 +500,7 @@ def create_app(tool: Any) -> FastAPI:
 
     @app.get("/schemas")
     def schemas() -> dict[str, Any]:
-        return {"schemas": tool.get_tool_schemas()}
+        return {"schemas": get_published_schemas(tool)}
 
     # ------------------------------------------------------------------
     # Buffers

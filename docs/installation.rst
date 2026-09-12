@@ -53,59 +53,95 @@ GPU Setup (Optional)
 **GPU Requirements:**
 
 - NVIDIA GPU with CUDA Compute Capability 3.5+
-- CUDA Toolkit 11.8 or higher
+- CUDA Toolkit 12.1 or higher (matched to your PyTorch build)
 - cuDNN 8.x
 
-**Check your GPU:**
+GPU acceleration is optional. Without it GigaCode runs on CPU and falls back to
+a brute-force/CPU vector index.
+
+**Supported GPU installation path (Linux):**
+
+1. Install a CUDA-enabled PyTorch build for your driver, then the package:
 
 .. code-block:: bash
 
-    python -c "import torch; print(f'GPU: {torch.cuda.is_available()}')"
+    # Example: CUDA 12.1 wheels
+    pip install torch --index-url https://download.pytorch.org/whl/cu121
+    pip install "gigacode[embed]"
 
-**Install GPU support:**
+2. Install a FAISS GPU build. PyPI's legacy ``faiss-gpu`` distribution often
+   fails to resolve on modern Python/CUDA; the maintained alternatives are the
+   community ``faiss-gpu-cu12`` wheels or conda-forge:
 
 .. code-block:: bash
 
-    pip install ".[gpu]"
-    # or with specific CUDA version
-    pip install torch==2.0.0 --index-url https://download.pytorch.org/whl/cu118
+    # Option A: community CUDA 12 wheel
+    pip install faiss-gpu-cu12
+
+    # Option B: conda-forge (recommended for mixed environments)
+    conda install -c conda-forge faiss-gpu
+
+The ``gigacode[gpu]`` extra is provided for convenience and pins
+``faiss-gpu-cu12`` on Linux; on Windows there is no supported pip FAISS-GPU
+build, so use the CPU extra (``pip install "gigacode[embed]"``).
 
 **Verify GPU:**
 
 .. code-block:: bash
 
-    python -c "import torch; assert torch.cuda.is_available(), 'GPU not detected'; print(f'✓ GPU: {torch.cuda.get_device_name()}')"
+    python scripts/check_gpu.py
+    python -c "import torch; assert torch.cuda.is_available(), 'GPU not detected'; print(f'GPU: {torch.cuda.get_device_name()}')"
 
 Docker Installation
 ~~~~~~~~~~~~~~~~~~~
 
-Build a Docker image with GigaCode:
+The repository ships two Dockerfiles:
 
-.. code-block:: dockerfile
+- ``Dockerfile`` — CPU image (``python:3.12-slim``, CPU-only PyTorch, FAISS-CPU).
+- ``Dockerfile.gpu`` — GPU image (``python:3.12-slim``, CUDA-12.6 PyTorch wheels,
+  which bundle the CUDA runtime, plus ``faiss-gpu-cu12``). A full CUDA toolkit
+  or the ~35 GB NVIDIA PyTorch image is not needed; the host provides the
+  driver through ``--gpus all``.
 
-    FROM python:3.11
-    WORKDIR /app
-    COPY . .
-    RUN pip install .
-    RUN pip install notebook  # optional
-    EXPOSE 8888
-    CMD ["python", "-m", "jupyter", "notebook", "--ip=0.0.0.0"]
+Both images keep only what is needed at runtime (the compiler toolchain is
+dropped and ``triton`` is not installed). Typical container content is
+~1.1 GB (CPU) and ~7.4 GB (GPU); on-disk compressed size is ~0.8 GB and
+~4.1 GB respectively.
 
-Build and run:
+Prerequisite for the GPU image: the NVIDIA Container Toolkit (Docker Desktop's
+WSL2 backend includes it).
 
-.. code-block:: bash
-
-    docker build -t gigacode .
-    docker run -it gigacode
-
-From PyPI (Future)
-~~~~~~~~~~~~~~~~~~~
-
-Once released on PyPI:
+Build and run the server:
 
 .. code-block:: bash
 
-    pip install gigacode
+    # CPU
+    docker build -t gigacode:cpu .
+    docker run -p 8765:8765 -e GIGACODE_API_KEY=secret gigacode:cpu
+
+    # GPU (requires the NVIDIA container toolkit and a supported driver)
+    docker build -f Dockerfile.gpu -t gigacode:gpu .
+    docker run --gpus all -p 8765:8765 -e GIGACODE_API_KEY=secret gigacode:gpu
+
+Verify the container sees the GPU:
+
+.. code-block:: bash
+
+    docker run --rm --gpus all --entrypoint python gigacode:gpu -c \
+      "import torch, faiss; print(torch.cuda.is_available(), faiss.get_num_gpus())"
+
+From a release wheel
+~~~~~~~~~~~~~~~~~~~~
+
+GigaCode is distributed as source and as prebuilt wheels attached to GitHub
+releases; it is not published to PyPI. Download the wheel for your version from
+the release assets, then:
+
+.. code-block:: bash
+
+    pip install ./gigacode-<version>-py3-none-any.whl
+    # or with extras
+    pip install "./gigacode-<version>-py3-none-any.whl[embed,server]"
 
 Verify Installation
 ~~~~~~~~~~~~~~~~~~~
