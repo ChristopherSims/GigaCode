@@ -6,16 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Architecture &mdash; GigaCode 0.5.1 documentation</title>
+  <title>Architecture &mdash; GigaCode 0.8.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=b9afe91b"></script>
-      <script src="_static/doctools.js?v=9a2dae69"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/documentation_options.js?v=486e5634"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -53,42 +53,9 @@
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Architecture</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#high-level-architecture">High-Level Architecture</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#core-components">Core Components</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#data-flow">Data Flow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#phase-3-architecture">Phase 3 Architecture</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#design-patterns">Design Patterns</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#extensibility-points">Extensibility Points</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#performance-characteristics">Performance Characteristics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#deployment-patterns">Deployment Patterns</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#security-model">Security Model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#testing-architecture">Testing Architecture</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#future-architecture-improvements">Future Architecture Improvements</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#debugging-monitoring">Debugging &amp; Monitoring</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="performance_tuning.html">Performance Tuning</a></li>
-</ul>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/search_workflows.html">Search Workflows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/edit_workflows.html">Edit Workflows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Architecture</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#high-level-architecture">High-Level Architecture</a></li>
@@ -514,7 +481,7 @@ Infrastructure ready for future auto-tuning
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
 
-<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>  <span class="c1"># Now logs detailed info</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">work_dir</span><span class="o">=</span><span class="s2">&quot;./buffers&quot;</span><span class="p">)</span>  <span class="c1"># Now logs detailed info</span>
 </pre></div>
 </div>
 <p><strong>Metrics:</strong></p>

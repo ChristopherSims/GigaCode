@@ -6,21 +6,21 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Incremental Indexer &mdash; GigaCode 0.5.1 documentation</title>
+  <title>Incremental Indexer &mdash; GigaCode 0.8.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=b9afe91b"></script>
-      <script src="../_static/doctools.js?v=9a2dae69"></script>
-      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Semantic Cache" href="semantic_cache.html" />
-    <link rel="prev" title="Search Service" href="search_service.html" /> 
+    <link rel="prev" title="Metadata Store" href="metadata_store.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -53,84 +53,43 @@
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html">API Reference</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#module-gigacode.gigacode_tool">Core Tool</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#managers">Managers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#services">Services</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="../api_reference.html#phase-3-optimizations">Phase 3 Optimizations</a><ul class="current">
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Incremental Indexer</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#key-benefits">Key Benefits</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#performance-comparison">Performance Comparison</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#core-class">Core Class</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#key-components">Key Components</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#usage-with-indexmanager">Usage with IndexManager</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#example-commit-with-incremental-updates">Example: Commit with Incremental Updates</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#configuration">Configuration</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#statistics">Statistics</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#optimization-tips">Optimization Tips</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#advanced-manual-incremental-updates">Advanced: Manual Incremental Updates</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#see-also">See Also</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="services.html">Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hybrid_search.html">Hybrid Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="duplicate_detector.html">Duplicate Detector</a></li>
+<li class="toctree-l2"><a class="reference internal" href="language_detect.html">Language Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chunker.html">Chunker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="embedder.html">Embedder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="metadata_store.html">Metadata Store</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Incremental Indexer</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#key-benefits">Key Benefits</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#performance-comparison">Performance Comparison</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#core-class">Core Class</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.incremental_indexer.IncrementalIndexManager"><code class="docutils literal notranslate"><span class="pre">IncrementalIndexManager</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="semantic_cache.html">Semantic Cache</a></li>
-<li class="toctree-l3"><a class="reference internal" href="faiss_optimizer.html">FAISS Optimizer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#key-components">Key Components</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#usage-with-indexmanager">Usage with IndexManager</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example-commit-with-incremental-updates">Example: Commit with Incremental Updates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configuration">Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#statistics">Statistics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optimization-tips">Optimization Tips</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#advanced-manual-incremental-updates">Advanced: Manual Incremental Updates</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#see-also">See Also</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#utilities">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic_cache.html">Semantic Cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="faiss_optimizer.html">FAISS Optimizer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api_reference.html#quick-reference">Quick Reference</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../api_reference.html#see-also">See Also</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
-</ul>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
-<li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html">API Reference</a><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#module-gigacode.gigacode_tool">Core Tool</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#managers">Managers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#services">Services</a></li>
-<li class="toctree-l2 current"><a class="reference internal" href="../api_reference.html#phase-3-optimizations">Phase 3 Optimizations</a><ul class="current">
-<li class="toctree-l3 current"><a class="current reference internal" href="#">Incremental Indexer</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#overview">Overview</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#key-benefits">Key Benefits</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#performance-comparison">Performance Comparison</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#core-class">Core Class</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#key-components">Key Components</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#usage-with-indexmanager">Usage with IndexManager</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#example-commit-with-incremental-updates">Example: Commit with Incremental Updates</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#configuration">Configuration</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#statistics">Statistics</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#optimization-tips">Optimization Tips</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#advanced-manual-incremental-updates">Advanced: Manual Incremental Updates</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#see-also">See Also</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="semantic_cache.html">Semantic Cache</a></li>
-<li class="toctree-l3"><a class="reference internal" href="faiss_optimizer.html">FAISS Optimizer</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#utilities">Utilities</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#quick-reference">Quick Reference</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#see-also">See Also</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="services.html">Services</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
@@ -206,8 +165,8 @@ With incremental indexing:
 <h2>Core Class<a class="headerlink" href="#core-class" title="Link to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">gigacode.incremental_indexer.</span></span><span class="sig-name descname"><span class="pre">IncrementalIndexManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">embedder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">gigacode.incremental_indexer.</span></span><span class="sig-name descname"><span class="pre">IncrementalIndexManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">embedder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
 <p>Manages incremental FAISS index updates.</p>
 <p>Enables efficient index updates by only re-embedding changed chunks.</p>
 <p>Initialize incremental index manager.</p>
@@ -229,7 +188,7 @@ With incremental indexing:
 
 <dl class="py method">
 <dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager.register_initial_index">
-<span class="sig-name descname"><span class="pre">register_initial_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embeddings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><span class="pre">ndarray</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.register_initial_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.register_initial_index" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">register_initial_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">buffer_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embeddings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.register_initial_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.register_initial_index" title="Link to this definition"></a></dt>
 <dd><p>Register initial index after creation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -244,7 +203,7 @@ With incremental indexing:
 
 <dl class="py method">
 <dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager.compute_incremental_update">
-<span class="sig-name descname"><span class="pre">compute_incremental_update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_chunks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedder_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.compute_incremental_update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.compute_incremental_update" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">compute_incremental_update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">new_chunks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedder_func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.compute_incremental_update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.compute_incremental_update" title="Link to this definition"></a></dt>
 <dd><p>Compute incremental embedding update for changed chunks.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -269,7 +228,7 @@ With incremental indexing:
 
 <dl class="py method">
 <dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager.get_chunk_embedding">
-<span class="sig-name descname"><span class="pre">get_chunk_embedding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chunk_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><span class="pre">ndarray</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.get_chunk_embedding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.get_chunk_embedding" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">get_chunk_embedding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chunk_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.get_chunk_embedding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.get_chunk_embedding" title="Link to this definition"></a></dt>
 <dd><p>Get cached embedding for a chunk.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -283,7 +242,7 @@ With incremental indexing:
 
 <dl class="py method">
 <dt class="sig sig-object py" id="gigacode.incremental_indexer.IncrementalIndexManager.get_cache_stats">
-<span class="sig-name descname"><span class="pre">get_cache_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.get_cache_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.get_cache_stats" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">get_cache_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/gigacode/incremental_indexer.html#IncrementalIndexManager.get_cache_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.incremental_indexer.IncrementalIndexManager.get_cache_stats" title="Link to this definition"></a></dt>
 <dd><p>Get cache statistics.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -367,7 +326,7 @@ With incremental indexing:
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 
-<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">()</span>
+<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">work_dir</span><span class="o">=</span><span class="s2">&quot;./buffers&quot;</span><span class="p">)</span>
 <span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/project&quot;</span><span class="p">)</span>
 
 <span class="c1"># Make small changes (1% of chunks)</span>
@@ -510,7 +469,7 @@ With incremental indexing:
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="search_service.html" class="btn btn-neutral float-left" title="Search Service" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="metadata_store.html" class="btn btn-neutral float-left" title="Metadata Store" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="semantic_cache.html" class="btn btn-neutral float-right" title="Semantic Cache" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

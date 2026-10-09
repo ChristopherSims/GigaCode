@@ -268,10 +268,41 @@ def test_write_code_conflict_detection(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    # Second write fails because buffer is now DIRTY (implementation only allows READY state)
+    # The second write is blocked by the 3-way merge guard (disk and buffer
+    # have both diverged from the embed snapshot) — reload to resync.
     second_write = tool.write_code(buf_id, "config.py", 3, ["VERSION = '3.0'\n"], end_line=3)
-    assert second_write["status"] == "error"
-    assert "dirty" in second_write["message"].lower()
+    assert second_write["status"] == "conflict"
+    assert "reload_codebase" in second_write.get("message", "")
+
+    commit_preview = tool.commit(buf_id, dry_run=True)
+    assert commit_preview["status"] == "conflict"
+
+    tool.close()
+
+
+def test_write_code_consecutive_dirty_writes(tmp_path: Path) -> None:
+    """Consecutive write_code() calls succeed while the buffer is dirty."""
+    code_dir = tmp_path / "code"
+    code_dir.mkdir()
+    (code_dir / "values.py").write_text("A = 1\nB = 2\nC = 3\n", encoding="utf-8")
+
+    tool = CodeEmbeddingTool(work_dir=tmp_path / "work", device="cpu", use_gpu=False)
+    result = tool.embed_codebase(code_dir, pattern="*.py")
+    assert result["status"] == "ok"
+    buf_id = result["buffer_id"]
+
+    first = tool.write_code(buf_id, "values.py", 1, ["A = 10\n"], end_line=1)
+    assert first["status"] == "ok"
+    assert first["buffer_state"] == "dirty"
+    assert first["next_action"]
+
+    second = tool.write_code(buf_id, "values.py", 2, ["B = 20\n"], end_line=2)
+    assert second["status"] == "ok"
+    assert second["buffer_state"] == "dirty"
+
+    commit_result = tool.commit(buf_id, dry_run=True)
+    assert commit_result["status"] == "ok"
+    assert "values.py" in commit_result.get("written_files", [])
 
     tool.close()
 

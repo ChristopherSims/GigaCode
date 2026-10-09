@@ -5,6 +5,231 @@ All notable changes to GigaCode are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.8.1] - 2026-10-07
+
+### Added
+
+- Shared content-hash incremental navigation index for Python, JS/TS/TSX,
+  C/C++, YAML, unrendered Helm and Dockerfiles, with qualified IDs, parents,
+  imports, exports, calls and explicit unresolved/ambiguous relationships.
+- Compact `code_navigate` and `get_task_context` MCP tools, plus discoverable
+  exact symbol reads, summaries, dependency graphs and read-only Git context.
+  These tools work without embeddings and preserve pending buffer changes.
+- Source-backed summary cache and evidence-based task context, including
+  declared API routes, literal client dependencies and related test imports.
+- Added `PyYAML>=6.0` for safe structural configuration parsing; Helm and
+  Docker dependencies remain literal, non-evaluated evidence. External client
+  URL metadata omits credentials, query strings and fragments.
+- Navigation APIs: `get_symbol`, `read_symbol`, `get_callers`, `get_callees`,
+  `get_children`, `get_file_structure`, `file_summary`, `dependencies`,
+  `dependents` and bounded transitive `dependency_graph`. Exact reads include
+  source/file hashes; bodies are opt-in and capped at 8,000 characters.
+- Discoverable, read-only Git context: `git_status`, `changed_files`,
+  `git_diff`, `recent_commits`, `file_history`, `blame` and `changed_symbols`.
+  Status preserves spaces/rename pairs; diffs distinguish staged content;
+  changed-symbol mapping retains additions/deletions and enclosing definitions.
+  Nested project scopes and pagination are covered by regressions.
+- Navigation freshness/resource controls: dirty-buffer overlays without disk
+  mutation, content-hash reparsing, deletion detection, four-project cache,
+  explicit parse/skipped-file diagnostics, and limits of 2 MB/source,
+  20,000 files and 64 MB total source. Derived summaries live under
+  `<work_dir>/navigation/<project-hash>/navigation_summaries.json`.
+- Unique `old_text`/`new_text` direct edits with optional whole-file hash guards,
+  minimal line spans and fresh result hashes, avoiding full-function rewrites
+  and additional reads for small changes.
+- Cached definition-first behavioral retrieval with confidence and source
+  provenance, ranking methods separately from enclosing classes.
+- Direct `code_find` and `code_edit` MCP tools for a search/read → guarded,
+  persisted edit loop, with short discovery descriptions. Legacy deferred-only
+  mode remains available through `GIGACODE_DIRECT_TOOLS=off`.
+- Repeated paired benchmarks with alternating arm order, median summaries,
+  raw sample and paired-delta retention, behavior/doctest checks, source-scope
+  checks, and process-start/retrieval/edit/non-tool timing.
+- Benchmark `--surface direct|deferred`, `--repeats`, `--seed`, and
+  `--embedder hashing|model` options.
+- Five-item `context` benchmark suite with reusable checkout/API fixtures
+  under `scripts/benchmark_fixtures/context`, covering symbol reads, callers,
+  pricing dependencies, authorization summaries/tests and YAML/frontend
+  configuration alignment. Acceptance tests reject unchanged baselines,
+  incorrect behavior and unrelated changes.
+- Benchmark model/configuration metadata, provider cost and cache accounting,
+  raw JSONL traces, per-run records and retained failed samples. Added local
+  hashing MCP benchmark server and behavior/scope acceptance helpers.
+- Context-navigation and context-benchmark guides, refreshed coding benchmark
+  guidance, API/tool documentation and generated Sphinx documentation.
+- Regression coverage for cross-language navigation, aliases, duplicate
+  symbols, lexical shadowing, overloads, exports, Helm/Compose/Docker/API
+  dependencies, bounded summaries, pending/external edits, Git scopes and
+  renames, actual MCP stdio calls and malformed argument recovery.
+
+### Fixed
+
+- TypeScript/TSX grammar entrypoints and JSX-aware parser selection.
+- TSX call/import extraction uses TypeScript patterns; C/C++ include-based
+  calls preserve overload ambiguity. Python function-local import aliases
+  no longer leak into unrelated functions.
+- Relation pagination retains full totals beyond 100 results; oversized
+  pending overlays cannot silently return old disk definitions. YAML alias
+  source spans remain valid, and summary metadata does not dump scalar values.
+- Remaining broad suffix/file-size searches now use method structure, boundary
+  call evidence and compound module domains to avoid unrelated helpers.
+- Coding schemas explicitly request native JSON instead of XML argument markup.
+  MCP validation rejects malformed inputs before execution with compact recovery
+  messages, without echoing source payloads or rewriting legitimate XML source.
+- Coding paths now consistently accept equivalent separators, project prefixes,
+  in-root absolute paths and unique basenames, while rejecting traversal,
+  outside-root symlinks and ambiguous names.
+- Search caches invalidate after edits, and direct replies avoid chain traces.
+- Benchmark version 3 accepts behaviorally equivalent implementations instead
+  of rejecting correct edits based on regex spelling.
+- Explicit identifiers and filenames no longer fall back to unrelated
+  semantic matches. Hashing providers use lexical-only rank fusion.
+- Anchored search reads target complete Python definitions, not neighboring
+  context. Resume replies state the replacement bounds; cached reads restore
+  the correct target, and file overrides cannot inherit another file's anchors.
+- Guarded Python edits validate syntax before mutation. Resumed edits and
+  direct edits reject accidental definition removal. Preview chains do not
+  mutate pending state. Formatting/linting is optional.
+- Failed, no-op and preview MCP edits no longer count as successful disk edits
+  in timing. Processed token volume is no longer labeled dollar billing.
+- The oversized-window task now starts from an identical failing fixture in
+  both arms. Fresh benchmark sandboxes refuse to overwrite existing projects.
+- Streaming result IDs, coordinates and scores normalize NumPy scalars to
+  JSON-compatible Python values.
+- Formatter/linter subprocesses cannot inherit the MCP stdin pipe; Windows
+  runs avoid a child console, and the default command timeout is 90 seconds.
+
+### Agent workflow additions
+
+- **Context compression tool** — `compress_context` extractively shortens older
+  conversation turns while preserving system/developer messages and recent
+  tool-call/result pairs. Reports approximate token savings and keeps short
+  histories unchanged. Compression is lossy and client-applied, not automatic;
+  clients should retain original history for recovery.
+- **Hashline reads and edits** — `read_hashlines` returns bounded pending-buffer
+  source windows with line anchors and a file hash. `edit_hashlines` replaces
+  inclusive anchored ranges, rejects stale file hashes and anchors, and uses
+  the existing dirty-buffer, undo, and explicit commit workflow. Anchors are
+  8 hex chars; a successful edit returns the refreshed `file_hash` and
+  `new_anchors` (the next 5 intact lines) so subsequent chained edits need no
+  re-read.
+- **Multi-step tool chains** — `tool_chain` runs a fixed pipeline in one call,
+  including `anchor_read` (search → exact anchored read with resumable state),
+  and returns every step's call and response: `post_edit` (commit →
+  auto_format → auto_lint(auto-fix) → reload_codebase re-embed), `pre_commit`
+  (diff → validate → polish check-only → dry-run commit), `anchor_apply`
+  (edit_hashlines → validate_changes → commit; needs anchors + file hash,
+  real commit when dry_run=false), `search_read` (hybrid code_search →
+  windowed read_code around the best hit), `stream_read` (streaming search →
+  expand_match → skeleton read), and `find_and_analyze` (code_search →
+  analyze_change on the best hit). The chain stops at the first error/conflict,
+  marks remaining steps skipped, and falls back to ruff.format when black is
+  unavailable.
+- **Tool priority field** — every tool schema now carries
+  `priority` (`low` | `normal` | `high`); high = chains and bundled
+  roundtrips agents should prefer, low = single-use tools the chains bundle.
+  `tool_search` ranks high-priority tools first, and MCP listings mark the
+  priority in tool descriptions; `agent_core` hides the low-priority singles
+  entirely. Also `read_hashlines`/`edit_hashlines` now carry the identical-repeat
+  guard hint so anchor-mismatch retry loops get steered to re-read instead of
+  hammering the same call.
+- **On-demand tool discovery** — `tool_search` returns profile-allowed schemas
+  through keyword search or `select:name,name`; `tool_call` invokes discovered
+  tools while enforcing profile permissions and rejecting recursive calls.
+- **Token-efficiency integration guide and regression tests** — documented in
+  `docs/token-efficiency.md`, with coverage for stale edits, pending-buffer
+  reads, context compression, deferred MCP discovery, and profile enforcement.
+- **`code_search` tool** — single-entry search with `mode='semantic'`,
+  `'literal'`, `'symbols'`, or `'hybrid'` (RRF-fused, recommended default) and
+  optional `profile`-aware query adaptation.
+- **`semantic_search_streaming` + `expand_match` tools** — progressive
+  disclosure (signatures ~8 tokens/match, expand on demand) published to MCP
+  agents for the first time.
+- **`agent_core` tool profile** — curated surface for CLI agents
+  (`embed_codebase`, `code_search`, `semantic_search_streaming`,
+  `expand_match`, `read_code`, `write_code`, `commit`, `diff`,
+  `look_for_file`, `get_full_context`, plus tool discovery, context compression,
+  and hashline tools); `gigacode-mcp --tool-profile agent_core`.
+- **Session default buffer** — after `embed_codebase`, every tool may omit
+  `buffer_id`; the server resolves it against the most recently embedded
+  buffer. Also tolerant `file` matching in `read_code` (POSIX/Windows
+  separators and unique basenames).
+- **Buffer reuse** — `embed_codebase` on an unchanged (path, pattern) returns
+  the existing buffer with `reused: true` instead of re-embedding.
+- **Agent guidance pack** — `examples/agent_setup/` ships a ready
+  `opencode.json` plus the recommended `AGENTS.md.example` (workflow, no-repeat
+  rule, recovery semantics).
+
+### Changed
+
+- **Compact MCP discovery by default** — profile-allowed `code_find`,
+  `code_edit`, `code_navigate`, `get_task_context`, `tool_search` and
+  `tool_call` replace the complete profile schema catalog.
+  `GIGACODE_DIRECT_TOOLS=off` retains the two-tool deferred-only surface;
+  `--eager-tools` restores the complete profile listing. Python MCP
+  integrations can opt in with `tool.deferred_tools = True`; schema export
+  APIs remain unchanged. Client behavior determines which schemas are sent
+  with subsequent model requests.
+- **Compact MCP payloads** — tool results serialize without indentation
+  (~20% smaller responses); tool descriptions are truncated at 240 chars in
+  listings and `outputSchema` is no longer published per tool (the server
+  still validates payloads against declared schemas and falls back to
+  text-only content on mismatch, instead of letting strict clients reject
+  the call).
+- **Bounded MCP results** — deterministic payload/list/string shaping with
+  explicit truncation markers and narrower-window guidance.
+  `GIGACODE_MCP_OUTPUT_CHAR_CAP` (default 6,000) and
+  `GIGACODE_MCP_STRING_CHAR_CAP` (default 800) configure transport limits;
+  selected workflow tools have longer, explicit recipe descriptions.
+- **Automatic project bootstrap** — code tools can locate and embed the
+  working project on first use; `GIGACODE_AUTO_EMBED=off` disables this.
+  Navigation/task-context tools do not require embedding startup.
+- **Loop/recovery guidance** — repeated identical discovery/search reads
+  reuse cached state or return recovery hints; weak semantic results suggest
+  lexical/hybrid alternatives. Resumable chains carry replacement bounds and
+  ready-made next calls, while direct edit replies omit chain traces.
+- **Search previews capped** — `semantic_search`, `hybrid_search`, and
+  faceted results return at most `MAX_MATCH_TEXT_PREVIEW_CHARS` (200) chars
+  of source per match; full source stays on `read_code`.
+- **`read_code` windowed** — omitting `end_line` returns at most 150 lines
+  plus `total_lines` and `next_window` for continuation; `skeleton=true`
+  returns a compressed view (docstrings/comments dropped, blank runs
+  collapsed) whose `numbers` remap each kept line to its original number.
+- **`write_code` iterates safely** — consecutive writes on a dirty buffer are
+  allowed (no forced commit/discard between hunks); responses add
+  `buffer_state` + `next_action`; the echoed diff is capped at 60 lines;
+  `commit=true` persists in one call.
+
+### MCP contract fixes
+
+- **MCP output-schema drift** — `search_for` (no phantom `content` requirement),
+  `search_symbols` (`name` optional), `look_for_file` (`match_type` accepts the
+  actual `found` value), and status enums across tool schemas now accept every
+  status implementations emit (`warning`, `conflict`, `blocked`,
+  `unavailable`). These mismatches previously caused strict MCP clients to
+  reject whole tool calls.
+- **Development isolation** — unit tests disable automatic repository
+  embedding unless explicitly enabled. Local benchmark clones/results and
+  logs are ignored; generated documentation and audit artifacts remain
+  development outputs, not new runtime capabilities.
+
+### Validation and known limitations
+
+- The context feature checkpoint passed **703 tests, 7 skipped**, including
+  real MCP stdio checks; changed-file Ruff/whitespace checks passed.
+  The later five-item benchmark additions passed **36 focused tests**;
+  the full suite was not rerun for those benchmark-only additions.
+- Latest Rich paired measurement: correct edits **15/15 plain, 14/15
+  GigaCode**; uncached input **369,173 / 430,067** (+16.5% for GigaCode).
+  XML argument delimiters disappeared in that run, but directory selectors
+  and unmatched text remained real failures.
+- Five-item context smoke measurement: **5/5 correct edits in each arm**,
+  uncached input **105,453 / 141,488** (+34.2%), median wall time
+  **22.25 / 145.40 seconds**. Four `get_task_context` calls timed out at
+  120 seconds; both `code_navigate` attempts used invalid selectors.
+
 ## [0.8.0] - 2026-09-12
 
 Dependability release. Focuses on persistence safety, search correctness, the

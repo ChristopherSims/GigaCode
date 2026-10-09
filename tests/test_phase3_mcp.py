@@ -35,7 +35,12 @@ def _make_tool(tmpdir: str, profile: str) -> CodeEmbeddingTool:
 
 class TestToolProfiles:
     def test_profiles_registered(self):
-        assert set(list_tool_profiles()) == {"read_only", "editing", "full"}
+        assert set(list_tool_profiles()) == {
+            "agent_core",
+            "read_only",
+            "editing",
+            "full",
+        }
         assert DEFAULT_TOOL_PROFILE == "read_only"
 
     def test_default_profile_is_curated_read_only(self):
@@ -98,7 +103,14 @@ class TestToolProfiles:
 
 
 class _DummyTool:
-    """Minimal MCP tool double used to exercise the protocol surface."""
+    """Minimal MCP tool double used to exercise the protocol surface.
+
+    Uses the eager surface explicitly so real protocol tools (ping/boom/slow)
+    are published for transport-level tests; in production the deferred
+    tool_search/tool_call surface is the default.
+    """
+
+    deferred_tools = False
 
     def get_exposed_tool_schemas(self):
         return [

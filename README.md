@@ -6,7 +6,7 @@
 
 **GPU-accelerated code embedding and semantic search for AI agents.**
 
-Embed a codebase into searchable chunks, run semantic search, navigate references, detect code smells and security vulnerabilities, and edit code through a safe read-write-commit workflow — all from a single tool with 67 agent-discoverable capabilities.
+Embed a codebase into searchable chunks, run semantic search, navigate references, detect code smells and security vulnerabilities, and edit code through a safe read-write-commit workflow — all from a single tool with 76 agent-discoverable capabilities.
 
 Optimized for AI agent loops: fast AST chunking, sub-millisecond search on GPU, surgical index updates on edit, and full tool schema export in OpenAI, Anthropic, MCP, and Ollama formats.
 
@@ -77,6 +77,20 @@ with CodeEmbeddingTool(work_dir="./buffers", device="cpu") as tool:
     tool.commit(buf_id)     # write to disk
 ```
 
+## Structural context, without embeddings
+
+Use `get_task_context(task)` for bounded, evidence-backed orientation. Use
+`code_navigate(action="symbol", file="auth.py", symbol="AuthService.login",
+include_source=true)` to read one exact symbol, or choose `structure`, `callers`,
+`callees`, `references`, `children`, `summary`, `dependencies`, `dependents`
+or `graph`. Specify `root` when there is no active project.
+
+The shared index supports Python, JS/TS/TSX, C/C++, YAML, unrendered Helm and
+Dockerfiles. Ambiguous names and unresolved calls remain explicit.
+Read-only Git tools and individual navigation operations are discoverable
+through `tool_search`. See [context navigation](docs/context_navigation.md)
+for examples, freshness, cache locations and resolution limits.
+
 ## CLI
 
 ```bash
@@ -95,7 +109,48 @@ python -m gigacode --work-dir ./buffers
 
 ## MCP Client Configuration
 
-MCP servers expose a curated **read-only** tool profile by default. Add `--tool-profile editing` (or `full`) to enable `write_code`, `commit`, and other mutating tools.
+MCP servers use a curated **read-only** profile by default. For coding agents,
+add `--tool-profile agent_core` (or `editing`). The compact published surface
+is `code_find`, `code_edit`, `code_navigate`, `get_task_context`, `tool_search`,
+and `tool_call`, with editing tools
+excluded from read-only profiles.
+
+The normal workflow is **`code_find` → `code_edit` → run tests**. No discovery,
+explicit embedding, or `post_edit` call is required. For small edits, pass the
+returned `file` with a unique `old_text` and its `new_text` replacement. Include
+indentation and enough context to match once; no narrower read is required.
+Use `expected_hash=file_hash` when available. Each successful edit returns a
+fresh `file_hash` for subsequent edits. Alternatively, copy anchors and use
+`new_lines` to replace the entire inclusive range, including declarations and
+decorators; this mode requires `expected_hash`. Python syntax is
+checked before mutation; `dry_run=true` previews without changing buffer or
+disk. Intentional definition deletion requires `allow_definition_removal=true`.
+Other languages retain text/hash/anchor guards but do not have a Python AST check.
+
+Source paths accept either separator, project-prefixed paths, in-root absolute
+paths, and unique basenames. Responses use root-relative `/` paths. Outside-root
+paths, traversal and ambiguous basenames are rejected without guessing.
+
+Tool arguments must be native JSON objects, not XML tool-call wrappers.
+`old_text` and `new_text` contain source strings, not serialized lists or
+`arg_key`/`arg_value` argument markup. XML that is part of the source is allowed.
+Malformed calls are rejected before execution with compact JSON recovery
+messages; the server never repairs or guesses edit arguments.
+
+Exact identifiers and file names use source lookup rather than semantic
+guesses. Behavioral searches return candidates; inspect their declarations
+before editing. Set `GIGACODE_DIRECT_TOOLS=off` for legacy deferred-only
+discovery, or use `--eager-tools` to publish the full selected profile.
+
+See [coding benchmark methodology](docs/coding_benchmarks.md) for repeat runs,
+correctness checks, token accounting, and GPU measurement limits. These changes
+do not establish a token or latency improvement until new agent runs are measured.
+
+The [`examples/agent_setup/`](examples/agent_setup/) directory ships ready
+agent configurations for popular harnesses (OpenCode, Factory Droid,
+Claude Code, Codex CLI, Hermes, Oh-My-Pi, Cursor, Windsurf, Gemini CLI,
+VS Code, Zed, Goose, Cline), including the recommended `AGENTS.md` guidance
+paragraph (single-search workflow, no-repeat rule, buffer recovery semantics).
 
 **Local stdio (Claude Desktop, most agents):**
 
@@ -143,7 +198,7 @@ docker run --gpus all -p 8765:8765 gigacode:gpu
 
 ## Tool Categories
 
-67 tools across 8 categories. 50 read-only, 17 mutating.
+76 tools across 9 categories. 56 read-only, 20 mutating.
 
 | Category | Tools | Read-Only | Mutating |
 |----------|:-----:|:---------:|:--------:|
@@ -153,7 +208,8 @@ docker run --gpus all -p 8765:8765 gigacode:gpu
 | Navigation | 6 | 6 | 0 |
 | Quality | 8 | 4 | 4 |
 | Safety | 7 | 6 | 1 |
-| Search | 13 | 13 | 0 |
+| Search | 16 | 16 | 0 |
+| Agent | 6 | 3 | 3 |
 | Security | 1 | 1 | 0 |
 
 ## Schema Export Formats

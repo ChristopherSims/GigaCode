@@ -6,16 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GigaCode Documentation &mdash; GigaCode 0.5.1 documentation</title>
+  <title>GigaCode Documentation &mdash; GigaCode 0.8.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=b9afe91b"></script>
-      <script src="_static/doctools.js?v=9a2dae69"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/documentation_options.js?v=486e5634"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -52,26 +52,9 @@
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="performance_tuning.html">Performance Tuning</a></li>
-</ul>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
-<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/search_workflows.html">Search Workflows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/edit_workflows.html">Edit Workflows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="performance_tuning.html">Performance Tuning</a></li>
@@ -103,18 +86,21 @@
              
   <section id="gigacode-documentation">
 <h1>GigaCode Documentation<a class="headerlink" href="#gigacode-documentation" title="Link to this heading"></a></h1>
-<p>Welcome to the GigaCode documentation! GigaCode is a local-only semantic code search and embedding tool powered by GPU-accelerated vector search and language model embeddings.</p>
+<p>Welcome to the GigaCode documentation! GigaCode is a local-only semantic code
+search and embedding tool powered by GPU-accelerated vector search and language
+model embeddings.</p>
 <p><strong>Key Features:</strong></p>
 <ul class="simple">
-<li><p>🚀 GPU-accelerated embeddings (sub-millisecond search on GPU)</p></li>
-<li><p>📚 Support for 8+ programming languages</p></li>
-<li><p>🔍 Semantic code search with hybrid matching</p></li>
-<li><p>💾 Automatic code buffer management</p></li>
-<li><p>📊 Clustering and duplicate detection</p></li>
-<li><p>🔐 Local-only execution (no cloud, no network)</p></li>
+<li><p>GPU-accelerated embeddings (sub-millisecond search on GPU)</p></li>
+<li><p>Support for 8+ programming languages</p></li>
+<li><p>Semantic code search with hybrid matching</p></li>
+<li><p>Automatic code buffer management</p></li>
+<li><p>Clustering and duplicate detection</p></li>
+<li><p>Local-only execution (no cloud, no network)</p></li>
 </ul>
 <p><strong>Getting Started:</strong></p>
-<p>If you’re new to GigaCode, start with the <a class="reference internal" href="quick_start.html"><span class="doc">Quick Start</span></a> guide to set up and run your first search.</p>
+<p>If you’re new to GigaCode, start with the <a class="reference internal" href="quick_start.html"><span class="doc">Quick Start</span></a> guide to set up and
+run your first search.</p>
 <p><strong>User Guides:</strong></p>
 <p>Learn how to use GigaCode effectively:</p>
 <div class="toctree-wrapper compound">
@@ -135,9 +121,10 @@
 <li class="toctree-l2"><a class="reference internal" href="installation.html#standard-installation">Standard Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#gpu-setup-optional">GPU Setup (Optional)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#docker-installation">Docker Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#from-pypi-future">From PyPI (Future)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#from-a-release-wheel">From a release wheel</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#verify-installation">Verify Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#build-documentation">Build Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#development-installation">Development Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#system-specific-notes">System-Specific Notes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installation.html#next-steps">Next Steps</a></li>
@@ -202,36 +189,20 @@
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api_reference.html#module-gigacode.gigacode_tool">Core Tool</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api_reference.html#managers">Managers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api_reference.html#services">Services</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api_reference.html#phase-3-optimizations">Phase 3 Optimizations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api_reference.html#utilities">Utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/tools.html">Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/managers.html">Managers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/services.html">Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/hybrid_search.html">Hybrid Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/duplicate_detector.html">Duplicate Detector</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/language_detect.html">Language Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/chunker.html">Chunker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/embedder.html">Embedder</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/metadata_store.html">Metadata Store</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/incremental_indexer.html">Incremental Indexer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/semantic_cache.html">Semantic Cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="api/faiss_optimizer.html">FAISS Optimizer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#quick-reference">Quick Reference</a></li>
 <li class="toctree-l2"><a class="reference internal" href="api_reference.html#see-also">See Also</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api/tools.html#codeembeddingtool">CodeEmbeddingTool</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/tools.html#key-methods">Key Methods</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/tools.html#example">Example</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/tools.html#configuration">Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/tools.html#see-also">See Also</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api/managers.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/managers.html#detailed-documentation">Detailed Documentation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/managers.html#quick-reference">Quick Reference</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/managers.html#see-also">See Also</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="api/services.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/services.html#core-services">Core Services</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/services.html#phase-3-integration">Phase 3 Integration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/services.html#configuration">Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="api/services.html#see-also">See Also</a></li>
 </ul>
 </li>
 </ul>
@@ -300,10 +271,6 @@
 <li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
 <li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
 </ul>
-<p>—</p>
-<p><strong>Table of Contents:</strong></p>
-<div class="toctree-wrapper compound">
-</div>
 </section>
 
 

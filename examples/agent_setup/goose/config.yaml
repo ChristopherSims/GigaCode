@@ -1,0 +1,11 @@
+# Merge the mcpServers block below into ~/.config/goose/config.yaml
+mcpServers:
+  gigacode:
+    command: gigacode-mcp
+    args:
+      - --work-dir
+      - /absolute/path/to/.gigacode-buffers
+      - --tool-profile
+      - agent_core
+    enabled: true
+    timeout: 300

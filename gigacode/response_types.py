@@ -51,6 +51,9 @@ class SearchMatch:
     semantic_rank: Optional[int] = None
     lexical_rank: Optional[int] = None
     rrf_score: Optional[float] = None
+    # Short preview of the matched source (capped in SearchService);
+    # full source must be fetched via read_code.
+    text: Optional[str] = None
     # Type inference fields
     signature: Optional[str] = None
     parameter_types: Optional[list[dict[str, str]]] = None

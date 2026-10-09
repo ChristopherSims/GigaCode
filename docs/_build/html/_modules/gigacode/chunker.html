@@ -1,0 +1,685 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gigacode.chunker &mdash; GigaCode 0.8.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=486e5634"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gigacode.chunker</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gigacode.chunker</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;AST-based code chunking.</span>
+
+<span class="sd">Chunks source code at function/class/method boundaries using tree-sitter.</span>
+<span class="sd">Falls back to sliding-window chunking for unsupported languages or parse failures.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">asdict</span><span class="p">,</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;CodeChunk&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;chunk_text&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;chunk_file&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="c1"># Node types that define logical boundaries (language-agnostic fallback)</span>
+<span class="n">_DEFINITION_TYPES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;function_definition&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;function_item&quot;</span><span class="p">,</span>  <span class="c1"># Rust</span>
+    <span class="s2">&quot;function_declaration&quot;</span><span class="p">,</span>  <span class="c1"># C/Go/JS/TS</span>
+    <span class="s2">&quot;class_definition&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;class_item&quot;</span><span class="p">,</span>  <span class="c1"># Rust</span>
+    <span class="s2">&quot;class_declaration&quot;</span><span class="p">,</span>  <span class="c1"># JS/TS/Java</span>
+    <span class="s2">&quot;method_definition&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;method_item&quot;</span><span class="p">,</span>  <span class="c1"># Rust</span>
+    <span class="s2">&quot;method_declaration&quot;</span><span class="p">,</span>  <span class="c1"># Java/C#/Go</span>
+    <span class="s2">&quot;struct_item&quot;</span><span class="p">,</span>  <span class="c1"># Rust</span>
+    <span class="s2">&quot;impl_item&quot;</span><span class="p">,</span>  <span class="c1"># Rust</span>
+    <span class="s2">&quot;interface_definition&quot;</span><span class="p">,</span>  <span class="c1"># TypeScript / Java</span>
+    <span class="s2">&quot;interface_declaration&quot;</span><span class="p">,</span>  <span class="c1"># Java</span>
+    <span class="s2">&quot;enum_item&quot;</span><span class="p">,</span>  <span class="c1"># Rust</span>
+    <span class="s2">&quot;enum_declaration&quot;</span><span class="p">,</span>  <span class="c1"># Java/TS</span>
+    <span class="s2">&quot;trait_item&quot;</span><span class="p">,</span>  <span class="c1"># Rust</span>
+    <span class="s2">&quot;constructor_declaration&quot;</span><span class="p">,</span>  <span class="c1"># Java/C#</span>
+    <span class="s2">&quot;arrow_function&quot;</span><span class="p">,</span>  <span class="c1"># JS/TS</span>
+    <span class="s2">&quot;async_function_definition&quot;</span><span class="p">,</span>  <span class="c1"># Python</span>
+    <span class="s2">&quot;module&quot;</span><span class="p">,</span>  <span class="c1"># Elixir</span>
+    <span class="s2">&quot;lambda&quot;</span><span class="p">,</span>  <span class="c1"># Python</span>
+    <span class="s2">&quot;lambda_expression&quot;</span><span class="p">,</span>  <span class="c1"># Java</span>
+    <span class="s2">&quot;proc&quot;</span><span class="p">,</span>  <span class="c1"># Ruby (lambda/proc)</span>
+    <span class="s2">&quot;preprocessing_directive&quot;</span><span class="p">,</span>  <span class="c1"># C/C++ macros</span>
+<span class="p">}</span>
+
+<span class="c1"># Language-specific definition node types (takes precedence over global set)</span>
+<span class="n">_DEFINITION_TYPES_BY_LANGUAGE</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;python&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function_definition&quot;</span><span class="p">,</span> <span class="s2">&quot;async_function_definition&quot;</span><span class="p">,</span> <span class="s2">&quot;class_definition&quot;</span><span class="p">,</span> <span class="s2">&quot;lambda&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;javascript&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;function_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;method_definition&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;arrow_function&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;class_declaration&quot;</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;typescript&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;function_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;method_definition&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;arrow_function&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;class_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;interface_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;enum_declaration&quot;</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;java&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;method_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;constructor_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;class_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;interface_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;enum_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;lambda_expression&quot;</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function_definition&quot;</span><span class="p">,</span> <span class="s2">&quot;preprocessing_directive&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;cpp&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;function_definition&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;class_specifier&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;struct_specifier&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;preprocessing_directive&quot;</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;rust&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function_item&quot;</span><span class="p">,</span> <span class="s2">&quot;impl_item&quot;</span><span class="p">,</span> <span class="s2">&quot;struct_item&quot;</span><span class="p">,</span> <span class="s2">&quot;enum_item&quot;</span><span class="p">,</span> <span class="s2">&quot;trait_item&quot;</span><span class="p">,</span> <span class="s2">&quot;class_item&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;go&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function_declaration&quot;</span><span class="p">,</span> <span class="s2">&quot;method_declaration&quot;</span><span class="p">,</span> <span class="s2">&quot;type_declaration&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;ruby&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;method&quot;</span><span class="p">,</span> <span class="s2">&quot;singleton_method&quot;</span><span class="p">,</span> <span class="s2">&quot;class&quot;</span><span class="p">,</span> <span class="s2">&quot;module&quot;</span><span class="p">,</span> <span class="s2">&quot;proc&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;php&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function_definition&quot;</span><span class="p">,</span> <span class="s2">&quot;method_declaration&quot;</span><span class="p">,</span> <span class="s2">&quot;class_declaration&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;csharp&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;method_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;constructor_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;class_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;interface_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;enum_declaration&quot;</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;swift&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;function_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;class_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;struct_declaration&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;enum_declaration&quot;</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;kotlin&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function_declaration&quot;</span><span class="p">,</span> <span class="s2">&quot;class_declaration&quot;</span><span class="p">,</span> <span class="s2">&quot;object_declaration&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;scala&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function_definition&quot;</span><span class="p">,</span> <span class="s2">&quot;class_definition&quot;</span><span class="p">,</span> <span class="s2">&quot;trait_definition&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;lua&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function_declaration&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;elixir&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function&quot;</span><span class="p">,</span> <span class="s2">&quot;module&quot;</span><span class="p">},</span>
+    <span class="s2">&quot;bash&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;function_definition&quot;</span><span class="p">},</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="CodeChunk">
+<a class="viewcode-back" href="../../api/chunker.html#gigacode.chunker.CodeChunk">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CodeChunk</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A semantic chunk of source code.&quot;&quot;&quot;</span>
+
+    <span class="nb">id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">file</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">start_line</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># 1-based, inclusive</span>
+    <span class="n">end_line</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># 1-based, inclusive</span>
+    <span class="nb">type</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># &quot;function&quot;, &quot;class&quot;, &quot;method&quot;, &quot;lambda&quot;, &quot;macro&quot;, &quot;nested_function&quot;, &quot;orphan&quot;, &quot;sliding&quot;</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">text</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">embedding</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># Symbol metadata for context assembly and cross-reference</span>
+    <span class="n">symbols_defined</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># e.g., [&quot;UserRepository&quot;, &quot;validate_email&quot;]</span>
+    <span class="n">symbols_called</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># e.g., [&quot;hash_password&quot;, &quot;db.query&quot;]</span>
+    <span class="n">imports</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># e.g., [&quot;fastapi.security&quot;, &quot;jwt&quot;]</span>
+
+<div class="viewcode-block" id="CodeChunk.dict">
+<a class="viewcode-back" href="../../api/chunker.html#gigacode.chunker.CodeChunk.dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">line_count</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">end_line</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_line</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">text_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span></div>
+
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Tree-sitter helpers</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+<span class="n">_grammar_cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_grammar</span><span class="p">(</span><span class="n">language_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Import and cache a tree-sitter Language object.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">language_hint</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">hint</span> <span class="o">=</span> <span class="n">language_hint</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">hint</span> <span class="ow">in</span> <span class="n">_grammar_cache</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_grammar_cache</span><span class="p">[</span><span class="n">hint</span><span class="p">]</span>
+
+    <span class="c1"># Map common aliases to package names</span>
+    <span class="n">aliases</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;py&quot;</span><span class="p">:</span> <span class="s2">&quot;python&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;js&quot;</span><span class="p">:</span> <span class="s2">&quot;javascript&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ts&quot;</span><span class="p">:</span> <span class="s2">&quot;typescript&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tsx&quot;</span><span class="p">:</span> <span class="s2">&quot;typescript&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;rs&quot;</span><span class="p">:</span> <span class="s2">&quot;rust&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;cpp&quot;</span><span class="p">:</span> <span class="s2">&quot;cpp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;c++&quot;</span><span class="p">:</span> <span class="s2">&quot;cpp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;go&quot;</span><span class="p">:</span> <span class="s2">&quot;go&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;java&quot;</span><span class="p">:</span> <span class="s2">&quot;java&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;rb&quot;</span><span class="p">:</span> <span class="s2">&quot;ruby&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">lang_name</span> <span class="o">=</span> <span class="n">aliases</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">hint</span><span class="p">,</span> <span class="n">hint</span><span class="p">)</span>
+    <span class="n">pkg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;tree_sitter_</span><span class="si">{</span><span class="n">lang_name</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">mod</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span>
+        <span class="n">lang</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="s2">&quot;language&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">lang</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tree_sitter</span><span class="w"> </span><span class="kn">import</span> <span class="n">Language</span>
+
+        <span class="n">grammar</span> <span class="o">=</span> <span class="n">Language</span><span class="p">(</span><span class="n">lang</span><span class="p">()</span> <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">lang</span><span class="p">)</span> <span class="k">else</span> <span class="n">lang</span><span class="p">)</span>
+        <span class="n">_grammar_cache</span><span class="p">[</span><span class="n">hint</span><span class="p">]</span> <span class="o">=</span> <span class="n">grammar</span>
+        <span class="k">return</span> <span class="n">grammar</span>
+    <span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;Grammar package </span><span class="si">%s</span><span class="s2"> not installed. Install with: pip install </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">pkg</span><span class="p">,</span>
+            <span class="n">pkg</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Could not load grammar </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">exc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_walk</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+    <span class="k">yield</span> <span class="n">node</span>
+    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+        <span class="k">yield from</span> <span class="n">_walk</span><span class="p">(</span><span class="n">child</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_extract_name</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">source_bytes</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Try to find an identifier child and return its text.</span>
+
+<span class="sd">    Handles various node types: identifier, name, function_name, etc.</span>
+<span class="sd">    For macros, extracts the macro name after #define.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Handle preprocessing directives (macros) - extract name after #define</span>
+    <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;preprocessing_directive&quot;</span><span class="p">:</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">source_bytes</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">start_byte</span> <span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">end_byte</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">)</span>
+        <span class="c1"># Extract macro name: #define MACRO_NAME ...</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+        <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;#\s*define\s+(\w+)&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># For regular definitions, find identifier/name child</span>
+    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">child</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;identifier&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;function_name&quot;</span><span class="p">,</span> <span class="s2">&quot;property_identifier&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">source_bytes</span><span class="p">[</span><span class="n">child</span><span class="o">.</span><span class="n">start_byte</span> <span class="p">:</span> <span class="n">child</span><span class="o">.</span><span class="n">end_byte</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_nested_definition</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if a function/lambda is nested inside another function/lambda/class.</span>
+
+<span class="sd">    Returns True if the node&#39;s parent is a function, lambda, class, or method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parent</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">parent</span>
+    <span class="k">while</span> <span class="n">parent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># Check if parent is a definition that would contain this node</span>
+        <span class="k">if</span> <span class="n">parent</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="s2">&quot;function_definition&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;async_function_definition&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;function_declaration&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;method_declaration&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;method_definition&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;lambda&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;lambda_expression&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;arrow_function&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;class_definition&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;class_declaration&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;class_specifier&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;function_item&quot;</span><span class="p">,</span>  <span class="c1"># Rust</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">parent</span>
+    <span class="k">return</span> <span class="kc">False</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_chunk_with_tree_sitter</span><span class="p">(</span>
+    <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">file_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse text with tree-sitter and return definition-based chunks.</span>
+
+<span class="sd">    Returns None if parsing fails or no grammar is available.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">grammar</span> <span class="o">=</span> <span class="n">_get_grammar</span><span class="p">(</span><span class="n">language_hint</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">grammar</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;No tree-sitter grammar available for language_hint=</span><span class="si">%r</span><span class="s2">; will fall back to sliding window.&quot;</span><span class="p">,</span>
+            <span class="n">language_hint</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">tree_sitter</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parser</span>
+
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">(</span><span class="n">grammar</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ModuleNotFoundError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+            <span class="s2">&quot;Parser initialization failed for language_hint=</span><span class="si">%r</span><span class="s2"> (file=</span><span class="si">%s</span><span class="s2">): </span><span class="si">%s</span><span class="s2">; will fall back to sliding window.&quot;</span><span class="p">,</span>
+            <span class="n">language_hint</span><span class="p">,</span>
+            <span class="n">file_hint</span><span class="p">,</span>
+            <span class="n">exc</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">source_bytes</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+    <span class="n">tree</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">source_bytes</span><span class="p">)</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">root_node</span>
+
+    <span class="n">lines</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">lines</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="c1"># Determine which node types to treat as boundaries for this language</span>
+    <span class="n">normalized_hint</span> <span class="o">=</span> <span class="p">(</span><span class="n">language_hint</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">definition_types</span> <span class="o">=</span> <span class="n">_DEFINITION_TYPES_BY_LANGUAGE</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">normalized_hint</span><span class="p">,</span> <span class="n">_DEFINITION_TYPES</span><span class="p">)</span>
+
+    <span class="c1"># Collect definition nodes with their line ranges</span>
+    <span class="n">defs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">_walk</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="n">definition_types</span><span class="p">:</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">start_point</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>  <span class="c1"># 0-index -&gt; 1-index</span>
+            <span class="n">end</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">end_point</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">_extract_name</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">source_bytes</span><span class="p">)</span>
+
+            <span class="c1"># Classify chunk type</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;preprocessing_directive&quot;</span><span class="p">:</span>
+                <span class="c1"># C/C++ macro</span>
+                <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;macro&quot;</span>
+            <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="s2">&quot;class_definition&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;class_declaration&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;class_item&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;class_specifier&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;object_declaration&quot;</span><span class="p">,</span>
+            <span class="p">):</span>
+                <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;class&quot;</span>
+            <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;method_declaration&quot;</span><span class="p">,</span> <span class="s2">&quot;method_definition&quot;</span><span class="p">,</span> <span class="s2">&quot;method_item&quot;</span><span class="p">):</span>
+                <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;method&quot;</span>
+            <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;lambda&quot;</span><span class="p">,</span> <span class="s2">&quot;lambda_expression&quot;</span><span class="p">):</span>
+                <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;lambda&quot;</span>
+            <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;proc&quot;</span><span class="p">:</span>
+                <span class="c1"># Ruby lambda/proc</span>
+                <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;lambda&quot;</span>
+            <span class="k">elif</span> <span class="s2">&quot;function&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="ow">or</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="s2">&quot;arrow_function&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;function_item&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;function_declaration&quot;</span><span class="p">,</span>
+            <span class="p">):</span>
+                <span class="c1"># Check if nested</span>
+                <span class="k">if</span> <span class="n">_is_nested_definition</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+                    <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;nested_function&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;function&quot;</span>
+            <span class="k">elif</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;module&quot;</span><span class="p">:</span>
+                <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;module&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Default fallback</span>
+                <span class="k">if</span> <span class="s2">&quot;class&quot;</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="ow">or</span> <span class="n">node</span><span class="o">.</span><span class="n">type</span> <span class="ow">in</span> <span class="p">(</span>
+                    <span class="s2">&quot;struct_item&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;struct_specifier&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;object_declaration&quot;</span><span class="p">,</span>
+                <span class="p">):</span>
+                    <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;class&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">chunk_type</span> <span class="o">=</span> <span class="s2">&quot;function&quot;</span>
+
+            <span class="n">defs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">chunk_type</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">defs</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">defs</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1"># Build chunks: definitions + orphan gaps between them</span>
+    <span class="n">chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">next_id</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">prev_end</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># Determine language for import/call extraction</span>
+    <span class="n">normalized_hint</span> <span class="o">=</span> <span class="p">(</span><span class="n">language_hint</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.context_assembler</span><span class="w"> </span><span class="kn">import</span> <span class="n">_extract_calls</span><span class="p">,</span> <span class="n">_extract_imports</span>
+
+    <span class="k">for</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">ctype</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">defs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">start</span> <span class="o">&gt;</span> <span class="n">prev_end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Orphan chunk</span>
+            <span class="n">orphan_lines</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">prev_end</span> <span class="p">:</span> <span class="n">start</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">orphan_text</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">orphan_lines</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">orphan_text</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">CodeChunk</span><span class="p">(</span>
+                        <span class="nb">id</span><span class="o">=</span><span class="n">next_id</span><span class="p">,</span>
+                        <span class="n">file</span><span class="o">=</span><span class="n">file_hint</span><span class="p">,</span>
+                        <span class="n">start_line</span><span class="o">=</span><span class="n">prev_end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                        <span class="n">end_line</span><span class="o">=</span><span class="n">start</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                        <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;orphan&quot;</span><span class="p">,</span>
+                        <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">text</span><span class="o">=</span><span class="n">orphan_text</span><span class="p">,</span>
+                        <span class="n">symbols_defined</span><span class="o">=</span><span class="p">[],</span>
+                        <span class="n">symbols_called</span><span class="o">=</span><span class="n">_extract_calls</span><span class="p">(</span><span class="n">orphan_text</span><span class="p">,</span> <span class="n">normalized_hint</span><span class="p">),</span>
+                        <span class="n">imports</span><span class="o">=</span><span class="n">_extract_imports</span><span class="p">(</span><span class="n">orphan_text</span><span class="p">,</span> <span class="n">normalized_hint</span><span class="p">),</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">next_id</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">chunk_lines</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">start</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">end</span><span class="p">]</span>
+        <span class="n">chunk_text</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chunk_lines</span><span class="p">)</span>
+        <span class="c1"># Extract symbols: the defined symbol + any calls inside</span>
+        <span class="n">symbols_defined</span> <span class="o">=</span> <span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">if</span> <span class="n">name</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="n">symbols_called</span> <span class="o">=</span> <span class="n">_extract_calls</span><span class="p">(</span><span class="n">chunk_text</span><span class="p">,</span> <span class="n">normalized_hint</span><span class="p">)</span>
+        <span class="c1"># Remove self-calls from symbols_called</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">symbols_called</span><span class="p">:</span>
+            <span class="n">symbols_called</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">symbols_called</span> <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="n">name</span><span class="p">]</span>
+        <span class="n">imports</span> <span class="o">=</span> <span class="n">_extract_imports</span><span class="p">(</span><span class="n">chunk_text</span><span class="p">,</span> <span class="n">normalized_hint</span><span class="p">)</span>
+        <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">CodeChunk</span><span class="p">(</span>
+                <span class="nb">id</span><span class="o">=</span><span class="n">next_id</span><span class="p">,</span>
+                <span class="n">file</span><span class="o">=</span><span class="n">file_hint</span><span class="p">,</span>
+                <span class="n">start_line</span><span class="o">=</span><span class="n">start</span><span class="p">,</span>
+                <span class="n">end_line</span><span class="o">=</span><span class="n">end</span><span class="p">,</span>
+                <span class="nb">type</span><span class="o">=</span><span class="n">ctype</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                <span class="n">text</span><span class="o">=</span><span class="n">chunk_text</span><span class="p">,</span>
+                <span class="n">symbols_defined</span><span class="o">=</span><span class="n">symbols_defined</span><span class="p">,</span>
+                <span class="n">symbols_called</span><span class="o">=</span><span class="n">symbols_called</span><span class="p">,</span>
+                <span class="n">imports</span><span class="o">=</span><span class="n">imports</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">next_id</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">prev_end</span> <span class="o">=</span> <span class="n">end</span>
+
+    <span class="c1"># Trailing orphan</span>
+    <span class="k">if</span> <span class="n">prev_end</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">):</span>
+        <span class="n">orphan_lines</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">prev_end</span><span class="p">:]</span>
+        <span class="n">orphan_text</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">orphan_lines</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">orphan_text</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">CodeChunk</span><span class="p">(</span>
+                    <span class="nb">id</span><span class="o">=</span><span class="n">next_id</span><span class="p">,</span>
+                    <span class="n">file</span><span class="o">=</span><span class="n">file_hint</span><span class="p">,</span>
+                    <span class="n">start_line</span><span class="o">=</span><span class="n">prev_end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                    <span class="n">end_line</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">),</span>
+                    <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;orphan&quot;</span><span class="p">,</span>
+                    <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">text</span><span class="o">=</span><span class="n">orphan_text</span><span class="p">,</span>
+                    <span class="n">symbols_defined</span><span class="o">=</span><span class="p">[],</span>
+                    <span class="n">symbols_called</span><span class="o">=</span><span class="n">_extract_calls</span><span class="p">(</span><span class="n">orphan_text</span><span class="p">,</span> <span class="n">normalized_hint</span><span class="p">),</span>
+                    <span class="n">imports</span><span class="o">=</span><span class="n">_extract_imports</span><span class="p">(</span><span class="n">orphan_text</span><span class="p">,</span> <span class="n">normalized_hint</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">chunks</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_chunk_sliding_window</span><span class="p">(</span>
+    <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">file_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">window</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
+    <span class="n">overlap</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="n">language_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fallback chunker: sliding windows of *window* lines with *overlap*.&quot;&quot;&quot;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">lines</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="n">normalized_hint</span> <span class="o">=</span> <span class="p">(</span><span class="n">language_hint</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.context_assembler</span><span class="w"> </span><span class="kn">import</span> <span class="n">_extract_calls</span><span class="p">,</span> <span class="n">_extract_imports</span>
+
+    <span class="n">chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">step</span> <span class="o">=</span> <span class="n">window</span> <span class="o">-</span> <span class="n">overlap</span>
+    <span class="n">cid</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">),</span> <span class="n">step</span><span class="p">):</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">window</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+        <span class="n">chunk_lines</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+        <span class="n">chunk_text</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chunk_lines</span><span class="p">)</span>
+        <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">CodeChunk</span><span class="p">(</span>
+                <span class="nb">id</span><span class="o">=</span><span class="n">cid</span><span class="p">,</span>
+                <span class="n">file</span><span class="o">=</span><span class="n">file_hint</span><span class="p">,</span>
+                <span class="n">start_line</span><span class="o">=</span><span class="n">start</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="n">end_line</span><span class="o">=</span><span class="n">end</span><span class="p">,</span>
+                <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;sliding&quot;</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">text</span><span class="o">=</span><span class="n">chunk_text</span><span class="p">,</span>
+                <span class="n">symbols_defined</span><span class="o">=</span><span class="p">[],</span>
+                <span class="n">symbols_called</span><span class="o">=</span><span class="n">_extract_calls</span><span class="p">(</span><span class="n">chunk_text</span><span class="p">,</span> <span class="n">normalized_hint</span><span class="p">),</span>
+                <span class="n">imports</span><span class="o">=</span><span class="n">_extract_imports</span><span class="p">(</span><span class="n">chunk_text</span><span class="p">,</span> <span class="n">normalized_hint</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">cid</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">end</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">):</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">chunks</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------------</span>
+<span class="c1"># Public API</span>
+<span class="c1"># ---------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="chunk_text">
+<a class="viewcode-back" href="../../api/chunker.html#gigacode.chunker.chunk_text">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">chunk_text</span><span class="p">(</span>
+    <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">language_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">filename_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">sliding_window_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Split source text into semantic chunks.</span>
+
+<span class="sd">    Tries tree-sitter AST chunking first, falls back to sliding windows.</span>
+
+<span class="sd">    **Supported chunk types:**</span>
+<span class="sd">    - `function` — Top-level functions</span>
+<span class="sd">    - `nested_function` — Functions defined inside other functions</span>
+<span class="sd">    - `class` — Class definitions</span>
+<span class="sd">    - `method` — Class methods</span>
+<span class="sd">    - `lambda` — Lambda expressions / anonymous functions (Python, Java, Ruby, etc.)</span>
+<span class="sd">    - `macro` — Preprocessor macros (C/C++)</span>
+<span class="sd">    - `module` — Module definitions (Elixir)</span>
+<span class="sd">    - `orphan` — Code between definitions (semantically insignificant)</span>
+<span class="sd">    - `sliding` — Fallback sliding windows when AST parsing fails</span>
+
+<span class="sd">    **Warning:** Falling back to sliding windows means:</span>
+<span class="sd">    - Chunks are fixed-size windows with no semantic awareness</span>
+<span class="sd">    - Function/class boundaries are ignored</span>
+<span class="sd">    - Search quality may be degraded for that file</span>
+<span class="sd">    - Consider improving language detection or using an explicit language_hint</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        text: Source code text to chunk.</span>
+<span class="sd">        language_hint: Language name (python, javascript, rust, etc.) for AST parsing.</span>
+<span class="sd">                       If None, will be auto-detected.</span>
+<span class="sd">        filename_hint: File name for logging/debugging.</span>
+<span class="sd">        sliding_window_size: Number of lines per window in fallback mode (default 30).</span>
+<span class="sd">                             Increase for fewer but larger chunks, decrease for more granular chunking.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of CodeChunk objects with type field set to one of the supported chunk types above.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="n">_chunk_with_tree_sitter</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">language_hint</span><span class="p">,</span> <span class="n">filename_hint</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">chunks</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;tree-sitter chunking produced </span><span class="si">%d</span><span class="s2"> chunks for </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">),</span> <span class="n">filename_hint</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">chunks</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+        <span class="s2">&quot;AST chunking failed for </span><span class="si">%s</span><span class="s2"> (language_hint=</span><span class="si">%r</span><span class="s2">); falling back to </span><span class="si">%d</span><span class="s2">-line sliding windows. &quot;</span>
+        <span class="s2">&quot;This reduces search quality — consider specifying language_hint or using AST-supported languages. &quot;</span>
+        <span class="s2">&quot;Adjust sliding_window_size parameter if chunk granularity is not suitable.&quot;</span><span class="p">,</span>
+        <span class="n">filename_hint</span> <span class="ow">or</span> <span class="s2">&quot;(unknown)&quot;</span><span class="p">,</span>
+        <span class="n">language_hint</span><span class="p">,</span>
+        <span class="n">sliding_window_size</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">_chunk_sliding_window</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">filename_hint</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">sliding_window_size</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="chunk_file">
+<a class="viewcode-back" href="../../api/chunker.html#gigacode.chunker.chunk_file">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">chunk_file</span><span class="p">(</span>
+    <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span> <span class="n">language_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">sliding_window_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">CodeChunk</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Chunk a file on disk.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path: Path to source file.</span>
+<span class="sd">        language_hint: Language for AST parsing. Auto-detected if None.</span>
+<span class="sd">        sliding_window_size: Lines per window in fallback mode (default 30).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">language_hint</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.language_detect</span><span class="w"> </span><span class="kn">import</span> <span class="n">detect_language</span>
+
+        <span class="n">language_hint</span> <span class="o">=</span> <span class="n">detect_language</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="n">chunk_text</span><span class="p">(</span>
+        <span class="n">text</span><span class="p">,</span>
+        <span class="n">language_hint</span><span class="o">=</span><span class="n">language_hint</span><span class="p">,</span>
+        <span class="n">filename_hint</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span>
+        <span class="n">sliding_window_size</span><span class="o">=</span><span class="n">sliding_window_size</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># Store full-file imports at chunk level for sliding window chunks</span>
+    <span class="c1"># (tree-sitter chunks already have per-chunk imports)</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">gigacode.context_assembler</span><span class="w"> </span><span class="kn">import</span> <span class="n">_extract_imports</span>
+
+    <span class="n">full_file_imports</span> <span class="o">=</span> <span class="n">_extract_imports</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="p">(</span><span class="n">language_hint</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk</span><span class="o">.</span><span class="n">imports</span><span class="p">:</span>
+            <span class="n">chunk</span><span class="o">.</span><span class="n">imports</span> <span class="o">=</span> <span class="n">full_file_imports</span>
+    <span class="k">return</span> <span class="n">chunks</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

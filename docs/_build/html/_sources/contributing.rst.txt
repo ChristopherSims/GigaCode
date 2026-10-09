@@ -132,7 +132,7 @@ Testing
     
     def test_new_feature():
         """Test description."""
-        tool = CodeEmbeddingTool()
+        tool = CodeEmbeddingTool(work_dir="./buffers")
         
         # Arrange
         buffer_id = tool.embed_codebase("/test/project")
@@ -353,7 +353,7 @@ Releases follow semantic versioning (major.minor.patch):
 - [ ] CHANGELOG.md updated
 - [ ] Version bumped
 - [ ] Tag created: ``git tag v1.0.0``
-- [ ] Released to PyPI
+- [ ] GitHub Release created with wheel/sdist assets (no PyPI publication)
 
 Recognition
 ~~~~~~~~~~~
@@ -398,7 +398,7 @@ All contributors agree to:
 - Report violations to maintainers
 
 Thank you for contributing!
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Your contributions make GigaCode better for everyone. Whether it's code, documentation, bug reports, or suggestions - we appreciate your help!
 

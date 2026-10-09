@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "gigacode": {
+      "type": "stdio",
+      "command": "gigacode-mcp",
+      "args": [
+        "--work-dir",
+        "/absolute/path/to/.gigacode-buffers",
+        "--tool-profile",
+        "agent_core"
+      ]
+    }
+  }
+}

@@ -42,3 +42,10 @@ htmlcov/
 !CHANGELOG.md
 !tools.md
 droid-wiki/
+# Benchmark cloned repos / results
+bench_repos/
+bench_results*/
+bench_*/
+logs/
+bench_*
+

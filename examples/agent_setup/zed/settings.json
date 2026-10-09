@@ -1,0 +1,14 @@
+{
+  "context_servers": {
+    "gigacode": {
+      "source": "custom",
+      "command": "gigacode-mcp",
+      "args": [
+        "--work-dir",
+        "/absolute/path/to/.gigacode-buffers",
+        "--tool-profile",
+        "agent_core"
+      ]
+    }
+  }
+}

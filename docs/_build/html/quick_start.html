@@ -6,16 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quick Start &mdash; GigaCode 0.5.1 documentation</title>
+  <title>Quick Start &mdash; GigaCode 0.8.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=b9afe91b"></script>
-      <script src="_static/doctools.js?v=9a2dae69"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/documentation_options.js?v=486e5634"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -62,35 +62,9 @@
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="performance_tuning.html">Performance Tuning</a></li>
-</ul>
-<ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Quick Start</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#hello-world">Hello World</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#what-s-next">What’s Next?</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#common-tasks">Common Tasks</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#get-help">Get Help</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/search_workflows.html">Search Workflows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/edit_workflows.html">Edit Workflows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="performance_tuning.html">Performance Tuning</a></li>
@@ -143,26 +117,23 @@
 <p>Embed a codebase and run your first search:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">gigacode</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeEmbeddingTool</span>
 
-<span class="c1"># Initialize GigaCode</span>
-<span class="n">tool</span> <span class="o">=</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">work_dir</span><span class="o">=</span><span class="s2">&quot;/tmp/gigacode&quot;</span><span class="p">)</span>
+<span class="c1"># Initialize GigaCode (buffers are persisted under work_dir)</span>
+<span class="k">with</span> <span class="n">CodeEmbeddingTool</span><span class="p">(</span><span class="n">work_dir</span><span class="o">=</span><span class="s2">&quot;/tmp/gigacode&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tool</span><span class="p">:</span>
+    <span class="c1"># Embed a codebase</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span><span class="s2">&quot;/path/to/my/project&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;*.py&quot;</span><span class="p">)</span>
+    <span class="n">buffer_id</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;buffer_id&quot;</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Embedded project: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-<span class="c1"># Embed a codebase</span>
-<span class="n">buffer_id</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">embed_codebase</span><span class="p">(</span>
-    <span class="n">path</span><span class="o">=</span><span class="s2">&quot;/path/to/my/project&quot;</span><span class="p">,</span>
-    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span>
-<span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✓ Embedded project: </span><span class="si">{</span><span class="n">buffer_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="c1"># Search for code</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
+        <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+        <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find the initialization function&quot;</span><span class="p">,</span>
+        <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="p">)</span>
 
-<span class="c1"># Search for code</span>
-<span class="n">results</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">semantic_search</span><span class="p">(</span>
-    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
-    <span class="n">query</span><span class="o">=</span><span class="s2">&quot;find the initialization function&quot;</span><span class="p">,</span>
-    <span class="n">top_k</span><span class="o">=</span><span class="mi">5</span>
-<span class="p">)</span>
-
-<span class="c1"># Display results</span>
-<span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;matches&quot;</span><span class="p">]:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;start_line&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="c1"># Display results</span>
+    <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">results</span><span class="p">[</span><span class="s2">&quot;matches&quot;</span><span class="p">]:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;start_line&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="n">match</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -186,31 +157,32 @@
 </pre></div>
 </div>
 <p><strong>Edit code and commit changes:</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span>
-    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Replace line 12 of database.py (buffer only; disk unchanged until commit)</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">write_code</span><span class="p">(</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
     <span class="n">file</span><span class="o">=</span><span class="s2">&quot;database.py&quot;</span><span class="p">,</span>
-    <span class="n">content</span><span class="o">=</span><span class="n">new_content</span>
+    <span class="n">start_line</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
+    <span class="n">new_lines</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;    pool = create_pool(max_size=10)&quot;</span><span class="p">],</span>
+    <span class="n">end_line</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>
 <span class="p">)</span>
-
-<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span>
-    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
-    <span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;database.py&quot;</span><span class="p">],</span>
-    <span class="n">message</span><span class="o">=</span><span class="s2">&quot;Optimize connection pooling&quot;</span>
-<span class="p">)</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>                 <span class="c1"># preview the change</span>
+<span class="n">tool</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="n">buffer_id</span><span class="p">)</span>               <span class="c1"># write to disk</span>
 </pre></div>
 </div>
 <p><strong>Find duplicate code:</strong></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">duplicates</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">find_duplicates</span><span class="p">(</span>
-    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
-    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.95</span>
+    <span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span>
+    <span class="n">threshold</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>Cluster similar functions:</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">clusters</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">cluster_code</span><span class="p">(</span>
-    <span class="n">buffer_id</span><span class="o">=</span><span class="s2">&quot;my_project&quot;</span><span class="p">,</span>
-    <span class="n">n_clusters</span><span class="o">=</span><span class="mi">10</span>
-<span class="p">)</span>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Clustering is not available in the current build; <code class="docutils literal notranslate"><span class="pre">cluster_code</span></code> returns
+an explicit <code class="docutils literal notranslate"><span class="pre">status:</span> <span class="pre">&quot;unavailable&quot;</span></code> result rather than an empty success.</p>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">clusters</span> <span class="o">=</span> <span class="n">tool</span><span class="o">.</span><span class="n">cluster_code</span><span class="p">(</span><span class="n">buffer_id</span><span class="o">=</span><span class="n">buffer_id</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.75</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>

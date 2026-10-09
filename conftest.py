@@ -7,6 +7,7 @@ like FAISS.
 
 from __future__ import annotations
 
+import os
 import warnings
 
 warnings.filterwarnings(
@@ -25,6 +26,10 @@ warnings.filterwarnings(
     category=DeprecationWarning,
 )
 
+# Unit tests never want the session auto-embed: it would index the repo the
+# test process happens to run in. Individual auto-embed tests re-enable it
+# explicitly (monkeypatch env around pytest-marked fixtures).
+os.environ.setdefault("GIGACODE_AUTO_EMBED", "off")
 
 try:
     import faiss  # noqa: F401

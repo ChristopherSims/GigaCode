@@ -43,12 +43,16 @@ def reciprocal_rank_fusion(
     meta: dict[int, dict[str, Any]] = {}
 
     for rank, item in enumerate(semantic_results):
+        if semantic_weight <= 0:
+            break
         doc_id = item["doc_id"]
         rrf[doc_id] = rrf.get(doc_id, 0.0) + semantic_weight / (_RRF_K + rank + 1)
         meta.setdefault(doc_id, {}).update(item)
         meta[doc_id]["semantic_rank"] = rank + 1
 
     for rank, item in enumerate(lexical_results):
+        if lexical_weight <= 0:
+            break
         doc_id = item["doc_id"]
         rrf[doc_id] = rrf.get(doc_id, 0.0) + lexical_weight / (_RRF_K + rank + 1)
         meta.setdefault(doc_id, {}).update(item)

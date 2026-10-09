@@ -16,6 +16,8 @@ from typing import Any
 
 import numpy as np
 
+from gigacode.constants import MAX_MATCH_TEXT_PREVIEW_CHARS
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -373,7 +375,7 @@ class FacetedSearcher:
                 confidence=confidence,
                 score_breakdown=breakdown,
                 why=why,
-                text=chunk.text,
+                text=chunk.text[:MAX_MATCH_TEXT_PREVIEW_CHARS] if chunk.text else None,
             )
 
             # Classify as confident or uncertain

@@ -58,6 +58,87 @@ except ImportError as _mcp_err:
 # call with a non-ok payload.
 _ERROR_STATUSES = {"error", "conflict", "blocked"}
 
+# Max characters of tool description advertised in MCP tool listings.
+# Individual schemas may raise it via a ``description_limit`` key (used by the
+# deferred discovery pair, which carries workflow recipes in its description).
+_MAX_DESCRIPTION_CHARS = 240
+
+# Total serialized size of a tool result returned to the model, and the per-
+# string ceiling applied when the total overflows.  Overridable because
+# Payload size and extra agent turns both contribute to token cost.
+_MCP_OUTPUT_CHAR_CAP = int(os.environ.get("GIGACODE_MCP_OUTPUT_CHAR_CAP", "6000"))
+_MCP_STRING_CHAR_CAP = int(os.environ.get("GIGACODE_MCP_STRING_CHAR_CAP", "800"))
+_MCP_LIST_ITEMS_CAP = int(os.environ.get("GIGACODE_MCP_LIST_ITEMS_CAP", "80"))
+
+
+def _cap_lists(value: Any, per_list: int) -> Any:
+    """Truncate long lists after their head, preserving JSON validity."""
+    if isinstance(value, list) and len(value) > per_list:
+        return value[:per_list] + [
+            f"[truncated {len(value) - per_list} more items; narrow your query or window]"
+        ]
+    if isinstance(value, dict):
+        return {k: _cap_lists(v, per_list) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_cap_lists(v, per_list) for v in value]
+    return value
+
+
+def _cap_strings(value: Any, per_string: int) -> Any:
+    """Recursively cap every string payload, preserving JSON validity.
+
+    Removes the bulk of oversized tool outputs (file dumps, long match lists)
+    while keeping structure, coordinates, and identifiers intact.
+    """
+    if isinstance(value, str) and len(value) > per_string:
+        keep = max(per_string, 0) // 2
+        return (
+            value[:keep]
+            + f"...[truncated {len(value) - keep} chars; re-derive with a smaller window]"
+        )
+    if isinstance(value, dict):
+        return {k: _cap_strings(v, per_string) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_cap_strings(v, per_string) for v in value]
+    return value
+
+
+def _cap_response(result: dict[str, Any]) -> dict[str, Any]:
+    """Enforce the total serialized output budget for a tool result.
+
+    Soft pass first (per-string then per-list trims), then a hard pass: if
+    the result still overflows, strings and lists are halved iteratively
+    until the serialized payload fits.  Prompt-cache-friendly: identical
+    tool always converges to the same truncated shape for identical input.
+    """
+    text = _result_to_text(result)
+    if len(text) <= _MCP_OUTPUT_CHAR_CAP:
+        return result
+    string_cap = max(_MCP_STRING_CHAR_CAP, 32)
+    list_cap = max(_MCP_LIST_ITEMS_CAP, 4)
+    capped = result
+    for _ in range(8):
+        capped = _cap_strings(capped, string_cap)
+        capped = _cap_lists(capped, list_cap)
+        if len(_result_to_text(capped)) <= _MCP_OUTPUT_CHAR_CAP:
+            break
+        string_cap = max(16, string_cap // 2)
+        list_cap = max(2, list_cap // 2)
+    if _result_to_text(capped) != text:
+        capped = dict(capped)
+        capped["note"] = "output capped; use narrower windows or fewer matches"
+    return capped
+
+try:
+    from jsonschema import Draft202012Validator
+    from jsonschema.exceptions import ValidationError as _SchemaError
+
+    _HAS_JSONSCHEMA = True
+except ImportError:  # pragma: no cover - jsonschema ships with the mcp SDK
+    _HAS_JSONSCHEMA = False
+    Draft202012Validator = None  # type: ignore[assignment]
+    _SchemaError = Exception  # type: ignore[assignment,misc]
+
 
 def _server_version() -> str:
     """Return the package version so the MCP handshake never reports stale data."""
@@ -71,10 +152,38 @@ def _server_version() -> str:
 
 def _result_to_text(result: dict[str, Any]) -> str:
     """Serialize a tool result dict to a JSON string for MCP TextContent."""
-    return json.dumps(result, indent=2, default=str)
+    return json.dumps(result, separators=(",", ":"), default=str)
 
 
-def _make_call_result(result: Any, *, is_error: bool = False) -> Any:
+def _trim_description(text: str, limit: int = _MAX_DESCRIPTION_CHARS) -> str:
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0].rstrip()
+    return f"{cut}..."
+
+
+def _structured_content_ok(schema: Any, payload: Any) -> bool:
+    """Validate a tool payload against its declared output schema.
+
+    Failures mean schema/implementation drift; we still return the payload as
+    text content but omit ``structuredContent`` so strict MCP clients (which
+    reject the whole call on a mismatch) keep the data.
+    """
+    if not _HAS_JSONSCHEMA or not isinstance(schema, dict) or not isinstance(payload, dict):
+        return True
+    try:
+        Draft202012Validator(schema).validate(payload)
+        return True
+    except _SchemaError:
+        return False
+    except Exception:
+        logger.warning("Output schema validation unavailable; publishing payload as-is")
+        return True
+
+
+def _make_call_result(
+    result: Any, *, is_error: bool = False, allow_structured: bool = True
+) -> Any:
     """Build a ``CallToolResult`` with an explicit error status.
 
     Falls back to the legacy ``list[TextContent]`` shape when the installed
@@ -82,20 +191,35 @@ def _make_call_result(result: Any, *, is_error: bool = False) -> Any:
     """
     if not isinstance(result, dict):
         result = {"status": "ok", "result": result}
+    result = _cap_response(result)
     text = _result_to_text(result)
     if CallToolResult is None:
         return [TextContent(type="text", text=text)]
     return CallToolResult(
         content=[TextContent(type="text", text=text)],
-        structuredContent=result,
+        structuredContent=result if allow_structured else None,
         isError=is_error,
     )
 
 
-def _success_result(result: Any) -> Any:
+def _success_result(result: Any, *, allow_structured: bool = True) -> Any:
     """Wrap a tool return value, flagging non-ok domain statuses as errors."""
     status = result.get("status") if isinstance(result, dict) else None
-    return _make_call_result(result, is_error=status in _ERROR_STATUSES)
+    return _make_call_result(
+        result, is_error=status in _ERROR_STATUSES, allow_structured=allow_structured
+    )
+
+
+def _resolve_output_schema(tool: Any, tool_name: str) -> Any:
+    """Find the declared output schema for *tool_name* (or None)."""
+    try:
+        for schema in get_published_schemas(tool):
+            if isinstance(schema, dict) and schema.get("name") == tool_name:
+                candidate = schema.get("output_schema")
+                return candidate if isinstance(candidate, dict) else None
+    except Exception:
+        return None
+    return None
 
 
 def _failure_result(message: str) -> Any:
@@ -107,11 +231,39 @@ async def _invoke_tool(tool: Any, name: str, arguments: dict[str, Any]) -> Any:
     """Resolve and invoke a tool, returning a protocol-appropriate result.
 
     Shared by every transport so discovery, invocation, and error handling
-    stay consistent.
+    stay consistent.  When an input schema marks ``buffer_id`` as optional the
+    server injects ``None`` so tool-side default-buffer resolution applies.
     """
     method = resolve_tool_method(tool, name)
     if method is None:
         return _failure_result(f"Unknown tool: {name}")
+    if not isinstance(arguments, dict):
+        return _failure_result("Invalid arguments: send a native JSON object, not XML or a serialized string.")
+    arguments = dict(arguments)
+    for schema in get_published_schemas(tool):
+        if not isinstance(schema, dict) or schema.get("name") != name:
+            continue
+        input_schema = schema.get("input_schema") or {}
+        if not _HAS_JSONSCHEMA:
+            return _failure_result("Input validation unavailable; no tool was executed.")
+        try:
+            Draft202012Validator(input_schema).validate(arguments)
+        except _SchemaError:
+            guidance = (
+                "Use file + old_text + new_text, or file + start_anchor + end_anchor + new_lines + expected_hash."
+                if name == "code_edit" else "Match the tool's input schema."
+            )
+            return _failure_result(
+                f"Invalid arguments for {name}. Send native JSON fields, not XML argument wrappers. {guidance}"
+            )
+        except Exception:
+            logger.warning("Input schema validation unavailable for %s", name)
+            return _failure_result("Input validation unavailable; no tool was executed.")
+        props = (schema.get("input_schema") or {}).get("properties") or {}
+        props = props if isinstance(props, dict) else {}
+        if "buffer_id" in props and "buffer_id" not in arguments:
+            arguments["buffer_id"] = None
+        break
     try:
         result = await asyncio.to_thread(method, **arguments)
     except TypeError as exc:
@@ -120,13 +272,47 @@ async def _invoke_tool(tool: Any, name: str, arguments: dict[str, Any]) -> Any:
     except (ValueError, OSError, ImportError, ModuleNotFoundError) as exc:
         logger.exception("MCP tool %s failed", name)
         return _failure_result(f"Tool execution failed: {name}")
-    return _success_result(result)
+    except Exception:
+        # Protocol-safety: never leak an unhandled traceback to the client;
+        # degrade to a clear, non-retryable-tool error instead.
+        logger.exception("MCP tool %s failed internally", name)
+        return _failure_result(
+            f"Internal tool failure: {name} — do not retry the identical call"
+        )
+    allow_structured = _structured_content_ok(
+        _resolve_output_schema(tool, name), result
+    )
+    return _success_result(result, allow_structured=allow_structured)
+
+
+def _priority_mark(schema: dict) -> str:
+    """Compact visibility tag prepended to tool descriptions in listings."""
+    priority = schema.get("priority")
+    if priority == "high":
+        return "[priority: high - prefer over single-use tools] "
+    if priority == "low":
+        return "[priority: low - superseded by a high-priority tool] "
+    return ""
 
 
 def _build_mcp_tools(tool: Any) -> list[Any]:
-    """Build MCP Tool definitions with accurate annotations and output schemas."""
+    """Build MCP Tool definitions with accurate annotations and output schemas.
+
+    The default compact surface publishes code_find/code_edit plus discovery.
+    GIGACODE_DIRECT_TOOLS=off restores deferred-only compatibility. The full
+    catalog is never exposed as schemas. Additional capabilities are discovered
+    through ``tool_search`` and invoked through ``tool_call``; a tool object must
+    explicitly set ``deferred_tools = False`` to opt back into publishing every
+    profile schema.
+    """
     tools: list[Any] = []
+    direct = getattr(tool, "direct_tools", os.environ.get("GIGACODE_DIRECT_TOOLS", "on") != "off")
+    surface = {"tool_search", "tool_call"}
+    if direct:
+        surface.update({"code_find", "code_edit", "code_navigate", "get_task_context"})
     for schema in get_published_schemas(tool):
+        if getattr(tool, "deferred_tools", True) and schema["name"] not in surface:
+            continue
         tags = schema.get("tags", []) or []
         annotations = None
         if ToolAnnotations is not None:
@@ -137,13 +323,22 @@ def _build_mcp_tools(tool: Any) -> list[Any]:
                 idempotentHint=bool(schema.get("read_only", True)),
                 openWorldHint=False,
             )
-        output_schema = schema.get("output_schema")
         tools.append(
             Tool(
                 name=schema["name"],
-                description=schema.get("description", ""),
+                description=_trim_description(
+                    (
+                        "Discover additional profile-allowed tools. Coding uses code_find/code_edit directly. "
+                        "Use query='select:name,name' for exact schema lookup."
+                        if direct and schema["name"] == "tool_search" else
+                        "Invoke an additional discovered tool using name and native JSON arguments (no XML wrappers). "
+                        "For ordinary coding use code_find/code_edit directly."
+                        if direct and schema["name"] == "tool_call" else
+                        _priority_mark(schema) + schema.get("description", "")
+                    ),
+                    int(schema.get("description_limit") or _MAX_DESCRIPTION_CHARS),
+                ),
                 inputSchema=schema.get("input_schema", {}),
-                outputSchema=output_schema if isinstance(output_schema, dict) else None,
                 annotations=annotations,
             )
         )
@@ -158,7 +353,9 @@ def _build_server(tool: Any) -> Any:
     async def list_tools() -> list[Tool]:
         return _build_mcp_tools(tool)
 
-    @server.call_tool()
+    # Retain strict validation in _invoke_tool, but replace SDK errors which
+    # echo the entire malformed argument payload with compact recovery hints.
+    @server.call_tool(validate_input=False)
     async def call_tool(name: str, arguments: dict[str, Any]) -> Any:
         return await _invoke_tool(tool, name, arguments)
 
@@ -368,13 +565,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--tool-profile",
         default="read_only",
-        choices=["read_only", "editing", "full"],
+        choices=["agent_core", "read_only", "editing", "full"],
         help=(
             "Curated tool surface exposed to the client (default: read_only). "
-            "Use 'editing' to enable write/commit tools."
+            "Use 'agent_core' for the leanest agentic loop; 'editing' enables "
+            "write/commit tools."
         ),
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
+    parser.add_argument(
+        "--eager-tools", action="store_true",
+        help=(
+            "Publish every profile schema directly in list_tools. The default is "
+            "the deferred tool_search/tool_call surface: agents discover schemas "
+            "on demand instead of carrying the full catalog in their context."
+        ),
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -394,6 +600,7 @@ def main(argv: list[str] | None = None) -> int:
         use_gpu=not args.no_gpu,
         tool_profile=args.tool_profile,
     )
+    tool.deferred_tools = not args.eager_tools
 
     try:
         if args.transport == "stdio":

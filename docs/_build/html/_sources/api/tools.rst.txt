@@ -49,23 +49,29 @@ Example
 .. code-block:: python
 
     from gigacode import CodeEmbeddingTool
-    
-    # Initialize
-    tool = CodeEmbeddingTool()
-    
-    # Embed codebase
-    buffer_id = tool.embed_codebase("/path/to/project")
-    
-    # Search
-    results = tool.semantic_search(
-        buffer_id=buffer_id,
-        query="find database functions",
-        top_k=5
-    )
-    
-    # Edit and commit
-    tool.write_code(buffer_id, "file.py", new_content)
-    tool.commit(buffer_id, ["file.py"], "Update file")
+
+    # Initialize (buffers persist under work_dir)
+    with CodeEmbeddingTool(work_dir="/path/to/work", device="cpu") as tool:
+        # Embed a codebase
+        result = tool.embed_codebase("/path/to/project", pattern="*.py")
+        buffer_id = result["buffer_id"]
+
+        # Search
+        results = tool.semantic_search(
+            buffer_id=buffer_id,
+            query="find database functions",
+            top_k=5,
+        )
+
+        # Edit (buffer only) and commit to disk
+        tool.write_code(
+            buffer_id=buffer_id,
+            file="file.py",
+            start_line=1,
+            new_lines=["def connect():\n"],
+            end_line=1,
+        )
+        tool.commit(buffer_id)
 
 Configuration
 ~~~~~~~~~~~~~
@@ -76,9 +82,10 @@ Initialize with custom settings:
 
     tool = CodeEmbeddingTool(
         work_dir="/path/to/work",
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        use_gpu=True,
         max_buffers=10,
-        enable_gpu=True,
-        embedding_model="all-MiniLM-L6-v2"
+        tool_profile="editing",  # expose write/commit tools to server transports
     )
 
 See Also

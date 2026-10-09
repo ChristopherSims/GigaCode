@@ -66,6 +66,7 @@ def adapt_search_response(
                 type=match_dict.get("type"),
                 name=match_dict.get("name"),
                 match_type=match_dict.get("match_type", "semantic"),
+                text=match_dict.get("text"),
                 signature=match_dict.get("signature"),
                 parameter_types=match_dict.get("parameter_types"),
                 return_type=match_dict.get("return_type"),

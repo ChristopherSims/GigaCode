@@ -10,6 +10,7 @@ native `black .` and `ruff check .` behavior.
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -27,9 +28,19 @@ __all__ = [
 def _run_command(
     args: list[str],
     cwd: str | Path,
-    timeout: int = 120,
+    timeout: int = 90,
 ) -> tuple[int, str, str]:
-    """Run a subprocess command and return (returncode, stdout, stderr)."""
+    """Run a subprocess command and return (returncode, stdout, stderr).
+
+    Hardened for server processes (stdio MCP): the child gets no stdin and no
+    console so it can never inherit or block on the JSON-RPC pipe, and the
+    timeout default sits below typical transport client timeouts so a hung
+    tool surfaces as a tool error, not a protocol timeout.
+    """
+    kwargs: dict[str, Any] = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        kwargs["shell"] = False
     try:
         result = subprocess.run(
             args,
@@ -37,10 +48,12 @@ def _run_command(
             capture_output=True,
             text=True,
             timeout=timeout,
+            stdin=subprocess.DEVNULL,
+            **kwargs,
         )
         return result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired:
-        return -1, "", "Command timed out"
+        return -1, "", f"Command timed out after {timeout}s"
     except FileNotFoundError:
         return -1, "", f"Command not found: {args[0]}"
 

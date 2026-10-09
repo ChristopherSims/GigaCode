@@ -1,0 +1,62 @@
+# AGENTS.md — recommended gigacode workflow guidance
+
+Copy the sections below into your project's `AGENTS.md` (or equivalent agent
+instructions file) when the `gigacode` MCP server is configured. Identical
+text works for any MCP agent that names tools as `<server>_<tool>`.
+
+---
+
+## Code tools
+
+A `gigacode` MCP server is connected. Its default coding tools are
+`gigacode_code_find` and `gigacode_code_edit`; additional capabilities can be
+discovered with `gigacode_tool_search` and invoked with `gigacode_tool_call`.
+
+For multi-file work, start with `gigacode_get_task_context(task)`. For a known
+symbol, use `gigacode_code_navigate(action="symbol", file=..., symbol=...,
+include_source=true)` to read only its body without embedding the project.
+Other actions expose structure, parents/children, callers/callees/references,
+summaries and dependency graphs. Disambiguate using returned symbol IDs.
+Discover read-only Git tools for changed files/symbols, diffs and history.
+Context suggestions and syntactic edges are evidence, not proof of runtime
+dispatch or a complete architecture. Do not guess unresolved targets.
+
+Use them for locating and changing code instead of your built-in
+grep/read/edit tools:
+
+1. Call `gigacode_code_find` with a symbol, file name, or behavioral query.
+   Inspect the declaration; behavioral results are candidates, not certainty.
+   The working project is embedded automatically on first use.
+2. Call `gigacode_code_edit` with the returned file, a unique `old_text` and its
+   `new_text` replacement. Copy indentation and include context if repeated.
+   Use `expected_hash=file_hash` when available; no narrower read is required.
+   The returned hash can guard the next edit without another read.
+   Alternatively, anchors plus `new_lines` replace the ENTIRE inclusive range,
+   including declarations and decorators, and require `expected_hash`.
+   The tool checks Python syntax before mutation and persists the change.
+   `dry_run=true` previews without changing buffer or disk.
+3. Run relevant tests. Formatting/linting with the discovered `post_edit`
+   chain is optional. Do not rediscover ordinary coding tools.
+
+## Rules
+
+- Send native JSON argument objects, never XML tool-call wrappers or
+  `arg_key`/`arg_value` delimiters. `old_text`/`new_text` are source strings,
+  not serialized lists. XML belonging to source code is allowed.
+- Never repeat an identical search call. If a result did not help, change the
+  query wording, the `mode`, or read the specific file range directly.
+- Do not use built-in grep/read/edit for code work while gigacode tools are
+  available; use your built-in tools only if no `gigacode_*` tool is visible.
+- Work only inside the project directory.
+- Use returned root-relative paths. Either separator, project prefixes and
+  in-root absolute paths also work; ambiguous basenames are not guessed.
+
+## Recovery
+
+- A stale hash/anchor requires a fresh read, not an identical retry.
+- If disk changed externally, discover `reload_codebase` to resync, then
+  re-read and reapply. Do not discard pending work without authorization.
+- Direct edits block when unrelated files have pending buffer edits. Resolve
+  those explicitly. Legacy buffered writes still require `commit`.
+- Legacy deferred-only mode: discover `tool_chain`, use `anchor_read`, then
+  `anchor_apply(dry_run=false)`. Replace its complete `editable_range`.

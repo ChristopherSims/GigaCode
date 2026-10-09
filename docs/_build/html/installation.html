@@ -6,16 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; GigaCode 0.5.1 documentation</title>
+  <title>Installation &mdash; GigaCode 0.8.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=b9afe91b"></script>
-      <script src="_static/doctools.js?v=9a2dae69"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/documentation_options.js?v=486e5634"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -50,9 +50,10 @@
 <li class="toctree-l2"><a class="reference internal" href="#standard-installation">Standard Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gpu-setup-optional">GPU Setup (Optional)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#docker-installation">Docker Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#from-pypi-future">From PyPI (Future)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#from-a-release-wheel">From a release wheel</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#verify-installation">Verify Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-documentation">Build Documentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#development-installation">Development Installation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#system-specific-notes">System-Specific Notes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
@@ -66,39 +67,9 @@
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="performance_tuning.html">Performance Tuning</a></li>
-</ul>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="quick_start.html">Quick Start</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#standard-installation">Standard Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#gpu-setup-optional">GPU Setup (Optional)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#docker-installation">Docker Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#from-pypi-future">From PyPI (Future)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#verify-installation">Verify Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#development-installation">Development Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#system-specific-notes">System-Specific Notes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#questions">Questions?</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/search_workflows.html">Search Workflows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/edit_workflows.html">Edit Workflows</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/tools.html">Tools</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/managers.html">Managers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api/services.html">Services</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="performance_tuning.html">Performance Tuning</a></li>
@@ -170,46 +141,81 @@
 <p><strong>GPU Requirements:</strong></p>
 <ul class="simple">
 <li><p>NVIDIA GPU with CUDA Compute Capability 3.5+</p></li>
-<li><p>CUDA Toolkit 11.8 or higher</p></li>
+<li><p>CUDA Toolkit 12.1 or higher (matched to your PyTorch build)</p></li>
 <li><p>cuDNN 8.x</p></li>
 </ul>
-<p><strong>Check your GPU:</strong></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import torch; print(f&#39;GPU: {torch.cuda.is_available()}&#39;)&quot;</span>
+<p>GPU acceleration is optional. Without it GigaCode runs on CPU and falls back to
+a brute-force/CPU vector index.</p>
+<p><strong>Supported GPU installation path (Linux):</strong></p>
+<ol class="arabic simple">
+<li><p>Install a CUDA-enabled PyTorch build for your driver, then the package:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example: CUDA 12.1 wheels</span>
+pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu121
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;gigacode[embed]&quot;</span>
 </pre></div>
 </div>
-<p><strong>Install GPU support:</strong></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;.[gpu]&quot;</span>
-<span class="c1"># or with specific CUDA version</span>
-pip<span class="w"> </span>install<span class="w"> </span><span class="nv">torch</span><span class="o">==</span><span class="m">2</span>.0.0<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+<ol class="arabic simple" start="2">
+<li><p>Install a FAISS GPU build. PyPI’s legacy <code class="docutils literal notranslate"><span class="pre">faiss-gpu</span></code> distribution often
+fails to resolve on modern Python/CUDA; the maintained alternatives are the
+community <code class="docutils literal notranslate"><span class="pre">faiss-gpu-cu12</span></code> wheels or conda-forge:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Option A: community CUDA 12 wheel</span>
+pip<span class="w"> </span>install<span class="w"> </span>faiss-gpu-cu12
+
+<span class="c1"># Option B: conda-forge (recommended for mixed environments)</span>
+conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>faiss-gpu
 </pre></div>
 </div>
+<p>The <code class="docutils literal notranslate"><span class="pre">gigacode[gpu]</span></code> extra is provided for convenience and pins
+<code class="docutils literal notranslate"><span class="pre">faiss-gpu-cu12</span></code> on Linux; on Windows there is no supported pip FAISS-GPU
+build, so use the CPU extra (<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;gigacode[embed]&quot;</span></code>).</p>
 <p><strong>Verify GPU:</strong></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import torch; assert torch.cuda.is_available(), &#39;GPU not detected&#39;; print(f&#39;✓ GPU: {torch.cuda.get_device_name()}&#39;)&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/check_gpu.py
+python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import torch; assert torch.cuda.is_available(), &#39;GPU not detected&#39;; print(f&#39;GPU: {torch.cuda.get_device_name()}&#39;)&quot;</span>
 </pre></div>
 </div>
 </section>
 <section id="docker-installation">
 <h2>Docker Installation<a class="headerlink" href="#docker-installation" title="Link to this heading"></a></h2>
-<p>Build a Docker image with GigaCode:</p>
-<div class="highlight-dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.11</span>
-<span class="k">WORKDIR</span><span class="w"> </span><span class="s">/app</span>
-<span class="k">COPY</span><span class="w"> </span>.<span class="w"> </span>.
-<span class="k">RUN</span><span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>.
-<span class="k">RUN</span><span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>notebook<span class="w">  </span>#<span class="w"> </span>optional
-<span class="k">EXPOSE</span><span class="w"> </span><span class="s">8888</span>
-<span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;python&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-m&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;jupyter&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;notebook&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--ip=0.0.0.0&quot;</span><span class="p">]</span>
+<p>The repository ships two Dockerfiles:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Dockerfile</span></code> — CPU image (<code class="docutils literal notranslate"><span class="pre">python:3.12-slim</span></code>, CPU-only PyTorch, FAISS-CPU).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Dockerfile.gpu</span></code> — GPU image (<code class="docutils literal notranslate"><span class="pre">python:3.12-slim</span></code>, CUDA-12.6 PyTorch wheels,
+which bundle the CUDA runtime, plus <code class="docutils literal notranslate"><span class="pre">faiss-gpu-cu12</span></code>). A full CUDA toolkit
+or the ~35 GB NVIDIA PyTorch image is not needed; the host provides the
+driver through <code class="docutils literal notranslate"><span class="pre">--gpus</span> <span class="pre">all</span></code>.</p></li>
+</ul>
+<p>Both images keep only what is needed at runtime (the compiler toolchain is
+dropped and <code class="docutils literal notranslate"><span class="pre">triton</span></code> is not installed). Typical container content is
+~1.1 GB (CPU) and ~7.4 GB (GPU); on-disk compressed size is ~0.8 GB and
+~4.1 GB respectively.</p>
+<p>Prerequisite for the GPU image: the NVIDIA Container Toolkit (Docker Desktop’s
+WSL2 backend includes it).</p>
+<p>Build and run the server:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># CPU</span>
+docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>gigacode:cpu<span class="w"> </span>.
+docker<span class="w"> </span>run<span class="w"> </span>-p<span class="w"> </span><span class="m">8765</span>:8765<span class="w"> </span>-e<span class="w"> </span><span class="nv">GIGACODE_API_KEY</span><span class="o">=</span>secret<span class="w"> </span>gigacode:cpu
+
+<span class="c1"># GPU (requires the NVIDIA container toolkit and a supported driver)</span>
+docker<span class="w"> </span>build<span class="w"> </span>-f<span class="w"> </span>Dockerfile.gpu<span class="w"> </span>-t<span class="w"> </span>gigacode:gpu<span class="w"> </span>.
+docker<span class="w"> </span>run<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>-p<span class="w"> </span><span class="m">8765</span>:8765<span class="w"> </span>-e<span class="w"> </span><span class="nv">GIGACODE_API_KEY</span><span class="o">=</span>secret<span class="w"> </span>gigacode:gpu
 </pre></div>
 </div>
-<p>Build and run:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>gigacode<span class="w"> </span>.
-docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>gigacode
+<p>Verify the container sees the GPU:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>--entrypoint<span class="w"> </span>python<span class="w"> </span>gigacode:gpu<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">&quot;import torch, faiss; print(torch.cuda.is_available(), faiss.get_num_gpus())&quot;</span>
 </pre></div>
 </div>
 </section>
-<section id="from-pypi-future">
-<h2>From PyPI (Future)<a class="headerlink" href="#from-pypi-future" title="Link to this heading"></a></h2>
-<p>Once released on PyPI:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>gigacode
+<section id="from-a-release-wheel">
+<h2>From a release wheel<a class="headerlink" href="#from-a-release-wheel" title="Link to this heading"></a></h2>
+<p>GigaCode is distributed as source and as prebuilt wheels attached to GitHub
+releases; it is not published to PyPI. Download the wheel for your version from
+the release assets, then:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>./gigacode-&lt;version&gt;-py3-none-any.whl
+<span class="c1"># or with extras</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;./gigacode-&lt;version&gt;-py3-none-any.whl[embed,server]&quot;</span>
 </pre></div>
 </div>
 </section>
@@ -275,6 +281,34 @@ nvidia-smi
 </pre></div>
 </div>
 </section>
+<section id="build-documentation">
+<h2>Build Documentation<a class="headerlink" href="#build-documentation" title="Link to this heading"></a></h2>
+<p>GigaCode uses Sphinx to generate HTML documentation. Documentation is <strong>built automatically on every push to CI/CD</strong>, but you can also build it locally.</p>
+<p><strong>Build docs locally:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>docs
+sphinx-build<span class="w"> </span>-M<span class="w"> </span>html<span class="w"> </span>.<span class="w"> </span>_build
+</pre></div>
+</div>
+<p><strong>View the documentation:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Open in browser</span>
+open<span class="w"> </span>_build/html/index.html<span class="w">  </span><span class="c1"># macOS</span>
+start<span class="w"> </span>_build/html/index.html<span class="w">  </span><span class="c1"># Windows</span>
+xdg-open<span class="w"> </span>_build/html/index.html<span class="w">  </span><span class="c1"># Linux</span>
+</pre></div>
+</div>
+<p><strong>Clean build (remove old builds):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>docs
+make<span class="w"> </span>clean
+sphinx-build<span class="w"> </span>-M<span class="w"> </span>html<span class="w"> </span>.<span class="w"> </span>_build
+</pre></div>
+</div>
+<p><strong>CI/CD Automatic Documentation:</strong></p>
+<ul class="simple">
+<li><p>Documentation is built automatically on every push to <code class="docutils literal notranslate"><span class="pre">main</span></code> branch</p></li>
+<li><p>Built docs are available as artifacts in GitHub Actions (<code class="docutils literal notranslate"><span class="pre">docs-html-{run_id}</span></code>)</p></li>
+<li><p>Future: Docs can be deployed to GitHub Pages automatically</p></li>
+</ul>
+</section>
 <section id="development-installation">
 <h2>Development Installation<a class="headerlink" href="#development-installation" title="Link to this heading"></a></h2>
 <p>For development, install with test dependencies:</p>
@@ -285,9 +319,9 @@ nvidia-smi
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pytest<span class="w"> </span>tests/<span class="w"> </span>-v
 </pre></div>
 </div>
-<p>Build documentation:</p>
+<p>Build documentation (as shown above):</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>docs
-make<span class="w"> </span>html
+sphinx-build<span class="w"> </span>-M<span class="w"> </span>html<span class="w"> </span>.<span class="w"> </span>_build
 </pre></div>
 </div>
 </section>

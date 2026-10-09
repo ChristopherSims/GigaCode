@@ -31,7 +31,7 @@ First, import and initialize the tool:
     tool = CodeEmbeddingTool(
         work_dir=str(work_dir),
         max_buffers=5,  # Maximum concurrent projects
-        enable_gpu=True,  # Use GPU if available
+        use_gpu=True,  # Use GPU if available
     )
     
     print(f"✓ GigaCode initialized at {work_dir}")
@@ -283,7 +283,7 @@ Here's a complete example combining all the steps:
     
     # 1. Initialize
     work_dir = Path.home() / ".gigacode"
-    tool = CodeEmbeddingTool(work_dir=str(work_dir), enable_gpu=True)
+    tool = CodeEmbeddingTool(work_dir=str(work_dir), use_gpu=True)
     
     # 2. Embed a project
     project_path = "/home/user/my_project"

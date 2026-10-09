@@ -9,6 +9,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -33,10 +35,14 @@ from gigacode.constants import (
     DEFAULT_PROMETHEUS_PORT,
     DEFAULT_THRESHOLD_MB,
     MAX_DIRTY_BEFORE_AUTO_REBUILD,
+    REPEAT_HINT_AFTER_CALLS,
+    WEAK_SEMANTIC_SCORE,
+    WRITE_DIFF_MAX_LINES,
 )
 from gigacode.context_assembler import ContextAssembler
 from gigacode.context_packer import pack_context
 from gigacode.context_summarizer import ContextSummarizer
+from gigacode.context_tools import ContextTools
 from gigacode.conversation_memory import ConversationMemory
 from gigacode.dead_code_detector import DeadCodeDetector
 from gigacode.dependency_graph import DependencyGraph
@@ -116,7 +122,7 @@ class _BaseChunkerAdapter:
         ]
 
 
-class CodeEmbeddingTool:
+class CodeEmbeddingTool(ContextTools):
     """Embed a codebase into GPU/CPU buffers and expose search + cluster.
 
     Args:
@@ -206,6 +212,7 @@ class CodeEmbeddingTool:
             )
 
         self.work_dir = Path(work_dir)
+        self._hashline_lock = threading.RLock()
         self.work_dir.mkdir(parents=True, exist_ok=True)
         self.threshold_mb = threshold_mb
         self.use_gpu = use_gpu
@@ -236,6 +243,19 @@ class CodeEmbeddingTool:
             batch_threshold=100,
         )
         self._embedding_dim = self._embedder.embedding_dim
+
+        # Session-level agent conveniences: implicit default buffer,
+        # repeat-call hint ledger, quiet-search resume state (token-efficiency
+        # guards).
+        self._last_buffer_id: str | None = None
+        self._recent_calls: dict[str, dict[str, int]] = {}
+        # Last successful anchor_read (file + anchors + file_hash) so an
+        # anchor_apply never has to retype coordinates.
+        self._last_anchor_read: dict[str, Any] | None = None
+        # Identical anchor_read / tool_search requests are answered from
+        # memory instead of re-executing (quiet-search formula).
+        self._quiet_search_cache: dict[tuple, dict[str, Any]] = {}
+        self._tool_search_cache: dict[tuple, dict[str, Any]] = {}
 
         # State manager for crash recovery and transaction safety
         # Enables write-ahead logging (WAL) for commit operations
@@ -459,6 +479,1149 @@ class CodeEmbeddingTool:
         """Return True if *tool_name* is enabled for this instance's profile."""
         return tool_name in self._allowed_tools
 
+    _PRIORITY_RANK = {"high": 0, "normal": 1, "low": 2}
+
+    def tool_search(self, query: str, max_results: int = 5) -> dict[str, Any]:
+        """Return on-demand schemas, restricted to this instance's profile.
+
+        Results are ranked: high-priority tools (chains, discovery, bundled
+        roundtrips) before normal, low-priority (single-use tools superseded
+        by a high-priority surface) last, then by match score.
+        """
+        if not isinstance(query, str) or not query.strip() or not 1 <= max_results <= 20:
+            return {"status": "error", "message": "Supply a query and max_results between 1 and 20"}
+        schemas = self.get_exposed_tool_schemas()
+        # Quiet-search formula: identical lookup is served from memory.
+        cache_key = (query.strip(), max_results)
+        cached = getattr(self, "_tool_search_cache", {}).get(cache_key)
+        if cached is not None:
+            quiet = dict(cached)
+            quiet["cached"] = True
+            quiet["note"] = "identical lookup already answered; not re-searched"
+            return self._bump_loop_step(quiet, "tool_search")
+        if query.startswith("select:"):
+            names = {name.strip() for name in query[7:].split(",")}
+            matches = [s for s in schemas if s["name"] in names]
+            cache_entry = {"status": "ok", "tools": matches}
+            cache = getattr(self, "_tool_search_cache", None)
+            if cache is None:
+                cache = self._tool_search_cache = {}
+            cache[cache_key] = cache_entry
+            return self._bump_loop_step(dict(cache_entry), "tool_search")
+        terms = query.lower().split()
+        ranked = []
+        for schema in schemas:
+            text = (schema["name"] + " " + schema.get("description", "")).lower()
+            score = sum(3 if term in schema["name"].lower() else 1 for term in terms if term in text)
+            if score:
+                ranked.append(
+                    (
+                        self._PRIORITY_RANK.get(schema.get("priority", "normal"), 1),
+                        score,
+                        schema["name"],
+                        schema,
+                    )
+                )
+        matches = [
+            s
+            for _, _, _, s in sorted(ranked, key=lambda r: (r[0], -r[1], r[2]))[:max_results]
+        ]
+        cache_entry = {"status": "ok", "tools": matches}
+        cache = getattr(self, "_tool_search_cache", None)
+        if cache is None:
+            cache = self._tool_search_cache = {}
+        cache[cache_key] = cache_entry
+        return self._bump_loop_step(dict(cache_entry), "tool_search")
+
+    _WANDER_NUDGE_EVERY = 5
+    _EDIT_LANDING_TOOLS = {"edit_hashlines", "write_code", "commit"}
+
+    def _bump_loop_step(self, result: Any, name: str) -> (
+        Any
+    ):
+        """Track agent-loop wandering and nudge toward convergence.
+
+        Every deferred invocation is one agent step.  After
+        ``_wander_nudge_every`` steps without a landed edit, every response
+        carries a ``budget_nudge`` with the ready next_call (anchor_apply if
+        the last anchored read is still fresh, otherwise anchor_read).  A
+        successful edit/commit resets the counter.
+        """
+        if not isinstance(result, dict):
+            return result
+        counter = getattr(self, "_mcp_steps_since_edit", None)
+        if counter is None:
+            counter = 0
+        counter += 1
+        every = getattr(self, "_wander_nudge_every", self._WANDER_NUDGE_EVERY)
+        edit_landed = (
+            name in self._EDIT_LANDING_TOOLS
+            or name == "code_edit"
+            or (name == "tool_chain" and result.get("chain") in ("anchor_apply", "post_edit"))
+        ) and result.get("status") == "ok" and not result.get("dry_run") and result.get("applied") is not False
+        if edit_landed or result.get("status") == "conflict":
+            self._mcp_steps_since_edit = 0
+            return result
+        self._mcp_steps_since_edit = counter
+        if counter >= every:
+            last_read = getattr(self, "_last_anchor_read", None)
+            if isinstance(last_read, dict) and last_read.get("buffer_id"):
+                next_action = {
+                    "tool": "tool_chain",
+                    "arguments": {
+                        "chain": "anchor_apply",
+                        "new_lines": ["<complete replacement of editable_range, including declaration>"],
+                        "dry_run": False,
+                    },
+                }
+            else:
+                next_action = {
+                    "tool": "tool_chain",
+                    "arguments": {"chain": "anchor_read", "query": "<repeat your latest query>"},
+                }
+            result["budget_nudge"] = {
+                "steps_since_edit": counter,
+                "message": (
+                    f"{counter} tool calls without an applied edit. Converge now: "
+                    "confirm the target declaration, then apply the complete editable range. "
+                    "Do not edit an unrelated candidate just to meet the call budget."
+                ),
+                "next_call": next_action,
+            }
+        return result
+
+    def tool_call(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Dispatch a deferred tool without widening the configured permissions."""
+        from gigacode.server_dispatch import resolve_tool_method
+
+        if name == "tool_call":
+            return {"status": "error", "message": "Recursive tool_call is not allowed"}
+        method = resolve_tool_method(self, name)
+        if method is None:
+            return {"status": "error", "message": f"Unknown or disabled tool: {name}"}
+        if not isinstance(arguments, dict):
+            return {"status": "error", "message": "arguments must be an object"}
+        arguments = dict(arguments)
+        for schema in self.get_exposed_tool_schemas():
+            if schema["name"] == name:
+                if "buffer_id" in schema.get("input_schema", {}).get("properties", {}):
+                    arguments.setdefault("buffer_id", None)
+                break
+        try:
+            result = method(**arguments)
+        except TypeError as exc:
+            result = {
+                "status": "error",
+                "message": f"Invalid arguments for {name}: {exc}",
+                "hint": "Check the tool's input_schema (tool_search name) for correct argument names/types.",
+            }
+        except ValueError as exc:
+            result = {"status": "error", "message": str(exc)}
+        except Exception:
+            logger.exception("Tool %s failed internally", name)
+            result = {
+                "status": "error",
+                "message": (
+                    f"Internal tool failure in {name}. Do not retry the identical "
+                    "call; change approach, verify state, or use built-in tools."
+                ),
+            }
+        return self._bump_loop_step(result, name)
+
+    def compress_context(
+        self, messages: list[dict[str, Any]], keep_recent_turns: int = 3,
+        max_summary_chars: int = 4000,
+    ) -> dict[str, Any]:
+        """Return compressed chat history for the host agent to apply."""
+        from gigacode.token_tools import compress_messages
+
+        return compress_messages(messages, keep_recent_turns, max_summary_chars)
+
+    def _source_file(
+        self, buffer_id: str, file: str, snapshot: dict[str, list[str]],
+    ) -> tuple[str | None, dict[str, Any] | None]:
+        """Resolve all coding paths against the project, retaining snapshot keys."""
+        from gigacode.path_utils import SourcePathError, resolve_source_path
+
+        info = self._get_buffer_info(buffer_id)
+        if not info or not info.get("root"):
+            return None, {"status": "error", "code": "missing_root", "message": "Buffer project root is unavailable."}
+        try:
+            return resolve_source_path(file, info["root"], snapshot), None
+        except SourcePathError as exc:
+            result = {"status": "error", "code": exc.code, "message": str(exc), "applied": False}
+            if exc.candidates:
+                result["candidates"] = exc.candidates
+                result["hint"] = "Retry the original call with a listed root-relative file path; no discovery needed."
+            return None, result
+        except (ValueError, OSError):
+            return None, {"status": "error", "code": "invalid_path", "message": "File must resolve inside the project root.", "applied": False}
+
+    def _source_search_index(self, buffer_id: str):
+        """Reuse a definition index until the pending source snapshot changes."""
+        from gigacode.source_search import SourceSearchIndex
+
+        with self._hashline_lock:
+            info = self._get_buffer_info(buffer_id)
+            if not info:
+                return None
+            path = Path(info["buffer_dir"]) / "source_snapshot.json"
+            try:
+                stat = path.stat()
+            except OSError:
+                return None
+            generation = (stat.st_mtime_ns, stat.st_size, stat.st_ino)
+            cache = getattr(self, "_definition_search_cache", None)
+            if cache is None:
+                cache = self._definition_search_cache = {}
+            cached = cache.get(buffer_id)
+            if cached and cached[0] == generation:
+                return cached[1]
+            snapshot = self._load_source_snapshot(buffer_id)
+            if snapshot is None:
+                return None
+            shared = self._context_index(buffer_id=buffer_id)
+            index = shared.source_search(files=snapshot)
+            if len(cache) >= 8 and buffer_id not in cache:
+                cache.pop(next(iter(cache)))
+            cache[buffer_id] = (generation, index)
+            return index
+
+    def _source_revision(self, buffer_id: str) -> tuple | None:
+        info = self._get_buffer_info(buffer_id)
+        if not info:
+            return None
+        try:
+            stat = (Path(info["buffer_dir"]) / "source_snapshot.json").stat()
+            return stat.st_mtime_ns, stat.st_size, stat.st_ino
+        except OSError:
+            return None
+
+    def read_hashlines(
+        self, buffer_id: str | None, file: str, start_line: int = 1,
+        end_line: int | None = None, include_anchors: bool = True,
+    ) -> dict[str, Any]:
+        """Read an anchored window of the pending buffer contents.
+
+        With ``include_anchors=False`` the response carries plain source lines
+        without the ``line:hash|`` anchor prefixes — use that for read-only
+        browsing; anchored edits always need an anchored read first.
+        """
+        from gigacode.token_tools import line_anchor
+
+        hint = self._repeat_hint(
+            "read_hashlines",
+            self._canonical_args({"file": file, "start": start_line, "end": end_line}),
+        )
+
+        resolved, error = self._resolve_buffer(buffer_id, "read_hashlines")
+        if error is not None:
+            if hint:
+                error["repeat_hint"] = hint
+            return error
+        snapshot = self._load_source_snapshot(resolved)
+        if snapshot is None:
+            return {"status": "error", "message": "Source snapshot missing"}
+        file, path_error = self._source_file(resolved, file, snapshot)
+        if path_error:
+            result = path_error
+            if hint:
+                result["repeat_hint"] = hint
+            return result
+        if start_line < 1 or (end_line is not None and end_line < start_line):
+            result = {"status": "error", "message": "Invalid line range"}
+            if hint:
+                result["repeat_hint"] = hint
+            return result
+        # Use the same pending snapshot as write_code, not disk-backed reads.
+        from gigacode.constants import READ_CODE_DEFAULT_WINDOW
+
+        lines = snapshot[file]
+        end = min(len(lines), end_line if end_line is not None else start_line + READ_CODE_DEFAULT_WINDOW - 1)
+        result = {
+            "status": "ok", "file": file.replace("\\", "/"), "buffer_id": resolved,
+            "start_line": start_line, "end_line": end, "total_lines": len(lines),
+            "lines": lines[start_line - 1:end],
+        }
+        if end < len(lines):
+            result["next_window"] = end + 1
+        if hint:
+            result["repeat_hint"] = hint
+        result["file_hash"] = hashlib.sha256(
+            json.dumps(snapshot[file], ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+        if include_anchors:
+            result["lines"] = [
+                f"{line_anchor(i, text)}|{text}"
+                for i, text in enumerate(result["lines"], start=start_line)
+            ]
+        else:
+            result["anchors_omitted"] = True
+        return result
+
+    def code_find(
+        self, query: str = "", buffer_id: str | None = None,
+        file: str | None = None, start_line: int | None = None,
+        end_line: int | None = None, top_k: int = 3,
+    ) -> dict[str, Any]:
+        """Find and read a target with explicit replacement bounds, in one call."""
+        resolved, error = self._resolve_buffer(buffer_id, "code_find")
+        if error is not None:
+            return error
+        if start_line is not None or (file and not query.strip()):
+            if not file:
+                return {"status": "error", "message": "A line range requires file."}
+            read = self.read_hashlines(resolved, file, start_line or 1, end_line)
+            matches = []
+        else:
+            search = self.code_search(resolved, query, top_k=top_k, file=file)
+            matches = search.get("matches") or []
+            if search.get("status") != "ok" or not matches:
+                return {**search, "editable": False}
+            best = matches[0]
+            file = best["file"]
+            from gigacode.coding_safety import definition_range
+
+            start_line = int(best.get("start_line") or 1)
+            end_line = int(best.get("end_line") or start_line)
+            if not best.get("definition_match"):
+                snapshot = self._load_source_snapshot(resolved) or {}
+                key, path_error = self._source_file(resolved, file, snapshot)
+                if path_error:
+                    return {**path_error, "editable": False}
+                source = snapshot.get(key, [])
+                start_line, end_line = definition_range(source, file, start_line) or (start_line, end_line)
+            read = self.read_hashlines(resolved, file, start_line, end_line)
+        if read.get("status") != "ok" or not read.get("lines"):
+            return {**read, "editable": False}
+        result = {
+            **read, "editable": True,
+            "start_anchor": read["lines"][0].split("|", 1)[0],
+            "end_anchor": read["lines"][-1].split("|", 1)[0],
+            "candidates": [
+                {k: m[k] for k in ("file", "start_line", "end_line", "name", "confidence") if k in m}
+                for m in matches[:top_k]
+            ],
+            "replacement_instruction": (
+                "For a small edit use code_edit(file, old_text, new_text, expected_hash=file_hash). "
+                "old_text must match exactly once. Anchored edits replace the entire inclusive range."
+            ),
+            "confidence": matches[0].get("confidence", "candidate") if matches else "explicit",
+        }
+        from gigacode.mcp_server import _MCP_OUTPUT_CHAR_CAP
+
+        if len(json.dumps(result, separators=(",", ":"))) > _MCP_OUTPUT_CHAR_CAP:
+            return {
+                "status": "warning", "editable": False, "file": file,
+                "start_line": read["start_line"], "end_line": read["end_line"],
+                "message": "Target exceeds output budget. Read a narrower file/line range before editing.",
+            }
+        return result
+
+    def code_edit(
+        self, file: str, start_anchor: str | None = None, end_anchor: str | None = None,
+        new_lines: list[str] | None = None, expected_hash: str | None = None, buffer_id: str | None = None,
+        dry_run: bool = False, allow_definition_removal: bool = False,
+        old_text: str | None = None, new_text: str | None = None,
+    ) -> dict[str, Any]:
+        """Persist a unique literal or anchored replacement, with no finishing call."""
+        with self._hashline_lock:
+            resolved, error = self._resolve_buffer(buffer_id, "code_edit")
+            if error is not None:
+                return error
+            snapshot = self._load_source_snapshot(resolved) or {}
+            file, path_error = self._source_file(resolved, file, snapshot)
+            if path_error:
+                return path_error
+            source = snapshot[file]
+            digest = hashlib.sha256(json.dumps(source, ensure_ascii=False).encode("utf-8")).hexdigest()
+            if expected_hash is not None and digest != expected_hash:
+                return {"status": "conflict", "message": "Stale file hash; read the target again.", "applied": False}
+            info_result = self._require_buffer(resolved, "code_edit", require_chunks=False)
+            if isinstance(info_result, dict):
+                return info_result
+            info, _ = info_result
+            if not dry_run and any(path != file for path in info.get("dirty_files", {})):
+                return {
+                    "status": "blocked", "applied": False,
+                    "message": "Other files have pending buffer edits. Commit or discard them explicitly before a direct edit.",
+                }
+            from gigacode.coding_safety import text_replacement, validate_replacement
+            from gigacode.token_tools import line_anchor, resolve_anchor
+
+            try:
+                if old_text is not None or new_text is not None:
+                    if start_anchor is not None or end_anchor is not None or new_lines is not None:
+                        raise ValueError("Use old_text/new_text OR anchors/new_lines, not both.")
+                    start, end, new_lines = text_replacement(source, old_text, new_text)
+                    start_anchor = line_anchor(start, source[start - 1])
+                    end_anchor = line_anchor(end, source[end - 1])
+                    expected_hash = digest
+                else:
+                    if not start_anchor or not end_anchor or new_lines is None or not expected_hash:
+                        raise ValueError("Use file + old_text + new_text, or copy anchors/new_lines/expected_hash from code_find.")
+                    start, end = resolve_anchor(start_anchor, source), resolve_anchor(end_anchor, source)
+            except ValueError as exc:
+                return {"status": "error", "message": str(exc), "applied": False}
+            failure = validate_replacement(
+                source, file, start, end, new_lines,
+                preserve_definitions=not allow_definition_removal,
+            )
+            if failure:
+                return {"status": "error", "message": failure, "applied": False}
+            result = self.tool_chain(
+                "anchor_apply", buffer_id=resolved, file=file,
+                start_anchor=start_anchor, end_anchor=end_anchor,
+                new_lines=new_lines, expected_hash=expected_hash, dry_run=dry_run,
+            )
+            updated = (self._load_source_snapshot(resolved) or {}).get(file, source)
+        applied = result.get("status") == "ok" and not dry_run and any(
+            step.get("tool") == "commit"
+            and file in (step.get("response") or {}).get("written_files", [])
+            for step in result.get("steps", [])
+        )
+        response = {
+            "status": result.get("status", "error"),
+            "applied": applied,
+            "dry_run": dry_run, "file": file.replace("\\", "/"),
+            **({"message": result["message"]} if result.get("message") else {}),
+            "next_hint": (
+                "Edit persisted; run the task's relevant tests." if applied
+                else "Preview validated; no buffer or disk change." if dry_run and result.get("status") == "ok"
+                else result.get("next_hint") or "No disk edit persisted."
+            ),
+        }
+        if result.get("status") != "ok" and not response.get("message"):
+            failed = next((step for step in result.get("steps", []) if step.get("status") not in ("ok", "warning")), {})
+            response["message"] = failed.get("message") or (failed.get("response") or {}).get("message") or "Edit rejected."
+        if result.get("status") == "ok":
+            response["file_hash"] = hashlib.sha256(json.dumps(updated, ensure_ascii=False).encode("utf-8")).hexdigest()
+            response["changed_lines"] = len(new_lines)
+        return response
+
+    def edit_hashlines(
+        self, buffer_id: str | None, file: str, start_anchor: str, end_anchor: str,
+        new_lines: list[str], expected_hash: str,
+    ) -> dict[str, Any]:
+        """Validate file and line anchors before using the existing write workflow."""
+        with self._hashline_lock:
+            return self._edit_hashlines_locked(
+                buffer_id, file, start_anchor, end_anchor, new_lines, expected_hash
+            )
+
+    def _edit_hashlines_locked(
+        self, buffer_id: str | None, file: str, start_anchor: str, end_anchor: str,
+        new_lines: list[str], expected_hash: str,
+    ) -> dict[str, Any]:
+        from gigacode.token_tools import resolve_anchor
+
+        canonical = self._canonical_args(
+            {
+                "file": file,
+                "start_anchor": start_anchor,
+                "end_anchor": end_anchor,
+                "new_lines": new_lines,
+                "expected_hash": expected_hash,
+            }
+        )
+        repeat_n = self._recent_calls.get("edit_hashlines", {}).get(canonical, 0)
+        hint = self._repeat_hint("edit_hashlines", canonical)
+        if repeat_n:
+            hint = (
+                "You already attempted this exact anchored edit "
+                f"{repeat_n} time(s) since the last state change; it produced the "
+                "same response each time. Do not retry unchanged — re-read the "
+                "window with read_hashlines to get fresh anchors/file_hash, or "
+                "adjust which lines you target."
+            )
+
+        resolved, error = self._resolve_buffer(buffer_id, "edit_hashlines")
+        if error is not None:
+            if hint:
+                error["repeat_hint"] = hint
+            return error
+        snapshot = self._load_source_snapshot(resolved)
+        if snapshot is None:
+            return {"status": "error", "message": "Source snapshot missing"}
+        file, path_error = self._source_file(resolved, file, snapshot)
+        if path_error:
+            result = path_error
+            if hint:
+                result["repeat_hint"] = hint
+            return result
+        lines = snapshot[file]
+        digest = hashlib.sha256(json.dumps(lines, ensure_ascii=False).encode("utf-8")).hexdigest()
+        if expected_hash != digest:
+            result = {
+                "status": "error",
+                "message": "Stale file hash. Read the file again.",
+                "stale": True,
+            }
+            if hint:
+                result["repeat_hint"] = hint
+            return result
+        try:
+            start = resolve_anchor(start_anchor, lines)
+            end = resolve_anchor(end_anchor, lines)
+            if end < start or not isinstance(new_lines, list) or any(
+                not isinstance(line, str) or "\n" in line or "\r" in line for line in new_lines
+            ):
+                raise ValueError("Invalid range or new_lines")
+        except ValueError as exc:
+            result = {"status": "error", "message": str(exc)}
+            if hint:
+                result["repeat_hint"] = hint
+            return result
+        result = self.write_code(resolved, file, start, new_lines, end_line=end)
+        if hint and isinstance(result, dict):
+            result["repeat_hint"] = hint
+        return self._augment_anchor_state(result, resolved, file, end)
+
+    def _augment_anchor_state(
+        self, result: dict[str, Any], buffer_id: str, file: str, end: int,
+    ) -> dict[str, Any]:
+        """Refresh anchors after an edit so chained edits skip re-reads.
+
+        Adds the post-edit file hash and the anchored lines immediately
+        following the edited span (they kept their content and coordinates).
+        """
+        from gigacode.token_tools import line_anchor
+
+        if not isinstance(result, dict) or result.get("status") != "ok":
+            return result
+        snapshot = self._load_source_snapshot(buffer_id)
+        if snapshot is None or file not in snapshot:
+            return result
+        post = snapshot[file]
+        result["file_hash"] = hashlib.sha256(
+            json.dumps(post, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+        window_start = int(end) + 1
+        window_end = min(len(post), window_start + 4)
+        if window_start <= len(post):
+            result["new_anchors"] = [
+                {"anchor": line_anchor(n, text), "text": text}
+                for n, text in zip(
+                    range(window_start, window_end + 1), post[window_start - 1 : window_end], strict=False
+                )
+            ]
+        result["next_action"] = (
+            "chain the next edit with the refreshed file_hash and new_anchors "
+            "(no re-read needed), or commit to persist"
+        )
+        return result
+
+    _CONTINUE_STATUSES = {"ok", "warning"}
+
+    # Wall-clock budget for one tool_chain call. A step can hang (e.g. a wedged
+    # formatter subprocess); remaining steps must be skipped with a warning
+    # instead of letting the whole MCP request run into the client timeout,
+    # which reads as an empty/lost result and derails the agent loop.
+    _CHAIN_DEADLINE_SEC = 90
+
+    def tool_chain(
+        self, chain: str, buffer_id: str | None = None, file: str | None = None,
+        query: str | None = None, start_anchor: str | None = None,
+        end_anchor: str | None = None, new_lines: list[str] | None = None,
+        expected_hash: str | None = None, dry_run: bool = True,
+        auto_fix: bool = True, top_k: int = 5,
+    ) -> dict[str, Any]:
+        """Serialize chain validation and mutations against concurrent edits."""
+        with self._hashline_lock:
+            return self._tool_chain_locked(
+                chain, buffer_id, file, query, start_anchor, end_anchor,
+                new_lines, expected_hash, dry_run, auto_fix, top_k,
+            )
+
+    def _tool_chain_locked(
+        self,
+        chain: str,
+        buffer_id: str | None = None,
+        file: str | None = None,
+        query: str | None = None,
+        start_anchor: str | None = None,
+        end_anchor: str | None = None,
+        new_lines: list[str] | None = None,
+        expected_hash: str | None = None,
+        dry_run: bool = True,
+        auto_fix: bool = True,
+        top_k: int = 5,
+    ) -> dict[str, Any]:
+        """Execute a fixed multi-step chain and return every call and response.
+
+        Chains (all against the buffer's pending state):
+        - ``post_edit``: commit -> auto_format -> auto_lint(auto_fix) ->
+          reload_codebase ("write the buffer to disk, ruff/lint it, then bake
+          the result back into the embedding buffer").
+        - ``pre_commit``: diff -> validate_changes -> polish_before_commit
+          (check_only) -> dry-run commit.
+        - ``search_read``: code_search(mode='hybrid') -> read_code window
+          around the best hit.
+        - ``stream_read``: semantic_search_streaming (signatures) ->
+          expand_match on the best hit -> read_code skeleton window. The
+          token-cheapest browse path for large files.
+        - ``find_and_analyze``: code_search -> analyze_change over the best
+          hit's definition range (know the blast radius before editing).
+        - ``anchor_apply``: edit_hashlines -> validate_changes -> commit —
+          one call from anchors to a persisted, validated edit. Requires
+          start_anchor/end_anchor/new_lines/expected_hash (from
+          read_hashlines or a previous edit response).
+
+        Each recorded step carries ``tool``/``arguments``/``status``/
+        ``duration_ms``/``response`` (or ``skipped``/``reason`` after an early
+        stop). The chain stops at the first step returning ``error`` or
+        ``conflict``.
+        """
+        resolved, error = self._resolve_buffer(buffer_id, "tool_chain")
+        if error is not None:
+            return error
+        if file is not None:
+            source_snapshot = self._load_source_snapshot(resolved) or {}
+            key, path_error = self._source_file(resolved, file, source_snapshot)
+            if path_error:
+                return path_error
+            file = key.replace("\\", "/")
+
+        launched: list[tuple[str, dict[str, Any]]] = []
+        if chain == "post_edit":
+            launched = [
+                ("commit", {"buffer_id": resolved, "dry_run": bool(dry_run), "check_impact": False}),
+                (
+                    "auto_format",
+                    {
+                        "buffer_id": resolved,
+                        "files": [file] if file else None,
+                        "dry_run": bool(dry_run),
+                    },
+                ),
+                (
+                    "auto_lint",
+                    {
+                        "buffer_id": resolved,
+                        "files": [file] if file else None,
+                        "auto_fix": bool(auto_fix),
+                        "dry_run": bool(dry_run) or not bool(auto_fix),
+                    },
+                ),
+                ("reload_codebase", {"buffer_id": resolved}),
+            ]
+        elif chain == "pre_commit":
+            launched = [
+                ("diff", {"buffer_id": resolved}),
+                ("validate_changes", {"buffer_id": resolved, "dry_run": True}),
+                (
+                    "polish_before_commit",
+                    {
+                        "buffer_id": resolved,
+                        "files_to_commit": [file] if file else None,
+                        "check_only": True,
+                    },
+                ),
+                ("commit", {"buffer_id": resolved, "dry_run": True}),
+            ]
+        elif chain == "anchor_apply":
+            if not isinstance(new_lines, list):
+                return {"status": "error", "message": "anchor_apply chain requires new_lines"}
+            # Quiet-search resume: an anchor_apply after anchor_read inherits
+            # the file/start/end anchors and expected_hash automatically, so
+            # the model only supplies new_lines.
+            lr = getattr(self, "_last_anchor_read", None)
+            resumed = False
+            if lr and lr.get("buffer_id") == resolved:
+                if file is None:
+                    file = lr.get("file")
+                    resumed = True
+                if file == lr.get("file"):
+                    resumed = resumed or not start_anchor or not end_anchor
+                    start_anchor = start_anchor or lr.get("start_anchor")
+                    end_anchor = end_anchor or lr.get("end_anchor")
+                    expected_hash = expected_hash or lr.get("file_hash")
+            missing = [
+                name
+                for name, value in (
+                    ("file", file),
+                    ("start_anchor", start_anchor),
+                    ("end_anchor", end_anchor),
+                    ("expected_hash", expected_hash),
+                )
+                if not value
+            ]
+            if missing:
+                return {
+                    "status": "error",
+                    "message": f"anchor_apply chain missing: {', '.join(missing)}",
+                    "hint": (
+                        "Run the 'anchor_read' chain first — its result is stored "
+                        "and these arguments are filled in automatically."
+                    ),
+                }
+            from gigacode.coding_safety import validate_replacement
+            from gigacode.token_tools import resolve_anchor
+
+            snapshot = self._load_source_snapshot(resolved) or {}
+            file, path_error = self._source_file(resolved, file, snapshot)
+            if path_error:
+                return path_error
+            source = snapshot[file]
+            digest = hashlib.sha256(json.dumps(source, ensure_ascii=False).encode("utf-8")).hexdigest()
+            if digest != expected_hash:
+                return {"status": "conflict", "message": "Stale file hash; read the target again."}
+            try:
+                start = resolve_anchor(start_anchor, source)
+                end = resolve_anchor(end_anchor, source)
+            except ValueError as exc:
+                return {"status": "error", "message": str(exc)}
+            validation_error = validate_replacement(
+                source, file, start, end, new_lines, preserve_definitions=resumed,
+            )
+            if validation_error:
+                return {"status": "error", "message": validation_error, "applied": False}
+            if source[start - 1:end] == new_lines:
+                return {
+                    "status": "ok", "chain": chain, "buffer_id": resolved,
+                    "dry_run": bool(dry_run), "applied": False, "steps": [],
+                    "steps_run": 0, "steps_skipped": 0, "steps_compacted": True,
+                    "next_hint": "No change: replacement matches the current source.",
+                }
+            if dry_run:
+                return {
+                    "status": "ok", "chain": chain, "buffer_id": resolved,
+                    "dry_run": True, "applied": False, "steps_compacted": True,
+                    "steps": [
+                        {"tool": "edit_hashlines", "status": "ok", "duration_ms": 0, "preview": True},
+                        {"tool": "validate_changes", "status": "ok", "duration_ms": 0},
+                        {"tool": "commit", "status": "ok", "duration_ms": 0,
+                         "response": {"status": "ok", "dry_run": True, "written_files": []}},
+                    ],
+                    "steps_run": 0, "steps_skipped": 0,
+                    "next_hint": "Preview only; re-run anchor_apply with dry_run=false to persist.",
+                }
+            launched = [
+                (
+                    "edit_hashlines",
+                    {
+                        "buffer_id": resolved,
+                        "file": file,
+                        "start_anchor": start_anchor,
+                        "end_anchor": end_anchor,
+                        "new_lines": new_lines,
+                        "expected_hash": expected_hash,
+                    },
+                ),
+                ("validate_changes", {"buffer_id": resolved, "dry_run": True}),
+                (
+                    "commit",
+                    {"buffer_id": resolved, "dry_run": bool(dry_run), "check_impact": False},
+                ),
+            ]
+        elif chain == "anchor_read":
+            self._last_anchor_read = None
+            if not isinstance(query, str) or not query.strip():
+                return {"status": "error", "message": "anchor_read chain requires a query"}
+            # Quiet-search formula: identical repeat is answered from memory,
+            # not re-executed.
+            key = ("anchor_read", query.strip(), resolved, top_k, file, self._source_revision(resolved))
+            cached = getattr(self, "_quiet_search_cache", {}).get(key)
+            if cached is not None:
+                quiet = dict(cached)
+                quiet["cached"] = True
+                quiet["note"] = "identical anchor_read already answered; not re-executed"
+                self._last_anchor_read = quiet.get("editable_range")
+                return quiet
+            launched = [
+                (
+                    "code_search",
+                    {
+                        "buffer_id": resolved,
+                        "query": query,
+                        "mode": "hybrid",
+                        "top_k": top_k,
+                        "file": file,
+                    },
+                ),
+            ]
+        elif chain == "search_read":
+            if not isinstance(query, str) or not query.strip():
+                return {"status": "error", "message": "search_read chain requires a query"}
+            launched = [
+                (
+                    "code_search",
+                    {
+                        "buffer_id": resolved,
+                        "query": query,
+                        "mode": "hybrid",
+                        "top_k": top_k,
+                    },
+                ),
+            ]
+        elif chain == "stream_read":
+            if not isinstance(query, str) or not query.strip():
+                return {"status": "error", "message": "stream_read chain requires a query"}
+            launched = [
+                (
+                    "semantic_search_streaming",
+                    {"buffer_id": resolved, "query": query, "top_k": top_k, "disclosure": "signatures"},
+                ),
+            ]
+        elif chain == "find_and_analyze":
+            if not isinstance(query, str) or not query.strip():
+                return {"status": "error", "message": "find_and_analyze chain requires a query"}
+            launched = [
+                (
+                    "code_search",
+                    {
+                        "buffer_id": resolved,
+                        "query": query,
+                        "mode": "hybrid",
+                        "top_k": top_k,
+                    },
+                ),
+            ]
+        else:
+            return {
+                "status": "error",
+                "message": (
+                f"Unknown chain '{chain}': choose anchor_read, anchor_apply, "
+                "post_edit, pre_commit, search_read, stream_read, or find_and_analyze"
+                ),
+            }
+
+        steps: list[dict[str, Any]] = []
+        overall = "ok"
+        stopped = False
+        chain_t0 = time.monotonic()
+        deadline = getattr(self, "_chain_deadline_sec", self._CHAIN_DEADLINE_SEC)
+        for index, (tool_name, arguments) in enumerate(launched):
+            if stopped:
+                steps.append({"tool": tool_name, "skipped": True, "reason": "previous step did not continue"})
+                continue
+            elapsed = time.monotonic() - chain_t0
+            if elapsed > deadline:
+                overall = "warning" if overall == "ok" else overall
+                steps.append(
+                    {
+                        "tool": tool_name,
+                        "skipped": True,
+                        "reason": (
+                            f"chain deadline exceeded ({elapsed:.1f}s > {deadline}s); "
+                            "remaining steps aborted to avoid runaway execution"
+                        ),
+                    }
+                )
+                continue
+            import time as _time
+
+            t0 = _time.perf_counter()
+            entry: dict[str, Any] = {"tool": tool_name, "arguments": arguments}
+            try:
+                method = getattr(self, tool_name)
+                if dry_run and tool_name == "reload_codebase":
+                    response = {"status": "ok", "dry_run": True, "message": "Reload skipped for non-mutating preview."}
+                else:
+                    response = method(**arguments)
+            except (TypeError, ValueError, RuntimeError, OSError) as exc:
+                response = {"status": "error", "message": str(exc)}
+            if (
+                tool_name == "auto_format"
+                and isinstance(response, dict)
+                and response.get("status") == "error"
+                and arguments.get("formatter") != "ruff.format"
+            ):
+                arguments = {**arguments, "formatter": "ruff.format"}
+                entry = {"tool": tool_name, "arguments": arguments}
+                try:
+                    response = method(**arguments)
+                except (TypeError, ValueError, RuntimeError, OSError) as exc:
+                    response = {"status": "error", "message": str(exc)}
+            entry["duration_ms"] = round((_time.perf_counter() - t0) * 1000, 2)
+            status = response.get("status") if isinstance(response, dict) else None
+            entry["status"] = status or "error"
+            entry["response"] = response
+            steps.append(entry)
+
+            if index == 0 and chain in (
+                "search_read",
+                "anchor_read",
+                "stream_read",
+                "find_and_analyze",
+            ):
+                if chain == "stream_read":
+                    matches = response.get("matches") if isinstance(response, dict) else None
+                    best = matches[0] if matches and status in self._CONTINUE_STATUSES else None
+                    if best and best.get("match_id") is not None:
+                        launched.append(
+                            (
+                                "expand_match",
+                                {
+                                    "buffer_id": resolved,
+                                    "match_id": int(best["match_id"]),
+                                    "level": "details",
+                                },
+                            )
+                        )
+                    if best and best.get("file"):
+                        hit_line = int(best.get("start_line") or 1)
+                        hit_end = int(best.get("end_line") or hit_line + 150)
+                        launched.append(
+                            (
+                                "read_code",
+                                {
+                                    "buffer_id": resolved,
+                                    "file": str(best["file"]),
+                                    "start_line": max(1, hit_line - 3),
+                                    "end_line": hit_end + 3,
+                                    "skeleton": hit_end - hit_line > 60,
+                                },
+                            )
+                        )
+                    if best:
+                        continue
+                else:
+                    matches = response.get("matches") if isinstance(response, dict) else None
+                    best = matches[0] if matches and status in self._CONTINUE_STATUSES else None
+                    if not best:
+                        stopped = True
+                        if overall == "ok":
+                            overall = "warning" if status in self._CONTINUE_STATUSES else "error"
+                        continue
+                    if chain == "anchor_read" and best.get("file"):
+                        hit_line = int(best.get("start_line") or 1)
+                        hit_end = int(best.get("end_line") or hit_line + 150)
+                        from gigacode.coding_safety import definition_range
+
+                        if not best.get("definition_match"):
+                            snapshot = self._load_source_snapshot(resolved) or {}
+                            key, path_error = self._source_file(resolved, str(best["file"]), snapshot)
+                            if path_error:
+                                overall, stopped = "error", True
+                                entry["response"] = path_error
+                                entry["status"] = "error"
+                                continue
+                            source = snapshot[key]
+                            span = definition_range(source, str(best["file"]), hit_line)
+                            hit_line, hit_end = span or (hit_line, min(hit_end, len(source)))
+                        launched.append(
+                            (
+                                "read_hashlines",
+                                {
+                                    "buffer_id": resolved,
+                                    "file": str(best["file"]),
+                                    "start_line": hit_line,
+                                    "end_line": hit_end,
+                                },
+                            )
+                        )
+                        continue
+                    if chain == "find_and_analyze" and best.get("file"):
+                        launched.append(
+                            (
+                                "analyze_change",
+                                {
+                                    "buffer_id": resolved,
+                                    "file": str(best["file"]),
+                                    "start_line": int(best.get("start_line") or 1),
+                                    "end_line": int(best.get("end_line") or 1),
+                                },
+                            )
+                        )
+                        continue
+                    if chain == "search_read" and best.get("file"):
+                        hit_file = str(best["file"])
+                        hit_line = int(best.get("start_line") or 1)
+                        hit_end = int(best.get("end_line") or hit_line + 150)
+                        launched.append(
+                            (
+                                "read_code",
+                                {
+                                    "buffer_id": resolved,
+                                    "file": hit_file,
+                                    "start_line": max(1, hit_line - 3),
+                                    "end_line": hit_end + 3,
+                                    "skeleton": hit_end - hit_line > 60,
+                                },
+                            )
+                        )
+                        continue
+            if status not in self._CONTINUE_STATUSES:
+                overall = status if status in ("error", "conflict", "blocked") else "error"
+                stopped = True
+
+        if overall == "ok" and any(s.get("status") == "conflict" for s in steps):
+            overall = "conflict"
+
+        # Quiet-search resume state: remember the last successful anchored
+        # read so a following anchor_apply needs zero coordinate typing.
+        anchor_record: dict[str, Any] | None = None
+        if chain == "anchor_read" and overall in ("ok", "warning"):
+            last_read = next(
+                (
+                    s
+                    for s in reversed(steps)
+                    if s.get("tool") == "read_hashlines" and not s.get("skipped")
+                ),
+                None,
+            )
+            resp = (last_read or {}).get("response") or {}
+            read_lines = resp.get("lines") or []
+            if resp.get("status") == "ok" and read_lines:
+                anchor_record = {
+                    "buffer_id": resolved,
+                    "file": resp.get("file"),
+                    "start_line": resp.get("start_line"),
+                    "end_line": resp.get("end_line"),
+                    "file_hash": resp.get("file_hash"),
+                    "start_anchor": str(read_lines[0]).split("|", 1)[0],
+                    "end_anchor": str(read_lines[-1]).split("|", 1)[0],
+                }
+
+        next_hint: str | None = None
+        if overall in ("ok", "warning"):
+            if chain == "anchor_read" and anchor_record:
+                next_hint = (
+                    "next_call carries a ready-to-paste anchor_apply invocation: "
+                    "set new_lines (dry_run=false to persist)."
+                )
+            elif chain in ("anchor_read", "search_read", "stream_read"):
+                next_hint = "Confirm the target and read explicit anchors before applying an edit."
+            elif chain == "anchor_apply" and bool(dry_run):
+                next_hint = "Preview applied; re-run anchor_apply with dry_run=false to persist."
+            elif chain == "anchor_apply":
+                next_hint = "Edit persisted on disk; optional finisher: tool_chain chain='post_edit'."
+            elif chain == "post_edit":
+                next_hint = None
+
+        compacted_steps = self._compact_chain_steps(steps)
+        result = {
+            "status": overall,
+            "chain": chain,
+            "buffer_id": resolved,
+            "dry_run": bool(dry_run),
+            "steps": compacted_steps,
+            "steps_run": sum(1 for s in steps if not s.get("skipped")),
+            "steps_skipped": sum(1 for s in steps if s.get("skipped")),
+            "steps_compacted": True,
+        }
+        if chain == "anchor_read" and anchor_record is not None:
+            self._last_anchor_read = anchor_record
+            result["editable_range"] = anchor_record
+            result["replacement_instruction"] = (
+                "new_lines replaces this entire editable range, including any def/class "
+                "declaration and decorators. To change fewer lines, supply explicit anchors."
+            )
+            # Ready-to-paste follow-up: the agent fills in new_lines only.
+            result["next_call"] = {
+                "tool": "tool_chain",
+                "arguments": {
+                    "chain": "anchor_apply",
+                    "new_lines": ["<complete replacement of editable_range, including declaration>"],
+                    "dry_run": False,
+                },
+            }
+        if next_hint:
+            result["next_hint"] = next_hint
+        if chain == "anchor_apply" and overall in ("error", "conflict"):
+            edit_fail = next(
+                (
+                    s
+                    for s in compacted_steps
+                    if s.get("tool") == "edit_hashlines" and s.get("status") not in ("ok", "warning")
+                ),
+                None,
+            )
+            if edit_fail is not None:
+                # The coordinate memory is now suspect: drop it and send the
+                # agent straight back to a fresh anchored re-read.
+                self._last_anchor_read = None
+                result["next_call"] = {
+                    "tool": "tool_chain",
+                    "arguments": {
+                        "chain": "anchor_read",
+                        **(
+                            {"query": query}
+                            if isinstance(query, str) and query.strip()
+                            else {}
+                        ),
+                    },
+                    "note": "anchors went stale or invalid; re-anchor then apply again",
+                }
+                result["next_hint"] = (
+                    "Edit was rejected (stale/invalid anchors). Run the anchor_read "
+                    "chain again (next_call), then re-send anchor_apply with the new "
+                    "coordinates or the ready next_call."
+                )
+        if chain == "anchor_read":
+            from gigacode.mcp_server import _MCP_OUTPUT_CHAR_CAP
+
+            if len(json.dumps(result, separators=(",", ":"))) > _MCP_OUTPUT_CHAR_CAP:
+                self._last_anchor_read = None
+                result.pop("editable_range", None)
+                result.pop("next_call", None)
+                result["next_hint"] = "Read a narrower explicit file/line range; this target exceeds the output budget."
+            cache = getattr(self, "_quiet_search_cache", None)
+            if cache is None:
+                cache = self._quiet_search_cache = {}
+            key = ("anchor_read", (query or "").strip(), resolved, top_k, file, self._source_revision(resolved))
+            cache[key] = dict(result)
+        if chain == "anchor_apply" and resumed:
+            result["resumed_last_read"] = True
+        return result
+
+    @staticmethod
+    def _compact_chain_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Trim sub-step echo in a chain result (token payload tax).
+
+        The model only needs: which tools ran, their statuses/durations
+        (for errors, the failing steps' messages), the fully **last** step's
+        response, and the envelope's next_call/next_hint. Interior search
+        matches / read windows are dead weight once the next step consumed
+        them, so they are dropped:
+          - final step: full arguments + response
+          - steps with non-continue status: status + message kept (errors
+            must surface)
+          - everything else: tool + status + duration only
+        """
+        if not steps:
+            return steps
+        last_full = next(
+            (
+                index
+                for index in range(len(steps) - 1, -1, -1)
+                if not steps[index].get("skipped")
+            ),
+            None,
+        )
+        compacted: list[dict[str, Any]] = []
+        for index, step in enumerate(steps):
+            if step.get("skipped"):
+                compacted.append(step)  # already minimal (tool/reason)
+                continue
+            status = step.get("status") or "error"
+            if status not in ("ok", "warning"):
+                # Surface failures: keep tool/status/duration/message.
+                trimmed = {
+                    "tool": step.get("tool"),
+                    "status": status,
+                    "duration_ms": step.get("duration_ms"),
+                }
+                response = step.get("response") or {}
+                if isinstance(response, dict) and response.get("message"):
+                    trimmed["message"] = str(response["message"])[:300]
+                if "error" in response:
+                    trimmed["error"] = str(response["error"])[:300]
+                compacted.append(trimmed)
+                continue
+            if index != last_full:
+                compacted.append(
+                    {
+                        "tool": step.get("tool"),
+                        "status": status,
+                        "duration_ms": step.get("duration_ms"),
+                    }
+                )
+            else:
+                compacted.append(step)
+        return compacted
+
     @staticmethod
     def validate_schemas() -> dict[str, Any]:
         """Validate that hardcoded schemas match the actual CodeEmbeddingTool code.
@@ -548,6 +1711,189 @@ class CodeEmbeddingTool:
     ) -> dict[str, Any] | None:
         """Thin wrapper to tool_validation.validate_search_params."""
         return tool_validation.validate_search_params(query, top_k=top_k, max_results=max_results)
+
+    _AUTO_EMBED_CANDIDATES = ("project", ".")
+    _AUTO_EMBED_GLOBS = ("*.py", "*.js", "*.ts", "*.go", "*.rs", "*.java", "*.c", "*.cpp")
+
+    def _auto_embed_root(self) -> tuple[str, str] | None:
+        """Find the working project root without any agent instruction.
+
+        Prefer a ``<cwd>/project`` directory over the cwd itself and require
+        at least one source file, so stray buffers are never created.
+        Returns ``(root, glob_pattern)``.
+        """
+        cwd = Path(os.getcwd())
+        for candidate in self._AUTO_EMBED_CANDIDATES:
+            root = cwd / candidate
+            if not root.is_dir():
+                continue
+            for g in self._AUTO_EMBED_GLOBS:
+                if any(root.glob(g)):
+                    return str(root), g
+        return None
+
+    def _auto_embed(self, operation: str) -> tuple[str | None, dict[str, Any] | None]:
+        """Automatically embed the working codebase (once per session).
+
+        Every buffer-consuming tool passes through here, so the agent never
+        needs to know embedding must precede reading/searching/editing.
+        Skippable via ``GIGACODE_AUTO_EMBED=off``.
+        """
+        if str(os.environ.get("GIGACODE_AUTO_EMBED", "")).strip().lower() == "off":
+            return None, None
+        found = self._auto_embed_root()
+        if found is None:
+            return None, None
+        root, glob_pattern = found
+        try:
+            result = self.embed_codebase(root, pattern=glob_pattern)
+        except Exception as exc:
+            logger.warning("Auto-embed failed for %s: %s", root, exc)
+            return None, None
+        if isinstance(result, dict) and result.get("status") == "ok":
+            buffer_id = result.get("buffer_id")
+            if buffer_id:
+                self._last_buffer_id = buffer_id
+                logger.info("Auto-embedded %s as %s", root, buffer_id)
+                return buffer_id, None
+        return None, None
+
+    def _resolve_buffer(
+        self,
+        buffer_id: str | None,
+        operation: str,
+    ) -> tuple[str | None, dict[str, Any] | None]:
+        """Resolve an omitted (or wrong) ``buffer_id`` against the session.
+
+        Auto-embeds the working codebase when no usable buffer exists, so
+        buffer-consuming tools just work without an explicit embed step.
+        Returns ``(resolved_id, None)`` on success or ``(None, error_response)``
+        when no buffer can be resolved.
+        """
+        if buffer_id:
+            return buffer_id, None
+        last = self._last_buffer_id
+        if last is not None and self._get_buffer_info(last) is not None:
+            return last, None
+        try:
+            auto, _auto_error = self._auto_embed(operation)
+        except Exception as exc:
+            logger.warning("Auto-embed probe failed: %s", exc)
+            auto = None
+        if auto is not None:
+            self._last_buffer_id = auto
+            return auto, None
+        error = self._make_error_response(
+            "buffer_id is required (no default buffer yet — call embed_codebase "
+            "first, or pass buffer_id explicitly)",
+            operation=operation,
+        )
+        error["next_call"] = {
+            "tool": "tool_call",
+            "arguments": {
+                "name": "embed_codebase",
+                "arguments": {
+                    "path": "<project root absolute path>",
+                    "pattern": "*",
+                },
+            },
+            "then": "re-run this call with buffer_id omitted",
+        }
+        return None, error
+
+    def _repeat_hint(self, tool_name: str, key: str) -> str | None:
+        ledger_map = getattr(self, "_recent_calls", None)
+        if ledger_map is None:
+            return None
+        ledger = ledger_map.setdefault(tool_name, {})
+        ledger[key] = ledger.get(key, 0) + 1
+        if ledger[key] < REPEAT_HINT_AFTER_CALLS:
+            return None
+        return (
+            "You already ran this exact call "
+            f"({ledger[key] - 1} time(s) before with identical arguments). The "
+            "result below is fresh; if you expected change, pass different "
+            "arguments or read specific files/lines instead of repeating searches."
+        )
+
+    @staticmethod
+    def _canonical_args(args: dict[str, Any]) -> str:
+        return json.dumps(args, sort_keys=True, default=str)
+
+    def _weak_semantic_hint(self, result: dict[str, Any], mode: str) -> dict[str, Any]:
+        """Nudge toward hybrid/literal when semantic similarity is weak."""
+        if mode not in ("semantic", "hybrid") or result.get("status") != "ok":
+            return result
+        matches = result.get("matches") or []
+        scores = [
+            float(m.get("score") or 0.0)
+            for m in matches
+            if isinstance(m, dict)
+        ]
+        if scores and max(scores) < WEAK_SEMANTIC_SCORE:
+            result["quality_hint"] = (
+                "semantic similarity is weak (best score < "
+                f"{WEAK_SEMANTIC_SCORE}); try mode='hybrid' or mode='literal', "
+                "or search with different wording"
+            )
+        return result
+
+    @staticmethod
+    def _capped_diff(diff_text: str, max_lines: int = WRITE_DIFF_MAX_LINES) -> str:
+        """Bound the diff echoed in write_code responses.
+
+        One-line edits inside multi-thousand-line files otherwise echo a
+        multi-thousand-line diff (measured: 32K chars per response).
+        """
+        lines = diff_text.splitlines()
+        n_added = sum(
+            1 for ln in lines if ln.startswith("+") and not ln.startswith("+++")
+        )
+        n_removed = sum(
+            1 for ln in lines if ln.startswith("-") and not ln.startswith("---")
+        )
+        if len(lines) <= max_lines:
+            return diff_text
+        head = "\n".join(lines[:max_lines])
+        return (
+            f"{head}\n... (diff truncated: showing {max_lines} of {len(lines)} "
+            f"lines, +{n_added}/-{n_removed} total; use diff() for the full "
+            "unified diff)"
+        )
+
+    def _find_reusable_buffer(self, resolved_path: Path, pattern: str) -> dict[str, Any] | None:
+        """Return an existing buffer entry when it already matches *path*.
+
+        A buffer is reusable when it was created from the same resolved path
+        and pattern, has no dirty files, and the on-disk directory hash is
+        unchanged since embed time.
+        """
+        registry = self._registry
+        for buffer_id, info in registry.items():
+            try:
+                if not isinstance(info, dict) or info.get("root") != str(resolved_path):
+                    continue
+                if info.get("pattern") != pattern:
+                    continue
+                if info.get("dirty_files"):
+                    continue
+                if self._embedding_dim > 0 and info.get("embedding_dim") != self._embedding_dim:
+                    continue
+                state = info.get("state")
+                if state and state != BufferState.READY.value:
+                    continue
+                from gigacode.buffer_manager import BufferManager as _BM
+
+                current_hash = _BM._compute_dir_hash(resolved_path, pattern)
+                if current_hash != info.get("source_hash"):
+                    continue
+                return {
+                    "buffer_id": buffer_id,
+                    "chunk_count": info.get("chunk_count", 0),
+                }
+            except (OSError, TypeError, ValueError, ImportError):
+                continue
+        return None
 
     def _validate_embedding_compatibility(self) -> None:
         """Ensure a caller-supplied embedder matches persisted buffer dimensions.
@@ -714,13 +2060,31 @@ class CodeEmbeddingTool:
         """
         t0 = time.perf_counter()
         try:
+            resolved_path = Path(path).resolve()
+
+            # Reuse a buffer for the same codebase when nothing changed on disk
+            # (token/time saver for repeated embed calls in agentic loops).
+            existing = self._find_reusable_buffer(resolved_path, pattern)
+            if existing is not None:
+                return {
+                    "status": "ok",
+                    "buffer_id": existing["buffer_id"],
+                    "chunk_count": existing["chunk_count"],
+                    "reused": True,
+                    "message": (
+                        "Codebase unchanged since embed; reusing buffer "
+                        f"{existing['buffer_id']} (call reload_codebase to "
+                        "re-check, or delete_buffer to re-embed cleanly)."
+                    ),
+                }
+
             # Load the model (if lazy) before size checks and index creation so
             # the effective embedding dimension is known.
             self._ensure_embedder()
 
             # Delegate to BufferManager: handle chunking, validation, registration
             buffer_id, chunks, files = self._buffer_manager.embed_codebase(
-                path=Path(path).resolve(),
+                path=resolved_path,
                 language_hint=language_hint,
                 pattern=pattern,
                 sliding_window_size=sliding_window_size,
@@ -738,6 +2102,7 @@ class CodeEmbeddingTool:
             buffer_dir = self.work_dir / f"{buffer_id}.gcbuff"
             summarizer.save_summaries(buffer_dir)
 
+            self._last_buffer_id = buffer_id
             elapsed = time.perf_counter() - t0
 
             # Record metrics
@@ -826,7 +2191,7 @@ class CodeEmbeddingTool:
     # ------------------------------------------------------------------
     def semantic_search(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         query: str,
         top_k: int = 5,
         offset: int = 0,
@@ -838,7 +2203,7 @@ class CodeEmbeddingTool:
         Delegates to SearchService when available, otherwise uses monolithic implementation.
 
         Args:
-            buffer_id: Buffer ID to search
+            buffer_id: Buffer ID to search (omit to use the session default)
             query: Search query
             top_k: Number of top results to return
             offset: Pagination offset
@@ -848,6 +2213,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with search results or error
         """
+        buffer_id, err = self._resolve_buffer(buffer_id, "semantic_search")
+        if err is not None:
+            return err
+
         # Validate parameters first (before delegation)
         err = self._validate_search_params(query, top_k=top_k)
         if err is not None:
@@ -878,7 +2247,14 @@ class CodeEmbeddingTool:
                     include_types=include_types,
                     type_inference_method=type_inference_method,
                 )
-                return self._adapt_search_response(result, offset=offset, top_k=top_k)
+                response = self._adapt_search_response(result, offset=offset, top_k=top_k)
+                response = self._weak_semantic_hint(response, "semantic")
+                repeat = self._repeat_hint(
+                    "semantic_search", self._canonical_args({"query": query, "top_k": top_k})
+                )
+                if repeat:
+                    response["repeat_hint"] = repeat
+                return response
             except (ImportError, RuntimeError, ValueError) as e:
                 logger.warning(f"SearchService delegation failed: {e}")
                 return self._make_error_response(
@@ -895,7 +2271,7 @@ class CodeEmbeddingTool:
 
     def semantic_search_streaming(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         query: str,
         top_k: int = 10,
         disclosure: str = "signatures",
@@ -921,6 +2297,10 @@ class CodeEmbeddingTool:
             Dict with matches at the requested disclosure level, plus
             ``expandable`` flag and ``match_count``.
         """
+        buffer_id, err = self._resolve_buffer(buffer_id, "semantic_search_streaming")
+        if err is not None:
+            return err
+
         err = self._validate_search_params(query, top_k=top_k)
         if err is not None:
             return err
@@ -949,7 +2329,7 @@ class CodeEmbeddingTool:
 
     def expand_match(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         match_id: int,
         level: str = "details",
     ) -> dict[str, Any]:
@@ -959,7 +2339,7 @@ class CodeEmbeddingTool:
         re-embedding or re-searching.
 
         Args:
-            buffer_id: Buffer handle.
+            buffer_id: Buffer handle (omit to use the session default).
             match_id: Chunk index from a prior streaming search result.
             level: "details" (signatures + docstring + first 5 lines) or
                 "full" (complete text).
@@ -967,6 +2347,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with expanded match data.
         """
+        buffer_id, err = self._resolve_buffer(buffer_id, "expand_match")
+        if err is not None:
+            return err
+
         if self._search_service:
             try:
                 return self._search_service.expand_match(
@@ -1138,7 +2522,7 @@ class CodeEmbeddingTool:
 
     def hybrid_search(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         query: str,
         top_k: int = 5,
         offset: int = 0,
@@ -1158,6 +2542,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with ``status`` and ``matches``.
         """
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "hybrid_search")
+        if resolution_err is not None:
+            return resolution_err
+
         # Validate parameters first
         err = self._validate_search_params(query, top_k=top_k)
         if err is not None:
@@ -1185,7 +2573,13 @@ class CodeEmbeddingTool:
                     semantic_weight=semantic_weight,
                     lexical_weight=lexical_weight,
                 )
-                return self._adapt_search_response(result, offset=offset, top_k=top_k)
+                response = self._adapt_search_response(result, offset=offset, top_k=top_k)
+                repeat = self._repeat_hint(
+                    "hybrid_search", self._canonical_args({"query": query, "top_k": top_k})
+                )
+                if repeat:
+                    response["repeat_hint"] = repeat
+                return response
             except (ImportError, RuntimeError, ValueError) as e:
                 logger.warning(f"SearchService delegation failed: {e}")
                 return self._make_error_response(
@@ -1200,12 +2594,170 @@ class CodeEmbeddingTool:
             operation="hybrid_search",
         )
 
+    def code_search(
+        self,
+        buffer_id: str | None,
+        query: str,
+        mode: str = "hybrid",
+        top_k: int = 5,
+        case_sensitive: bool = False,
+        max_results: int = 50,
+        profile: str | None = None,
+        file: str | None = None,
+    ) -> dict[str, Any]:
+        """Single-entry code search with a selectable strategy.
+
+        Args:
+            buffer_id: Buffer handle (omit to use the session default).
+            query: Search query.
+            mode: "hybrid" (BM25+embedding fused, best default), "semantic"
+                (natural language), "literal" (exact substring), or "symbols"
+                (function/class name matching).
+            top_k: Number of results.
+            case_sensitive: literal mode only — exact case matching.
+            max_results: literal mode only — cap on matches.
+            profile: Optional agent profile (e.g. "debugger") used to adapt
+                the query before searching.
+
+        Returns:
+            Dict with ``status``, ``mode``, and ``matches``.
+        """
+        buffer_id, err = self._resolve_buffer(buffer_id, "code_search")
+        if err is not None:
+            return err
+
+        err = self._validate_search_params(query, top_k=top_k, max_results=max_results)
+        if err is not None:
+            return err
+
+        if mode not in ("semantic", "literal", "symbols", "hybrid"):
+            return self._make_error_response(
+                f"Invalid mode '{mode}': choose one of semantic, literal, symbols, hybrid",
+                buffer_id=buffer_id,
+                operation="code_search",
+            )
+
+        effective_query = query
+        if profile:
+            try:
+                enhanced = self.adapt_search(buffer_id, query, profile=profile)
+                if isinstance(enhanced, dict) and enhanced.get("status") == "ok":
+                    candidate = enhanced.get("enhanced_query")
+                    if candidate:
+                        effective_query = candidate
+            except (ValueError, RuntimeError) as exc:
+                logger.debug(f"adapt_search enhancement skipped: {exc}")
+
+        repeat = self._repeat_hint(
+            "code_search", self._canonical_args({"query": query, "mode": mode, "top_k": top_k})
+        )
+
+        needs_lookup = file is not None or len(effective_query.split()) == 1 or bool(
+            re.search(r"\b(?:def|class|async)\s|\b\w+_\w+\b|\b[a-z]+[A-Z]\w*\b|\.\w+\b", effective_query)
+        )
+        snapshot = (
+            (self._load_source_snapshot(buffer_id) or {})
+            if needs_lookup and (mode in ("hybrid", "symbols") or file)
+            else {}
+        )
+        if file:
+            file, path_error = self._source_file(buffer_id, file, snapshot)
+            if path_error:
+                return {**path_error, "matches": []}
+            snapshot = {file: snapshot[file]}
+        if mode in ("hybrid", "symbols") and needs_lookup:
+            query_files = [
+                word.strip("`'\"(),") for word in effective_query.split()
+                if re.search(
+                    r"\.(?:py|pyi|js|jsx|ts|tsx|go|rs|java|c|cpp|h|hpp|cs|rb|php|swift|kt|scala|sh|sql|vue|svelte)[`'\"(),]*$",
+                    word, re.IGNORECASE,
+                )
+            ]
+            if query_files:
+                all_source = self._load_source_snapshot(buffer_id) or {}
+                selected, path_error = self._source_file(buffer_id, query_files[0], all_source)
+                if path_error:
+                    return {**path_error, "matches": []}
+                if file is not None and selected != file:
+                    return {"status": "error", "message": "Query filename and file argument refer to different sources.", "matches": []}
+                file = selected
+                snapshot = {file: all_source[file]}
+                effective_query = " ".join(
+                    word for word in effective_query.split()
+                    if word.strip("`'\"(),") not in query_files
+                )
+                if not effective_query:
+                    return {
+                        "status": "ok", "mode": "exact_file",
+                        "matches": [{"file": file.replace("\\", "/"), "start_line": 1,
+                                     "end_line": min(len(snapshot[file]), 80), "confidence": "exact", "score": 1.0}],
+                    }
+        if mode in ("hybrid", "symbols") and needs_lookup:
+            from gigacode.coding_safety import exact_source_matches
+
+            exact = None
+            if re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+", effective_query):
+                index = self._source_search_index(buffer_id)
+                if index is not None:
+                    exact = index.qualified_matches(effective_query, top_k, file.replace("\\", "/") if file else None)
+            if exact is None:
+                exact = exact_source_matches(snapshot, effective_query, top_k)
+            if exact is not None:
+                for match in exact.get("matches", []):
+                    match["file"] = match["file"].replace("\\", "/")
+                if repeat:
+                    exact["repeat_hint"] = repeat
+                return exact
+        if mode in ("hybrid", "symbols"):
+            index = self._source_search_index(buffer_id)
+            if index is not None:
+                result = index.search(effective_query, top_k, file=file.replace("\\", "/") if file else None)
+                matches = result.get("matches") or []
+                hashing = str(getattr(self._embedder, "model_name", "")).startswith("hashing-")
+                if file or hashing or (matches and matches[0].get("confidence") == "high"):
+                    for match in matches:
+                        match["file"] = match["file"].replace("\\", "/")
+                    if repeat:
+                        result["repeat_hint"] = repeat
+                    return result
+
+        if mode == "literal":
+            result = self.search_for(
+                buffer_id,
+                effective_query,
+                case_sensitive=case_sensitive,
+                max_results=max_results,
+            )
+        elif mode == "symbols":
+            result = self.search_symbols(buffer_id, effective_query, top_k=top_k)
+        elif mode == "semantic":
+            result = self.semantic_search(buffer_id, effective_query, top_k=top_k)
+        else:
+            # Hashing providers supply lexical features, not semantic meaning.
+            hashing = str(getattr(self._embedder, "model_name", "")).startswith("hashing-")
+            result = self.hybrid_search(
+                buffer_id, effective_query, top_k=top_k,
+                semantic_weight=0.0 if hashing else 1.0,
+                lexical_weight=1.0,
+            )
+
+        if isinstance(result, dict):
+            if file:
+                result["matches"] = [m for m in result.get("matches", []) if m.get("file", "").replace("\\", "/") == file.replace("\\", "/")]
+            for match in result.get("matches", []):
+                match["file"] = match["file"].replace("\\", "/")
+                match.setdefault("confidence", "candidate")
+            result["selection_hint"] = "Candidates are not confirmed edit targets; inspect the declaration before editing."
+        if isinstance(result, dict) and repeat:
+            result["repeat_hint"] = repeat
+        return result
+
     # ------------------------------------------------------------------
     # Literal text search (grep-style)
     # ------------------------------------------------------------------
     def search_for(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         query: str,
         case_sensitive: bool = False,
         max_results: int = 50,
@@ -1213,7 +2765,7 @@ class CodeEmbeddingTool:
         """Find every occurrence of *query* in the buffered source code.
 
         Args:
-            buffer_id: Buffer handle.
+            buffer_id: Buffer handle (omit to use the session default).
             query: Substring to search for.
             case_sensitive: If ``True``, match case exactly.
             max_results: Cap on the number of matches returned.
@@ -1221,6 +2773,10 @@ class CodeEmbeddingTool:
         Returns:
             Dict with ``status``, ``matches`` (list of file/line/content), and ``total``.
         """
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "search_for")
+        if resolution_err is not None:
+            return resolution_err
+
         # Validate parameters first
         err = self._validate_search_params(query, max_results=max_results)
         if err is not None:
@@ -1245,11 +2801,17 @@ class CodeEmbeddingTool:
         # Extract matches and limit to max_results
         matches = result_dict.get("matches", [])
         limited_matches = matches[:max_results]
-        return {"status": "ok", "matches": limited_matches, "total": len(limited_matches)}
+        response = {"status": "ok", "matches": limited_matches, "total": len(limited_matches)}
+        repeat = self._repeat_hint(
+            "search_for", self._canonical_args({"query": query, "case": case_sensitive})
+        )
+        if repeat:
+            response["repeat_hint"] = repeat
+        return response
 
     def look_for_file(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         file_name: str,
     ) -> dict[str, Any]:
         """Find the location of a file within an embedded buffer.
@@ -1259,13 +2821,16 @@ class CodeEmbeddingTool:
         absolute path on disk.
 
         Args:
-            buffer_id: Buffer handle.
+            buffer_id: Buffer handle (omit to use the session default).
             file_name: File name or path fragment to look for.
 
         Returns:
             Dict with ``status``, ``file_location``, ``absolute_path``,
             ``match_type``, and optionally ``candidates``.
         """
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "look_for_file")
+        if resolution_err is not None:
+            return resolution_err
         result = self._require_buffer(buffer_id, "look_for_file", require_chunks=False)
         if isinstance(result, dict):
             return result
@@ -1282,7 +2847,7 @@ class CodeEmbeddingTool:
     # ------------------------------------------------------------------
     def search_symbols(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         query: str,
         top_k: int = 10,
     ) -> dict[str, Any]:
@@ -1296,13 +2861,17 @@ class CodeEmbeddingTool:
         Results are deduplicated and merged (name matches rank first).
 
         Args:
-            buffer_id: Buffer handle.
+            buffer_id: Buffer handle (omit to use the session default).
             query: Word or phrase to look for.
             top_k: Maximum number of symbol matches to return.
 
         Returns:
             SearchResponse with ``matches`` (list of SearchMatch objects with type, name, score).
         """
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "search_symbols")
+        if resolution_err is not None:
+            return resolution_err
+
         # Validate parameters first
         err = self._validate_search_params(query, top_k=top_k)
         if err is not None:
@@ -1318,7 +2887,13 @@ class CodeEmbeddingTool:
             query=query,
             top_k=top_k,
         )
-        return self._adapt_search_response(result, offset=0, top_k=top_k)
+        response = self._adapt_search_response(result, offset=0, top_k=top_k)
+        repeat = self._repeat_hint(
+            "search_symbols", self._canonical_args({"query": query, "top_k": top_k})
+        )
+        if repeat:
+            response["repeat_hint"] = repeat
+        return response
 
     def search_by_type(
         self,
@@ -1644,11 +3219,14 @@ class CodeEmbeddingTool:
 
     def get_full_context(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         symbol: str,
         include: list[str] | None = None,
         type_inference_method: str = "llm",
     ) -> dict[str, Any]:
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "get_full_context")
+        if resolution_err is not None:
+            return resolution_err
         """Get everything about a symbol in one call.
 
         Combines get_symbol_definition + get_references + type inference +
@@ -2911,12 +4489,32 @@ class CodeEmbeddingTool:
     # ------------------------------------------------------------------
     def read_code(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         file: str | None = None,
         start_line: int = 1,
         end_line: int | None = None,
+        skeleton: bool = False,
     ) -> dict[str, Any]:
-        """Read file contents from buffer (delegates to BufferManager)."""
+        """Read file contents from buffer (delegates to BufferManager).
+
+        When ``end_line`` is omitted, only a bounded window of lines is
+        returned (see ``READ_CODE_DEFAULT_WINDOW``) together with
+        ``next_window`` for continuation.
+
+        With ``skeleton=True`` the window is compressed for agent context:
+        docstrings and comment-only lines are dropped and blank runs are
+        collapsed; ``numbers`` maps each returned line back to its original
+        1-based line number for addressing follow-up edits.
+        """
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "read_code")
+        if resolution_err is not None:
+            return resolution_err
+        if file is not None:
+            snapshot = self._load_source_snapshot(buffer_id) or {}
+            file, path_error = self._source_file(buffer_id, file, snapshot)
+            if path_error:
+                return path_error
+
         t0 = time.perf_counter()
 
         # Delegate core operation to BufferManager
@@ -2931,6 +4529,34 @@ class CodeEmbeddingTool:
         if result.get("status") != "ok":
             # BufferManager already logged the error via audit_log
             return result
+        if isinstance(result.get("file"), str):
+            result["file"] = result["file"].replace("\\", "/")
+
+        if skeleton and file is not None and result.get("lines"):
+            from gigacode.skeleton import skeletonize
+
+            window = result.get("lines") or []
+            window_start = int(result.get("start_line", 1) or 1)
+            window_end = result.get("end_line")
+            total = result.get("total_lines")
+            next_window = result.get("next_window")
+            kept, numbers = skeletonize(window, file)
+            dropped = len(window) - len(kept)
+            result = {
+                "status": "ok",
+                "skeleton": True,
+                "file": file.replace("\\", "/"),
+                "start_line": window_start,
+                "end_line": window_end,
+                "total_lines": total,
+                "lines": kept,
+                "numbers": numbers,
+                "lines_returned": len(kept),
+                "dropped": dropped,
+                "estimated_tokens_saved": dropped * 8,
+            }
+            if next_window:
+                result["next_window"] = next_window
 
         # Orchestration: Security audit logging
         if file is not None:
@@ -2979,11 +4605,20 @@ class CodeEmbeddingTool:
 
     def write_code(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         file: str,
         start_line: int | str,
         new_lines: list[str] | None = None,
         end_line: int | None = None,
+        commit: bool = False,
+    ) -> dict[str, Any]:
+        with self._hashline_lock:
+            return self._write_code_locked(buffer_id, file, start_line, new_lines, end_line, commit)
+
+    def _write_code_locked(
+        self, buffer_id: str | None, file: str, start_line: int | str,
+        new_lines: list[str] | None = None, end_line: int | None = None,
+        commit: bool = False,
     ) -> dict[str, Any]:
         # Backward compat: accept (buffer_id, file, content_string) call convention
         if isinstance(start_line, str):
@@ -2993,20 +4628,30 @@ class CodeEmbeddingTool:
         elif new_lines is None:
             return {"status": "error", "message": "new_lines is required"}
 
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "write_code")
+        if resolution_err is not None:
+            return resolution_err
+
         t0 = time.perf_counter()
         result = self._require_buffer(buffer_id, "write_code", require_chunks=False)
         if isinstance(result, dict):
             return result
         info, _ = result
 
-        # Check current buffer state - must be READY to write
+        # Check current buffer state - writes are allowed while READY or while
+        # DIRTY (consecutive edits on pending changes); anything else blocks.
         try:
             current_state = self._get_buffer_state(buffer_id)
-            if current_state != BufferState.READY:
+            if current_state not in (BufferState.READY, BufferState.DIRTY):
                 return {
                     "status": "error",
-                    "message": f"Cannot write code: buffer is in {current_state} state. "
-                    f"Valid transitions: {BufferStateTransition.VALID_TRANSITIONS.get(current_state, [])}",
+                    "message": (
+                        f"Cannot write code: buffer is in {current_state.value} state. "
+                        f"Valid transitions from here: "
+                        f"{[s.value for s in BufferStateTransition.VALID_TRANSITIONS.get(current_state, [])]}. "
+                        f"Call reload_codebase to resync, or commit/discard the "
+                        "pending changes first."
+                    ),
                 }
         except ValueError as e:
             return {"status": "error", "message": str(e)}
@@ -3014,8 +4659,9 @@ class CodeEmbeddingTool:
         snapshot = self._load_source_snapshot(buffer_id)
         if snapshot is None:
             return {"status": "error", "message": "Source snapshot missing."}
-        if file not in snapshot:
-            return {"status": "error", "message": f"File not in buffer: {file}"}
+        file, path_error = self._source_file(buffer_id, file, snapshot)
+        if path_error:
+            return path_error
 
         # Validate file path to prevent traversal attacks
         try:
@@ -3087,7 +4733,13 @@ class CodeEmbeddingTool:
             "changed_lines": len(sanitized_new_lines),
             "replaced_lines": end - start_line,
             "total_lines": len(new_file_lines),
-            "diff": self._compute_unified_diff(old_lines, new_file_lines, file),
+            "buffer_state": "dirty",
+            "diff": self._capped_diff(
+                self._compute_unified_diff(old_lines, new_file_lines, file)
+            ),
+            "next_action": (
+                "run commit(dry_run=False) to persist, or diff() to review"
+            ),
         }
 
         try:
@@ -3102,6 +4754,14 @@ class CodeEmbeddingTool:
             result["operation_id"] = operation_id
         except (ImportError, RuntimeError, ValueError) as e:
             logger.warning(f"Failed to record undo operation for write_code: {e}")
+
+        if commit:
+            commit_result = self.commit(buffer_id, dry_run=False, check_impact=False, force=True)
+            result["committed"] = commit_result.get("status") in ("ok", "conflict")
+            result["commit_result"] = commit_result
+            if result["committed"]:
+                result["buffer_state"] = "ready"
+                result["next_action"] = "edits written to disk"
 
         # Audit log successful write
         self._security.log_success(
@@ -3128,7 +4788,7 @@ class CodeEmbeddingTool:
 
         return result
 
-    def diff(self, buffer_id: str, file: str | None = None) -> dict[str, Any]:
+    def diff(self, buffer_id: str | None, file: str | None = None) -> dict[str, Any]:
         """Show diff between buffer and disk versions.
 
         Delegates to BufferManager.diff for actual diff computation, then
@@ -3142,6 +4802,10 @@ class CodeEmbeddingTool:
             Dict with status, diffs (per-file diff details), and has_conflicts flag.
             For backward compatibility, also includes changed_files list.
         """
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "diff")
+        if resolution_err is not None:
+            return resolution_err
+
         result = self._buffer_manager.diff(buffer_id, file=file)
 
         # Adapt to expected format for backward compatibility
@@ -3173,9 +4837,12 @@ class CodeEmbeddingTool:
 
     def discard(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         file: str | None = None,
     ) -> dict[str, Any]:
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "discard")
+        if resolution_err is not None:
+            return resolution_err
         result = self._require_buffer(buffer_id, "discard", require_chunks=False)
         if isinstance(result, dict):
             return result
@@ -3220,7 +4887,7 @@ class CodeEmbeddingTool:
 
     def commit(
         self,
-        buffer_id: str,
+        buffer_id: str | None,
         dry_run: bool = False,
         check_impact: bool = True,
         force: bool = False,
@@ -3239,7 +4906,7 @@ class CodeEmbeddingTool:
         - If ``check_impact=True`` and risk is HIGH, blocks commit unless ``force=True``
 
         Args:
-            buffer_id: Buffer to commit
+            buffer_id: Buffer to commit (omit to use the session default)
             dry_run: If True, check what would be written without modifying files
             check_impact: If True, run dependency risk analysis before committing.
             force: If True, proceed with commit even if impact analysis reports HIGH risk.
@@ -3253,6 +4920,9 @@ class CodeEmbeddingTool:
             - "transaction_id": Transaction ID (for debugging)
             - "impact_analysis": Included when check_impact=True and commit is blocked
         """
+        buffer_id, resolution_err = self._resolve_buffer(buffer_id, "commit")
+        if resolution_err is not None:
+            return resolution_err
         t0 = time.perf_counter()
         result = self._require_buffer(buffer_id, "commit", require_chunks=False)
         if isinstance(result, dict):
@@ -3965,30 +5635,19 @@ class CodeEmbeddingTool:
         """List all saved sessions."""
         return self._buffer_manager.list_sessions()
 
-    def git_status(self, buffer_id: str) -> dict[str, Any]:
+    def git_status(self, buffer_id: str | None = None, root=None, limit=20, offset=0) -> dict[str, Any]:
         """Get git working tree status for a buffer's source directory.
 
         Returns branch, ahead/behind counts, modified/staged/untracked files.
         """
-        result = self._require_buffer(buffer_id, "git_status", require_chunks=False)
-        if isinstance(result, dict):
-            return result
-        info, _ = result
-
-        source_dir = info.get("path") or info.get("root")
-        if not source_dir:
-            return self._make_error_response(
-                "No source directory found", buffer_id=buffer_id, operation="git_status"
-            )
-
-        utils = GitUtils(source_dir)
-        return utils.get_status()
+        return ContextTools.git_status(self, buffer_id, root, limit, offset)
 
     def git_diff(
         self,
-        buffer_id: str,
+        buffer_id: str | None = None,
         file: str | None = None,
         against: str = "HEAD",
+        staged: bool = False, root=None, max_chars=8000,
     ) -> dict[str, Any]:
         """Get diff of file(s) against a git reference.
 
@@ -3996,19 +5655,7 @@ class CodeEmbeddingTool:
             file: Specific file, or None for all.
             against: "HEAD", "STAGED", commit hash, or branch name.
         """
-        result = self._require_buffer(buffer_id, "git_diff", require_chunks=False)
-        if isinstance(result, dict):
-            return result
-        info, _ = result
-
-        source_dir = info.get("path") or info.get("root")
-        if not source_dir:
-            return self._make_error_response(
-                "No source directory found", buffer_id=buffer_id, operation="git_diff"
-            )
-
-        utils = GitUtils(source_dir)
-        return utils.get_diff(file_path=file, against=against)
+        return ContextTools.git_diff(self, buffer_id, file, against, staged, root, max_chars)
 
     def git_blame(
         self,
@@ -4313,6 +5960,11 @@ class CodeEmbeddingTool:
         return {k: list(v) for k, v in data.items()}
 
     def _save_source_snapshot(self, buffer_id: str, snapshot: dict[str, list[str]]) -> None:
+        getattr(self, "_definition_search_cache", {}).pop(buffer_id, None)
+        getattr(self, "_quiet_search_cache", {}).clear()
+        last_read = getattr(self, "_last_anchor_read", None)
+        if last_read and last_read.get("buffer_id") == buffer_id:
+            self._last_anchor_read = None
         info = self._get_buffer_info(buffer_id)
         if info is None:
             return
@@ -4752,7 +6404,7 @@ class CodeEmbeddingTool:
 
     def get_audit_log(
         self,
-        buffer_id: str | None = None,
+        buffer_id: str | None,
         since: str | None = None,
         operations: list[str] | None = None,
         limit: int = 100,
@@ -7787,6 +9439,8 @@ class CodeEmbeddingTool:
         self._index_cache.clear()
         self._lexical_cache.clear()
         self._query_cache.clear()
+        getattr(self, "_navigation_indexes", {}).clear()
+        getattr(self, "_definition_search_cache", {}).clear()
         self._security.close()
 
         # Stop Prometheus metrics server if running

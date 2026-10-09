@@ -25,7 +25,7 @@ import os
 os.environ["TORCH_COMPILE"] = "0"
 os.environ["TORCH_COMPILE_DEBUG"] = "0"
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 __all__ = [
     "CodeEmbeddingTool",
     "embedder",

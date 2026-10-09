@@ -1,0 +1,12 @@
+# Merge into ~/.codex/config.toml (or project config.toml).
+# Codex CLI discovers MCP servers under [mcp_servers.<name>].
+
+[mcp_servers.gigacode]
+command = "gigacode-mcp"
+args = [
+  "--work-dir",
+  "/absolute/path/to/.gigacode-buffers",
+  "--tool-profile",
+  "agent_core",
+]
+startup_timeout_ms = 20000

@@ -1,0 +1,338 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gigacode.language_detect &mdash; GigaCode 0.8.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=486e5634"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">gigacode.language_detect</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for gigacode.language_detect</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Language detection from file extension and content heuristics.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;detect_language&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;get_tree_sitter_package&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="c1"># Mapping from file extension to language name</span>
+<span class="n">_EXTENSION_MAP</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;.py&quot;</span><span class="p">:</span> <span class="s2">&quot;python&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.pyw&quot;</span><span class="p">:</span> <span class="s2">&quot;python&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.js&quot;</span><span class="p">:</span> <span class="s2">&quot;javascript&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.jsx&quot;</span><span class="p">:</span> <span class="s2">&quot;javascript&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.ts&quot;</span><span class="p">:</span> <span class="s2">&quot;typescript&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.tsx&quot;</span><span class="p">:</span> <span class="s2">&quot;typescript&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.mjs&quot;</span><span class="p">:</span> <span class="s2">&quot;javascript&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.cjs&quot;</span><span class="p">:</span> <span class="s2">&quot;javascript&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.java&quot;</span><span class="p">:</span> <span class="s2">&quot;java&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.c&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.h&quot;</span><span class="p">:</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.cpp&quot;</span><span class="p">:</span> <span class="s2">&quot;cpp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.cxx&quot;</span><span class="p">:</span> <span class="s2">&quot;cpp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.cc&quot;</span><span class="p">:</span> <span class="s2">&quot;cpp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.hpp&quot;</span><span class="p">:</span> <span class="s2">&quot;cpp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.rs&quot;</span><span class="p">:</span> <span class="s2">&quot;rust&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.go&quot;</span><span class="p">:</span> <span class="s2">&quot;go&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.rb&quot;</span><span class="p">:</span> <span class="s2">&quot;ruby&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.erb&quot;</span><span class="p">:</span> <span class="s2">&quot;ruby&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.php&quot;</span><span class="p">:</span> <span class="s2">&quot;php&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.cs&quot;</span><span class="p">:</span> <span class="s2">&quot;csharp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.swift&quot;</span><span class="p">:</span> <span class="s2">&quot;swift&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.kt&quot;</span><span class="p">:</span> <span class="s2">&quot;kotlin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.kts&quot;</span><span class="p">:</span> <span class="s2">&quot;kotlin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.scala&quot;</span><span class="p">:</span> <span class="s2">&quot;scala&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.sc&quot;</span><span class="p">:</span> <span class="s2">&quot;scala&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.r&quot;</span><span class="p">:</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.R&quot;</span><span class="p">:</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.m&quot;</span><span class="p">:</span> <span class="s2">&quot;objective_c&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.mm&quot;</span><span class="p">:</span> <span class="s2">&quot;objective_cpp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.sh&quot;</span><span class="p">:</span> <span class="s2">&quot;bash&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.bash&quot;</span><span class="p">:</span> <span class="s2">&quot;bash&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.zsh&quot;</span><span class="p">:</span> <span class="s2">&quot;bash&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.ps1&quot;</span><span class="p">:</span> <span class="s2">&quot;powershell&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.pl&quot;</span><span class="p">:</span> <span class="s2">&quot;perl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.pm&quot;</span><span class="p">:</span> <span class="s2">&quot;perl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.lua&quot;</span><span class="p">:</span> <span class="s2">&quot;lua&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.sql&quot;</span><span class="p">:</span> <span class="s2">&quot;sql&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.html&quot;</span><span class="p">:</span> <span class="s2">&quot;html&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.htm&quot;</span><span class="p">:</span> <span class="s2">&quot;html&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.xml&quot;</span><span class="p">:</span> <span class="s2">&quot;xml&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.css&quot;</span><span class="p">:</span> <span class="s2">&quot;css&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.scss&quot;</span><span class="p">:</span> <span class="s2">&quot;scss&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.sass&quot;</span><span class="p">:</span> <span class="s2">&quot;scss&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.less&quot;</span><span class="p">:</span> <span class="s2">&quot;css&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.json&quot;</span><span class="p">:</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.yaml&quot;</span><span class="p">:</span> <span class="s2">&quot;yaml&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.yml&quot;</span><span class="p">:</span> <span class="s2">&quot;yaml&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.toml&quot;</span><span class="p">:</span> <span class="s2">&quot;toml&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.ini&quot;</span><span class="p">:</span> <span class="s2">&quot;ini&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.cfg&quot;</span><span class="p">:</span> <span class="s2">&quot;ini&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.md&quot;</span><span class="p">:</span> <span class="s2">&quot;markdown&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.rst&quot;</span><span class="p">:</span> <span class="s2">&quot;markdown&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.dockerfile&quot;</span><span class="p">:</span> <span class="s2">&quot;dockerfile&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.makefile&quot;</span><span class="p">:</span> <span class="s2">&quot;makefile&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.mk&quot;</span><span class="p">:</span> <span class="s2">&quot;makefile&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.cmake&quot;</span><span class="p">:</span> <span class="s2">&quot;cmake&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.dart&quot;</span><span class="p">:</span> <span class="s2">&quot;dart&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.elm&quot;</span><span class="p">:</span> <span class="s2">&quot;elm&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.ex&quot;</span><span class="p">:</span> <span class="s2">&quot;elixir&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.exs&quot;</span><span class="p">:</span> <span class="s2">&quot;elixir&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.erl&quot;</span><span class="p">:</span> <span class="s2">&quot;erlang&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.hrl&quot;</span><span class="p">:</span> <span class="s2">&quot;erlang&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.fs&quot;</span><span class="p">:</span> <span class="s2">&quot;fsharp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.fsx&quot;</span><span class="p">:</span> <span class="s2">&quot;fsharp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.fsi&quot;</span><span class="p">:</span> <span class="s2">&quot;fsharp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.groovy&quot;</span><span class="p">:</span> <span class="s2">&quot;groovy&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.gradle&quot;</span><span class="p">:</span> <span class="s2">&quot;groovy&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.jl&quot;</span><span class="p">:</span> <span class="s2">&quot;julia&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.nim&quot;</span><span class="p">:</span> <span class="s2">&quot;nim&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.ml&quot;</span><span class="p">:</span> <span class="s2">&quot;ocaml&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.mli&quot;</span><span class="p">:</span> <span class="s2">&quot;ocaml&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.pas&quot;</span><span class="p">:</span> <span class="s2">&quot;pascal&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.pp&quot;</span><span class="p">:</span> <span class="s2">&quot;pascal&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.tcl&quot;</span><span class="p">:</span> <span class="s2">&quot;tcl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.tf&quot;</span><span class="p">:</span> <span class="s2">&quot;hcl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.hcl&quot;</span><span class="p">:</span> <span class="s2">&quot;hcl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.v&quot;</span><span class="p">:</span> <span class="s2">&quot;verilog&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.sv&quot;</span><span class="p">:</span> <span class="s2">&quot;systemverilog&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.vhd&quot;</span><span class="p">:</span> <span class="s2">&quot;vhdl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;.vhdl&quot;</span><span class="p">:</span> <span class="s2">&quot;vhdl&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># Content-based shebang detection</span>
+<span class="n">_SHEBANG_MAP</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;python&quot;</span><span class="p">:</span> <span class="s2">&quot;python&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;python3&quot;</span><span class="p">:</span> <span class="s2">&quot;python&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;node&quot;</span><span class="p">:</span> <span class="s2">&quot;javascript&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;bash&quot;</span><span class="p">:</span> <span class="s2">&quot;bash&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sh&quot;</span><span class="p">:</span> <span class="s2">&quot;bash&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;zsh&quot;</span><span class="p">:</span> <span class="s2">&quot;bash&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ruby&quot;</span><span class="p">:</span> <span class="s2">&quot;ruby&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;perl&quot;</span><span class="p">:</span> <span class="s2">&quot;perl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;php&quot;</span><span class="p">:</span> <span class="s2">&quot;php&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;lua&quot;</span><span class="p">:</span> <span class="s2">&quot;lua&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;rscript&quot;</span><span class="p">:</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="detect_language">
+<a class="viewcode-back" href="../../api/language_detect.html#gigacode.language_detect.detect_language">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">detect_language</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span> <span class="n">hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Detect programming language from extension and optional hint.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path: File path to inspect.</span>
+<span class="sd">        hint: Optional language override. If provided and non-empty,</span>
+<span class="sd">            it is normalized and returned directly.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Normalized language string or None if not recognised.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">hint</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_normalize</span><span class="p">(</span><span class="n">hint</span><span class="p">)</span>
+
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="c1"># Extension match</span>
+    <span class="n">ext</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">ext</span> <span class="ow">in</span> <span class="n">_EXTENSION_MAP</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_EXTENSION_MAP</span><span class="p">[</span><span class="n">ext</span><span class="p">]</span>
+
+    <span class="c1"># Special file names</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;dockerfile&quot;</span> <span class="ow">or</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;dockerfile&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;dockerfile&quot;</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;makefile&quot;</span><span class="p">,</span> <span class="s2">&quot;gnumakefile&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;makefile&quot;</span>
+    <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.cmake&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;cmakelists.txt&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;cmake&quot;</span>
+
+    <span class="c1"># Shebang detection</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">p</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">first</span> <span class="o">=</span> <span class="n">fh</span><span class="o">.</span><span class="n">readline</span><span class="p">(</span><span class="mi">256</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">first</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#!/&quot;</span><span class="p">):</span>
+            <span class="n">parts</span> <span class="o">=</span> <span class="n">first</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+            <span class="n">interpreter</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="c1"># Handle &quot;#!/usr/bin/env python3&quot; -&gt; interpreter is &quot;env&quot;, actual lang is next arg</span>
+            <span class="k">if</span> <span class="n">interpreter</span> <span class="o">==</span> <span class="s2">&quot;env&quot;</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">interpreter</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">lang</span> <span class="ow">in</span> <span class="n">_SHEBANG_MAP</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">interpreter</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">lang</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_normalize</span><span class="p">(</span><span class="n">hint</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize a user-provided language hint.&quot;&quot;&quot;</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">hint</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="n">aliases</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;py&quot;</span><span class="p">:</span> <span class="s2">&quot;python&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;js&quot;</span><span class="p">:</span> <span class="s2">&quot;javascript&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ts&quot;</span><span class="p">:</span> <span class="s2">&quot;typescript&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;cpp&quot;</span><span class="p">:</span> <span class="s2">&quot;cpp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;c++&quot;</span><span class="p">:</span> <span class="s2">&quot;cpp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;cxx&quot;</span><span class="p">:</span> <span class="s2">&quot;cpp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;rs&quot;</span><span class="p">:</span> <span class="s2">&quot;rust&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;rb&quot;</span><span class="p">:</span> <span class="s2">&quot;ruby&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;cs&quot;</span><span class="p">:</span> <span class="s2">&quot;csharp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;kt&quot;</span><span class="p">:</span> <span class="s2">&quot;kotlin&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;objc&quot;</span><span class="p">:</span> <span class="s2">&quot;objective_c&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;objcpp&quot;</span><span class="p">:</span> <span class="s2">&quot;objective_cpp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;shell&quot;</span><span class="p">:</span> <span class="s2">&quot;bash&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ps&quot;</span><span class="p">:</span> <span class="s2">&quot;powershell&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;docker&quot;</span><span class="p">:</span> <span class="s2">&quot;dockerfile&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">aliases</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_tree_sitter_package">
+<a class="viewcode-back" href="../../api/language_detect.html#gigacode.language_detect.get_tree_sitter_package">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_tree_sitter_package</span><span class="p">(</span><span class="n">language</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the likely tree-sitter language package name.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        language: Normalized language string.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Package name like ``&quot;tree_sitter_python&quot;`` or None.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;python&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_python&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;javascript&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_javascript&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;typescript&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_typescript&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;tsx&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_typescript&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;java&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_java&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;c&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_c&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;cpp&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_cpp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;rust&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_rust&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;go&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_go&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ruby&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_ruby&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;php&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_php&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;csharp&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_c_sharp&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;swift&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_swift&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;kotlin&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_kotlin&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;scala&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_scala&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;bash&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_bash&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;lua&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_lua&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;elixir&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_elixir&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;erlang&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_erlang&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;haskell&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_haskell&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;ocaml&quot;</span><span class="p">:</span> <span class="s2">&quot;tree_sitter_ocaml&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">language</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

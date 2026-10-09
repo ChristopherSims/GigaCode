@@ -16,9 +16,15 @@ import os
 from enum import Enum
 from typing import Any
 
+from gigacode.navigation_schema import NAVIGATION_SCHEMAS, NAVIGATION_TOOL_NAMES
+from gigacode.token_tools import TOKEN_TOOL_SCHEMAS
+
 __all__ = [
     "EMBED_CODEBASE_SCHEMA",
     "SEMANTIC_SEARCH_SCHEMA",
+    "SEMANTIC_SEARCH_STREAMING_SCHEMA",
+    "EXPAND_MATCH_SCHEMA",
+    "CODE_SEARCH_SCHEMA",
     "CLUSTER_CODE_SCHEMA",
     "SEARCH_FOR_SCHEMA",
     "SEARCH_SYMBOLS_SCHEMA",
@@ -85,6 +91,7 @@ __all__ = [
     "CHUNK_WITH_PROFILE_SCHEMA",
     "ADAPT_SEARCH_SCHEMA",
     "ALL_SCHEMAS",
+    "RETIRED_SCHEMAS",
     "TOOL_CATEGORIES",
     "SchemaFormat",
     "SchemaConfig",
@@ -194,8 +201,8 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
     "name": "semantic_search",
     "description": (
         "Find the top-K code blocks most similar to a natural-language query. "
-        "Returns complete source code, file paths, line ranges, and relevance scores. "
-        "Optionally includes inferred type hints (parameter types, return types, confidence scores)."
+        "Returns file paths, line ranges, relevance scores, and a short source "
+        "preview per match (use read_code for the full source lines)."
     ),
     "input_schema": {
         "type": "object",
@@ -225,12 +232,12 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
                 "default": "llm",
             },
         },
-        "required": ["buffer_id", "query"],
+        "required": ["query"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "matches": {
                 "type": "array",
                 "items": {
@@ -251,7 +258,11 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
                         "name": {"type": "string", "description": "Symbol name if applicable"},
                         "text": {
                             "type": "string",
-                            "description": "Complete source code for the match",
+                            "description": (
+                                "Short source preview for the match "
+                                "(first MAX_MATCH_TEXT_PREVIEW_CHARS characters; "
+                                "use read_code for full source lines)"
+                            ),
                         },
                         "signature": {
                             "type": "string",
@@ -292,6 +303,189 @@ SEMANTIC_SEARCH_SCHEMA: dict[str, Any] = {
 }
 
 
+SEMANTIC_SEARCH_STREAMING_SCHEMA: dict[str, Any] = {
+    "name": "semantic_search_streaming",
+    "description": (
+        "Search with progressive disclosure to save tokens: 'signatures' level "
+        "returns only matching signatures (~8 tokens/match), then expand_match() "
+        "reveals details or full text for the match you select."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase. Omit for the default buffer.",
+            },
+            "query": {"type": "string", "description": "Natural-language query."},
+            "top_k": {
+                "type": "integer",
+                "description": "Number of results (default 10).",
+                "default": 10,
+            },
+            "disclosure": {
+                "type": "string",
+                "enum": ["signatures", "details", "full"],
+                "description": "Initial detail level (default 'signatures').",
+                "default": "signatures",
+            },
+        },
+        "required": ["query"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"],
+            },
+            "buffer_id": {"type": "string"},
+            "query": {"type": "string"},
+            "disclosure": {"type": "string"},
+            "matches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "match_id": {"type": "integer"},
+                        "file": {"type": "string"},
+                        "start_line": {"type": "integer"},
+                        "end_line": {"type": "integer"},
+                        "type": {"type": "string"},
+                        "name": {"type": ["string", "null"]},
+                        "score": {"type": "number"},
+                        "signature": {"type": "string"},
+                        "text": {"type": ["string", "null"]},
+                        "tokens": {"type": "integer"},
+                        "has_more": {"type": "boolean"},
+                    },
+                    "required": ["match_id", "file", "start_line", "score"],
+                },
+            },
+            "expandable": {"type": "boolean"},
+            "match_count": {"type": "integer"},
+            "elapsed_ms": {"type": "number"},
+        },
+        "required": ["status"],
+    },
+}
+
+
+EXPAND_MATCH_SCHEMA: dict[str, Any] = {
+    "name": "expand_match",
+    "description": (
+        "Expand one streaming-search match to a higher detail level "
+        "('details' = signature + docstring + first lines, 'full' = complete text) "
+        "without re-searching."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase. Omit for the default buffer.",
+            },
+            "match_id": {
+                "type": "integer",
+                "description": "match_id from a prior semantic_search_streaming result.",
+            },
+            "level": {
+                "type": "string",
+                "enum": ["details", "full"],
+                "description": "Target detail level (default 'details').",
+                "default": "details",
+            },
+        },
+        "required": ["match_id"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"],
+            },
+            "buffer_id": {"type": "string"},
+            "match_id": {"type": "integer"},
+            "level": {"type": "string"},
+            "match": {"type": "object"},
+        },
+        "required": ["status"],
+    },
+}
+
+
+CODE_SEARCH_SCHEMA: dict[str, Any] = {
+    "name": "code_search",
+    "description": (
+        "Search the buffered codebase with one tool. mode='semantic' (natural "
+        "language), 'literal' (exact substring), 'symbols' (function/class "
+        "names), or 'hybrid' (BM25+embedding fused; best default). Returns "
+        "matches with a short preview; use read_code for full lines."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "buffer_id": {
+                "type": "string",
+                "description": "Buffer handle returned by embed_codebase. Omit for the default buffer.",
+            },
+            "query": {"type": "string", "description": "Search query."},
+            "mode": {
+                "type": "string",
+                "enum": ["semantic", "literal", "symbols", "hybrid"],
+                "description": "Search strategy (default 'hybrid').",
+                "default": "hybrid",
+            },
+            "top_k": {
+                "type": "integer",
+                "description": "Number of results (default 5).",
+                "default": 5,
+            },
+            "case_sensitive": {
+                "type": "boolean",
+                "description": "literal mode only: exact case matching (default false).",
+                "default": False,
+            },
+            "max_results": {
+                "type": "integer",
+                "description": "literal mode only: cap on matches (default 50).",
+                "default": 50,
+            },
+            "profile": {
+                "type": "string",
+                "description": (
+                    "Optional agent profile (e.g. 'debugger') to adapt the query "
+                    "for the task type."
+                ),
+            },
+        },
+        "required": ["query"],
+    },
+    "output_schema": {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"],
+            },
+            "query": {"type": "string"},
+            "mode": {"type": "string"},
+            "buffer_id": {"type": "string"},
+            "matches": {
+                "type": "array",
+                "items": {"type": "object"},
+            },
+            "total": {"type": "integer"},
+            "quality_hint": {"type": "string"},
+            "repeat_hint": {"type": "string"},
+            "message": {"type": "string"},
+        },
+        "required": ["status"],
+    },
+}
+
+
 CLUSTER_CODE_SCHEMA: dict[str, Any] = {
     "name": "cluster_code",
     "description": (
@@ -316,7 +510,7 @@ CLUSTER_CODE_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "clusters": {
                 "type": "array",
                 "items": {
@@ -365,12 +559,12 @@ SEARCH_FOR_SCHEMA: dict[str, Any] = {
                 "default": 50,
             },
         },
-        "required": ["buffer_id", "query"],
+        "required": ["query"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "matches": {
                 "type": "array",
                 "items": {
@@ -378,9 +572,16 @@ SEARCH_FOR_SCHEMA: dict[str, Any] = {
                     "properties": {
                         "file": {"type": "string"},
                         "line": {"type": "integer"},
+                        "start_line": {"type": "integer"},
+                        "end_line": {"type": "integer"},
                         "content": {"type": "string"},
+                        "text": {"type": "string"},
+                        "score": {"type": "number"},
+                        "match_type": {"type": "string"},
+                        "name": {"type": ["string", "null"]},
+                        "type": {"type": "string"},
                     },
-                    "required": ["file", "line", "content"],
+                    "required": ["file", "start_line"],
                 },
             },
             "total": {"type": "integer"},
@@ -415,12 +616,12 @@ SEARCH_SYMBOLS_SCHEMA: dict[str, Any] = {
                 "default": 10,
             },
         },
-        "required": ["buffer_id", "query"],
+        "required": ["query"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "matches": {
                 "type": "array",
                 "items": {
@@ -437,7 +638,7 @@ SEARCH_SYMBOLS_SCHEMA: dict[str, Any] = {
                             "enum": ["name", "semantic"],
                         },
                     },
-                    "required": ["file", "start_line", "end_line", "type", "name", "score"],
+                    "required": ["file", "start_line", "end_line", "score"],
                 },
             },
             "total": {"type": "integer"},
@@ -567,8 +768,11 @@ DELETE_BUFFER_SCHEMA: dict[str, Any] = {
 READ_CODE_SCHEMA: dict[str, Any] = {
     "name": "read_code",
     "description": (
-        "Read raw source text from an embedded buffer. "
-        "Unlike semantic_search, this returns actual code lines so the agent can edit them."
+        "Read source text from an embedded buffer, returned as actual code lines "
+        "so the agent can edit them. Compact by default: skeleton=true (the "
+        "default) returns a compressed view with docstrings/comments dropped "
+        "and blank runs collapsed, with `numbers` mapping back to original "
+        "line numbers. Set skeleton=false only when you must see raw text."
     ),
     "input_schema": {
         "type": "object",
@@ -588,18 +792,42 @@ READ_CODE_SCHEMA: dict[str, Any] = {
             },
             "end_line": {
                 "type": "integer",
-                "description": "1-based end line (exclusive). Null means to end of file.",
+                "description": (
+                    "1-based end line (exclusive). When omitted, only a window of "
+                    "up to 150 lines from start_line is returned together with "
+                    "next_window for continuation."
+                ),
+            },
+            "skeleton": {
+                "type": "boolean",
+                "description": (
+                    "Return the compressed skeleton view of the window "
+                    "(default true: docstrings/comments dropped, blank runs "
+                    "collapsed). Use `numbers` to address follow-up edits; set "
+                    "false only for raw text."
+                ),
+                "default": True,
             },
         },
-        "required": ["buffer_id"],
+        "required": [],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "file": {"type": "string"},
             "start_line": {"type": "integer"},
             "end_line": {"type": "integer"},
+            "total_lines": {"type": "integer"},
+            "next_window": {"type": "integer"},
+            "window_truncated": {"type": "boolean"},
+            "skeleton": {"type": "boolean"},
+            "numbers": {
+                "type": "array",
+                "items": {"type": "integer"},
+                "description": "skeleton mode only: original 1-based line number per returned line",
+            },
+            "dropped": {"type": "integer"},
             "lines": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -639,14 +867,14 @@ LOOK_FOR_FILE_SCHEMA: dict[str, Any] = {
                 ),
             },
         },
-        "required": ["buffer_id", "file_name"],
+        "required": ["file_name"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
             "status": {
                 "type": "string",
-                "enum": ["ok", "error"],
+                "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"],
                 "description": "Result status.",
             },
             "file_location": {
@@ -659,7 +887,7 @@ LOOK_FOR_FILE_SCHEMA: dict[str, Any] = {
             },
             "match_type": {
                 "type": "string",
-                "enum": ["exact", "basename", "partial", "multiple"],
+                "enum": ["found", "exact", "basename", "partial", "multiple"],
                 "description": "How the file was matched.",
             },
             "candidates": {
@@ -704,12 +932,12 @@ WRITE_CODE_SCHEMA: dict[str, Any] = {
                 "description": "1-based end line (exclusive). Null means to end of file.",
             },
         },
-        "required": ["buffer_id", "file", "start_line", "new_lines"],
+        "required": ["file", "start_line", "new_lines"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "file": {"type": "string"},
             "operation_id": {
                 "type": "string",
@@ -739,12 +967,12 @@ DIFF_SCHEMA: dict[str, Any] = {
                 "description": "Buffer handle returned by embed_codebase.",
             },
         },
-        "required": ["buffer_id"],
+        "required": [],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "changed_files": {
                 "type": "array",
                 "items": {
@@ -778,12 +1006,12 @@ DISCARD_SCHEMA: dict[str, Any] = {
                 "description": "Relative file path. If omitted, all files are reverted.",
             },
         },
-        "required": ["buffer_id"],
+        "required": [],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "reverted_files": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -813,12 +1041,12 @@ COMMIT_SCHEMA: dict[str, Any] = {
                 "default": False,
             },
         },
-        "required": ["buffer_id"],
+        "required": [],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "written_files": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -834,7 +1062,8 @@ HYBRID_SEARCH_SCHEMA: dict[str, Any] = {
     "name": "hybrid_search",
     "description": (
         "Combine FAISS semantic search with BM25 lexical search via Reciprocal Rank Fusion. "
-        "Returns file paths, line ranges, and merged relevance scores."
+        "Returns file paths, line ranges, merged relevance scores, and a short source "
+        "preview per match (use read_code for the full source lines)."
     ),
     "input_schema": {
         "type": "object",
@@ -861,12 +1090,12 @@ HYBRID_SEARCH_SCHEMA: dict[str, Any] = {
                 "default": 1.0,
             },
         },
-        "required": ["buffer_id", "query"],
+        "required": ["query"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "matches": {
                 "type": "array",
                 "items": {
@@ -912,7 +1141,7 @@ FIND_DUPLICATES_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "duplicates": {
                 "type": "array",
                 "items": {
@@ -960,12 +1189,12 @@ PACK_CONTEXT_SCHEMA: dict[str, Any] = {
                 "default": 20,
             },
         },
-        "required": ["buffer_id", "query"],
+        "required": ["query"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "packed_chunks": {
                 "type": "array",
                 "items": {
@@ -1015,12 +1244,12 @@ INFER_TYPES_SCHEMA: dict[str, Any] = {
                 "default": "llm",
             },
         },
-        "required": ["buffer_id", "symbol"],
+        "required": ["symbol"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "symbol": {"type": "string"},
             "parameters": {
                 "type": "array",
@@ -1084,12 +1313,12 @@ GET_SYMBOL_METADATA_SCHEMA: dict[str, Any] = {
                 "default": "ast",
             },
         },
-        "required": ["buffer_id", "symbol"],
+        "required": ["symbol"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "name": {"type": "string"},
             "file": {"type": "string"},
             "line": {"type": "integer"},
@@ -1155,12 +1384,12 @@ SEARCH_BATCH_SCHEMA: dict[str, Any] = {
                 "default": "llm",
             },
         },
-        "required": ["buffer_id", "queries"],
+        "required": ["queries"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "results": {
                 "type": "object",
                 "description": "Dict mapping query strings to arrays of search matches.",
@@ -1214,7 +1443,7 @@ AUTO_FORMAT_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "formatter": {"type": "string"},
             "formatted_files": {"type": "integer"},
             "already_formatted": {"type": "integer"},
@@ -1276,7 +1505,7 @@ AUTO_LINT_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "linter": {"type": "string"},
             "files_with_issues": {"type": "integer"},
             "total_issues": {"type": "integer"},
@@ -1346,7 +1575,7 @@ AUTO_POLISH_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "formatting": {"type": "object"},
             "linting": {"type": "object"},
             "ready_to_commit": {"type": "boolean"},
@@ -1384,12 +1613,12 @@ GET_REFERENCES_SCHEMA: dict[str, Any] = {
                 "description": "If set, expand call chain to this depth (on-demand fill).",
             },
         },
-        "required": ["buffer_id", "symbol"],
+        "required": ["symbol"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "symbol": {"type": "string"},
             "file": {"type": "string"},
             "line": {"type": "integer"},
@@ -1469,12 +1698,12 @@ GET_FULL_CONTEXT_SCHEMA: dict[str, Any] = {
                 "default": "llm",
             },
         },
-        "required": ["buffer_id", "symbol"],
+        "required": ["symbol"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "symbol": {"type": "string"},
             "definition": {"type": "object", "description": "Symbol definition with source code."},
             "callers": {"type": "array", "description": "Symbols that call this symbol."},
@@ -1519,12 +1748,12 @@ ANALYZE_CHANGE_SCHEMA: dict[str, Any] = {
                 "default": 6,
             },
         },
-        "required": ["buffer_id", "file"],
+        "required": ["file"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "file": {"type": "string"},
             "affected_symbols": {"type": "array", "items": {"type": "string"}},
             "direct_callers": {"type": "array"},
@@ -1556,7 +1785,7 @@ GET_TEST_COVERAGE_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "coverage": {
                 "type": "object",
                 "description": "Map of source file -> {line_range -> [test_names]}.",
@@ -1604,7 +1833,7 @@ POLISH_BEFORE_COMMIT_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "formatting": {"type": "object"},
             "linting": {"type": "object"},
             "ready_to_commit": {"type": "boolean"},
@@ -1632,12 +1861,12 @@ TRACE_EXECUTION_PATHS_SCHEMA: dict[str, Any] = {
                 "default": 3,
             },
         },
-        "required": ["buffer_id", "symbol"],
+        "required": ["symbol"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "symbol": {"type": "string"},
             "paths": {
                 "type": "array",
@@ -1682,7 +1911,7 @@ GET_DEPENDENCY_GRAPH_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "nodes": {
                 "type": "array",
                 "items": {
@@ -1751,7 +1980,7 @@ DETECT_CODE_SMELLS_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "smells": {
                 "type": "array",
                 "items": {
@@ -1796,7 +2025,7 @@ SCAN_SECURITY_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "vulnerabilities": {
                 "type": "array",
                 "items": {
@@ -1832,12 +2061,12 @@ SUGGEST_REFACTORINGS_SCHEMA: dict[str, Any] = {
             },
             "symbol": {"type": "string", "description": "Symbol name to analyze."},
         },
-        "required": ["buffer_id", "symbol"],
+        "required": ["symbol"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "symbol": {"type": "string"},
             "suggestions": {
                 "type": "array",
@@ -1897,7 +2126,7 @@ LINT_BUFFER_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "total_issues": {"type": "integer"},
             "by_file": {
                 "type": "object",
@@ -1983,7 +2212,7 @@ FORMAT_BUFFER_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "total_files": {"type": "integer"},
             "formatted_files": {"type": "integer"},
             "already_formatted": {"type": "integer"},
@@ -2065,7 +2294,7 @@ GENERATE_DOCUMENTATION_SCHEMA: dict[str, Any] = {
                 "default": "google",
             },
         },
-        "required": ["buffer_id", "symbol"],
+        "required": ["symbol"],
     },
     "output_schema": {
         "type": "object",
@@ -2135,7 +2364,7 @@ FIND_SIMILAR_PATTERNS_SCHEMA: dict[str, Any] = {
                 "description": "Expected number of clusters (for kmeans). If null, auto-detected. Only used with kmeans clustering.",
             },
         },
-        "required": ["buffer_id", "code_snippet"],
+        "required": ["code_snippet"],
     },
     "output_schema": {
         "type": "object",
@@ -2618,7 +2847,7 @@ GET_ROLLBACK_INFO_SCHEMA: dict[str, Any] = {
             },
             "file": {"type": "string", "description": "File path within the buffer."},
         },
-        "required": ["buffer_id", "file"],
+        "required": ["file"],
     },
     "output_schema": {
         "type": "object",
@@ -2651,7 +2880,7 @@ GENERATE_CHANGE_TEMPLATE_SCHEMA: dict[str, Any] = {
                 "description": "Natural language description of the desired change.",
             },
         },
-        "required": ["buffer_id", "request"],
+        "required": ["request"],
     },
     "output_schema": {
         "type": "object",
@@ -2997,12 +3226,12 @@ SOLVE_SCHEMA: dict[str, Any] = {
                 "default": 10,
             },
         },
-        "required": ["buffer_id", "task"],
+        "required": ["task"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "task_id": {"type": "string", "description": "Unique identifier for the solve task."},
             "iterations": {"type": "integer", "description": "Number of iterations executed."},
             "tokens_used": {"type": "integer", "description": "Total tokens consumed."},
@@ -3051,7 +3280,7 @@ UNDO_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "buffer_id": {"type": "string"},
             "steps_undone": {
                 "type": "integer",
@@ -3088,7 +3317,7 @@ REDO_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "buffer_id": {"type": "string"},
             "steps_redone": {
                 "type": "integer",
@@ -3119,12 +3348,12 @@ CREATE_BRANCH_SCHEMA: dict[str, Any] = {
                 "description": "Name for the new branch.",
             },
         },
-        "required": ["buffer_id", "name"],
+        "required": ["name"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "buffer_id": {"type": "string"},
             "branch": {"type": "string", "description": "Name of the created branch."},
             "parent": {"type": "string", "description": "Parent branch name."},
@@ -3151,7 +3380,7 @@ LIST_BRANCHES_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "buffer_id": {"type": "string"},
             "branches": {
                 "type": "array",
@@ -3194,12 +3423,12 @@ CHECKOUT_BRANCH_SCHEMA: dict[str, Any] = {
                 "description": "Name of the branch to switch to.",
             },
         },
-        "required": ["buffer_id", "name"],
+        "required": ["name"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "buffer_id": {"type": "string"},
             "branch": {"type": "string", "description": "Branch now checked out."},
             "message": {"type": "string"},
@@ -3232,12 +3461,12 @@ ANNOTATE_SEARCH_SCHEMA: dict[str, Any] = {
                 "default": 5,
             },
         },
-        "required": ["buffer_id", "query"],
+        "required": ["query"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "buffer_id": {"type": "string"},
             "query": {"type": "string"},
             "annotated_results": {
@@ -3292,7 +3521,7 @@ PREDICT_CONFLICTS_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "buffer_id": {"type": "string"},
             "embed_point": {
                 "type": "string",
@@ -3377,12 +3606,12 @@ SEARCH_MODIFIED_ONLY_SCHEMA: dict[str, Any] = {
                 "default": 10,
             },
         },
-        "required": ["buffer_id", "query"],
+        "required": ["query"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "buffer_id": {"type": "string"},
             "query": {"type": "string"},
             "scope_used": {"type": "string", "enum": ["changes", "changes+deps", "all"]},
@@ -3443,7 +3672,7 @@ GET_CHUNKING_STRATEGY_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "profile": {"type": "string", "description": "Profile name used."},
             "include": {
                 "type": "array",
@@ -3494,7 +3723,7 @@ SET_AGENT_PROFILE_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "buffer_id": {"type": "string", "description": "Buffer handle."},
             "profile": {"type": "string", "description": "Profile name that was set."},
             "strategy_description": {
@@ -3530,7 +3759,7 @@ CHUNK_WITH_PROFILE_SCHEMA: dict[str, Any] = {
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "profile": {"type": "string", "description": "Profile used for chunking."},
             "total_chunks": {"type": "integer", "description": "Total number of chunks produced."},
             "strategy_description": {
@@ -3566,12 +3795,12 @@ ADAPT_SEARCH_SCHEMA: dict[str, Any] = {
                 "default": "generic",
             },
         },
-        "required": ["buffer_id", "query"],
+        "required": ["query"],
     },
     "output_schema": {
         "type": "object",
         "properties": {
-            "status": {"type": "string", "enum": ["ok", "error"]},
+            "status": {"type": "string", "enum": ["ok", "warning", "error", "conflict", "blocked", "unavailable"]},
             "enhanced_query": {
                 "type": "string",
                 "description": "Query with profile-specific enhancements.",
@@ -3587,73 +3816,92 @@ ADAPT_SEARCH_SCHEMA: dict[str, Any] = {
 }
 
 ALL_SCHEMAS: list[dict[str, Any]] = [
-    EMBED_CODEBASE_SCHEMA,
-    SEMANTIC_SEARCH_SCHEMA,
-    HYBRID_SEARCH_SCHEMA,
-    SEARCH_FOR_SCHEMA,
-    SEARCH_SYMBOLS_SCHEMA,
-    CLUSTER_CODE_SCHEMA,
-    FIND_DUPLICATES_SCHEMA,
-    PACK_CONTEXT_SCHEMA,
-    RELOAD_CODEBASE_SCHEMA,
-    CHECK_CODEBASE_SCHEMA,
-    LIST_BUFFERS_SCHEMA,
-    DELETE_BUFFER_SCHEMA,
-    READ_CODE_SCHEMA,
-    LOOK_FOR_FILE_SCHEMA,
-    WRITE_CODE_SCHEMA,
-    DIFF_SCHEMA,
-    DISCARD_SCHEMA,
-    COMMIT_SCHEMA,
-    INFER_TYPES_SCHEMA,
-    GET_SYMBOL_METADATA_SCHEMA,
-    SEARCH_BATCH_SCHEMA,
-    AUTO_FORMAT_SCHEMA,
-    AUTO_LINT_SCHEMA,
-    AUTO_POLISH_SCHEMA,
-    GET_REFERENCES_SCHEMA,
-    GET_FULL_CONTEXT_SCHEMA,
-    ANALYZE_CHANGE_SCHEMA,
-    GET_TEST_COVERAGE_SCHEMA,
-    POLISH_BEFORE_COMMIT_SCHEMA,
-    TRACE_EXECUTION_PATHS_SCHEMA,
-    GET_DEPENDENCY_GRAPH_SCHEMA,
-    DETECT_CODE_SMELLS_SCHEMA,
-    SCAN_SECURITY_SCHEMA,
-    SUGGEST_REFACTORINGS_SCHEMA,
-    LINT_BUFFER_SCHEMA,
-    FORMAT_BUFFER_SCHEMA,
-    FIND_PERFORMANCE_HOTSPOTS_SCHEMA,
-    GENERATE_DOCUMENTATION_SCHEMA,
-    FIND_SIMILAR_PATTERNS_SCHEMA,
-    FIND_DEPRECATED_SCHEMA,
-    VALIDATE_CHANGES_SCHEMA,
-    EXTRACT_CONFIGURATION_SCHEMA,
-    ANALYZE_LOGGING_PATTERNS_SCHEMA,
-    ANALYZE_ERROR_HANDLING_SCHEMA,
-    GENERATE_CHANGELOG_SCHEMA,
-    DETECT_API_CHANGES_SCHEMA,
-    GET_ROLLBACK_INFO_SCHEMA,
-    GENERATE_CHANGE_TEMPLATE_SCHEMA,
-    MAP_API_ENDPOINTS_SCHEMA,
-    ANALYZE_CACHE_PATTERNS_SCHEMA,
-    ANALYZE_THREAD_SAFETY_SCHEMA,
-    DETECT_MEMORY_ISSUES_SCHEMA,
-    LINT_WITH_CONFIG_SCHEMA,
-    FORMAT_WITH_CONFIG_SCHEMA,
-    SOLVE_SCHEMA,
-    UNDO_SCHEMA,
-    REDO_SCHEMA,
-    CREATE_BRANCH_SCHEMA,
-    LIST_BRANCHES_SCHEMA,
-    CHECKOUT_BRANCH_SCHEMA,
-    ANNOTATE_SEARCH_SCHEMA,
-    PREDICT_CONFLICTS_SCHEMA,
-    SEARCH_MODIFIED_ONLY_SCHEMA,
-    GET_CHUNKING_STRATEGY_SCHEMA,
-    SET_AGENT_PROFILE_SCHEMA,
-    CHUNK_WITH_PROFILE_SCHEMA,
-    ADAPT_SEARCH_SCHEMA,
+    # --- Core published surface (agent loop) -------------------------------
+    # Policy: only tools the agent loop actually needs on its *discovery*
+    # surface are listed here.  Everything else is still fully implemented
+    # (defined below in this file) and collectible via RETIRED_SCHEMAS /
+    # get_schema(); it is just not advertised.  Rationale per retired tool is
+    # written at its commented-out entry.
+    EMBED_CODEBASE_SCHEMA,  # required once, before anything else
+    SEMANTIC_SEARCH_SCHEMA,  # core read path, token-cheapest non-streaming search
+    SEMANTIC_SEARCH_STREAMING_SCHEMA,  # cheap signature-first browse of big files
+    EXPAND_MATCH_SCHEMA,  # drill-down for streaming hits (stream_read chain)
+    CODE_SEARCH_SCHEMA,  # one search tool covering hybrid/literal/symbol modes
+    LOOK_FOR_FILE_SCHEMA,  # filename navigation, no cheaper alternative
+    READ_CODE_SCHEMA,  # the read primitive for editing
+    WRITE_CODE_SCHEMA,  # the write primitive for editing
+    DIFF_SCHEMA,  # review pending buffer changes before commit
+    COMMIT_SCHEMA,  # makes edits reach disk; end of every edit flow
+    DISCARD_SCHEMA,  # revert bad buffer edits without touching disk
+    RELOAD_CODEBASE_SCHEMA,  # bake on-disk format/lint results back into the buffer
+    GET_FULL_CONTEXT_SCHEMA,  # callers/neighbors/tests around an edit target
+]
+
+# --- Retired from the discovery surface --------------------------------
+# Each entry is still fully implemented and reachable when the "full"
+# profile is opted into via CodeEmbeddingTool, but it is no longer part of
+# the default ready-to-call catalog.  Commented entries stay in the file so
+# nothing was deleted; the reason string documents why each tool was
+# removed from the surface.
+RETIRED_SCHEMAS: list[dict[str, Any]] = [
+    # semantic_search_streaming duplicates? No - see above: kept.
+    HYBRID_SEARCH_SCHEMA,        # retired: code_search(mode='hybrid') supersedes it
+    SEARCH_FOR_SCHEMA,           # retired: code_search(mode='literal') supersedes it
+    SEARCH_SYMBOLS_SCHEMA,       # retired: code_search(mode='symbols') supersedes it
+    SEARCH_BATCH_SCHEMA,         # retired: multi-query mode of code_search covers it
+    SEARCH_MODIFIED_ONLY_SCHEMA, # retired: niche diff filter, rarely used by agents
+    ANNOTATE_SEARCH_SCHEMA,      # retired: 'why' annotations bloat tool payloads
+    CLUSTER_CODE_SCHEMA,         # retired: exploratory only; agents skip clustering
+    FIND_DUPLICATES_SCHEMA,      # retired: exploratory only; dead weight on the surface
+    PACK_CONTEXT_SCHEMA,         # retired: pack_context is applied internally, not by agents
+    CHECK_CODEBASE_SCHEMA,       # retired: embed_codebase response already carries freshness
+    LIST_BUFFERS_SCHEMA,         # retired: default-buffer resolution makes listing redundant
+    DELETE_BUFFER_SCHEMA,        # retired: destructive; buffers are cleaned up by close()
+    INFER_TYPES_SCHEMA,          # retired: heavy analysis, agents rarely call it
+    GET_SYMBOL_METADATA_SCHEMA,  # retired: superseded by get_full_context
+    AUTO_FORMAT_SCHEMA,          # retired: bundled inside tool_chain chain='post_edit'
+    AUTO_LINT_SCHEMA,            # retired: bundled inside tool_chain chain='post_edit'
+    AUTO_POLISH_SCHEMA,          # retired: redundant with auto_format + auto_lint
+    FORMAT_BUFFER_SCHEMA,        # retired: obsolete alias of auto_format
+    LINT_BUFFER_SCHEMA,          # retired: obsolete alias of auto_lint
+    LINT_WITH_CONFIG_SCHEMA,     # retired: config-driven lint unused by agents
+    FORMAT_WITH_CONFIG_SCHEMA,   # retired: config-driven unused by agents
+    POLISH_BEFORE_COMMIT_SCHEMA, # retired: bundled inside tool_chain chain='pre_commit'
+    VALIDATE_CHANGES_SCHEMA,     # retired: bundled inside tool_chain chains
+    GET_REFERENCES_SCHEMA,       # retired: look_for_file + code_search cover call sites
+    ANALYZE_CHANGE_SCHEMA,       # retired: used internally by find_and_analyze chain
+    GET_TEST_COVERAGE_SCHEMA,    # retired: mcp test harness rarely has runnable tests
+    TRACE_EXECUTION_PATHS_SCHEMA,# retired: heavy static analysis, no agent usage
+    GET_DEPENDENCY_GRAPH_SCHEMA, # retired: heavy static analysis, no agent usage
+    DETECT_CODE_SMELLS_SCHEMA,   # retired: exploratory; superseded by code quality gates
+    SCAN_SECURITY_SCHEMA,        # retired: exploratory; not needed for edit tasks
+    SUGGEST_REFACTORINGS_SCHEMA, # retired: exploratory; agents refactor per task prompt
+    FIND_PERFORMANCE_HOTSPOTS_SCHEMA, # retired: exploratory; heavy scan
+    GENERATE_DOCUMENTATION_SCHEMA,    # retired: tasks write docs directly via write_code
+    FIND_SIMILAR_PATTERNS_SCHEMA,     # retired: exploratory; clustering dead weight
+    FIND_DEPRECATED_SCHEMA,           # retired: exploratory; search_for covered by code_search
+    EXTRACT_CONFIGURATION_SCHEMA,     # retired: one-shot analysis, unused in loops
+    ANALYZE_LOGGING_PATTERNS_SCHEMA,  # retired: one-shot analysis, unused in loops
+    ANALYZE_ERROR_HANDLING_SCHEMA,    # retired: one-shot analysis, unused in loops
+    GENERATE_CHANGELOG_SCHEMA,        # retired: changelog is not an in-loop job
+    DETECT_API_CHANGES_SCHEMA,        # retired: diff/commit flow covers the need
+    GET_ROLLBACK_INFO_SCHEMA,         # retired: git providers handle rollback externally
+    GENERATE_CHANGE_TEMPLATE_SCHEMA,  # retired: redundant with task prompt context
+    MAP_API_ENDPOINTS_SCHEMA,         # retired: one-shot analysis, unused in loops
+    ANALYZE_CACHE_PATTERNS_SCHEMA,    # retired: one-shot analysis, unused in loops
+    ANALYZE_THREAD_SAFETY_SCHEMA,     # retired: one-shot analysis, unused in loops
+    DETECT_MEMORY_ISSUES_SCHEMA,      # retired: one-shot analysis, unused in loops
+    SOLVE_SCHEMA,                     # retired: delegates a whole task to giga's own loop; agent already IS the loop
+    UNDO_SCHEMA,                      # retired: discard covers the revert workflow
+    REDO_SCHEMA,                      # retired: discard covers the revert workflow
+    CREATE_BRANCH_SCHEMA,             # retired: agent flow commits in place; branching is external
+    LIST_BRANCHES_SCHEMA,             # retired: agent flow commits in place; branching is external
+    CHECKOUT_BRANCH_SCHEMA,           # retired: agent flow commits in place; branching is external
+    PREDICT_CONFLICTS_SCHEMA,         # retired: niche, conflicts are reported by commit itself
+    GET_CHUNKING_STRATEGY_SCHEMA,     # retired: internal tuning knob, never called by agents
+    SET_AGENT_PROFILE_SCHEMA,         # retired: server sets the profile at startup
+    CHUNK_WITH_PROFILE_SCHEMA,        # retired: internal; embed_codebase applies profiles
+    ADAPT_SEARCH_SCHEMA,              # retired: internal query enrichment, not a workflow step
 ]
 
 # ---------------------------------------------------------------------------
@@ -3664,6 +3912,9 @@ ALL_SCHEMAS: list[dict[str, Any]] = [
 _SCHEMA_CATEGORIES: dict[str, dict[str, Any]] = {
     "embed_codebase": {"category": "indexing", "tags": ["write", "slow", "setup"]},
     "semantic_search": {"category": "search", "tags": ["read-only", "fast"]},
+    "semantic_search_streaming": {"category": "search", "tags": ["read-only", "fast"]},
+    "expand_match": {"category": "search", "tags": ["read-only", "fast"]},
+    "code_search": {"category": "search", "tags": ["read-only", "fast"]},
     "hybrid_search": {"category": "search", "tags": ["read-only", "fast"]},
     "search_for": {"category": "search", "tags": ["read-only", "fast"]},
     "search_symbols": {"category": "search", "tags": ["read-only", "fast"]},
@@ -3738,6 +3989,9 @@ _SCHEMA_SIDE_EFFECTS: dict[str, dict[str, Any]] = {
         "side_effects": "Creates a new buffer with embedded code; allocates GPU/CPU memory for embeddings index.",
     },
     "semantic_search": {"read_only": True, "side_effects": None},
+    "semantic_search_streaming": {"read_only": True, "side_effects": None},
+    "expand_match": {"read_only": True, "side_effects": None},
+    "code_search": {"read_only": True, "side_effects": None},
     "hybrid_search": {"read_only": True, "side_effects": None},
     "search_for": {"read_only": True, "side_effects": None},
     "search_symbols": {"read_only": True, "side_effects": None},
@@ -4454,13 +4708,43 @@ _SCHEMA_EXAMPLES: dict[str, dict[str, Any]] = {
 }
 
 
+# Priority by which agents should prefer tools ("low" | "normal" | "high").
+# "high": chains / bundled roundtrips that replace several single-use calls.
+# "low": superseded single-use tools (the chains bundle them).
+_SCHEMA_PRIORITIES: dict[str, str] = {
+    "tool_chain": "high",
+    "tool_search": "high",
+    "tool_call": "high",
+    "edit_hashlines": "high",
+    "code_search": "high",
+    "get_full_context": "high",
+    "semantic_search_streaming": "high",
+    "embed_codebase": "high",
+    "semantic_search": "low",
+    "hybrid_search": "low",
+    "search_for": "low",
+    "search_symbols": "low",
+    "search_batch": "low",
+    "auto_format": "low",
+    "auto_lint": "low",
+    "auto_polish": "low",
+    "format_buffer": "low",
+    "format_with_config": "low",
+    "lint_buffer": "low",
+    "lint_with_config": "low",
+    "polish_before_commit": "low",
+    "check_codebase": "low",
+    "list_buffers": "low",
+}
+
+
 def _enrich_all_schemas() -> None:
     """Apply AI discoverability metadata to all schemas at import time.
 
-    Adds: category, tags, read_only, side_effects, error_schema,
+    Adds: category, tags, read_only, side_effects, priority, error_schema,
     delegates_to/composed_of (for wrappers), and input/output examples.
     """
-    for schema in ALL_SCHEMAS:
+    for schema in list(ALL_SCHEMAS) + list(RETIRED_SCHEMAS):
         name = schema["name"]
 
         # 1. Category + Tags
@@ -4472,6 +4756,11 @@ def _enrich_all_schemas() -> None:
         se = _SCHEMA_SIDE_EFFECTS.get(name, {"read_only": True, "side_effects": None})
         schema["read_only"] = se["read_only"]
         schema["side_effects"] = se["side_effects"]
+
+        # 2b. Priority ("low" | "normal" | "high"): high = prefer over single-use
+        # alternatives (chains / bundled roundtrips), low = superseded by a
+        # high-priority surface.
+        schema["priority"] = _SCHEMA_PRIORITIES.get(name, "normal")
 
         # 3. Error schema
         schema["error_schema"] = _SHARED_ERROR_SCHEMA
@@ -4497,6 +4786,9 @@ _enrich_all_schemas()
 # Access helpers
 # ---------------------------------------------------------------------------
 
+ALL_SCHEMAS.extend(TOKEN_TOOL_SCHEMAS)
+ALL_SCHEMAS.extend(NAVIGATION_SCHEMAS)
+
 # Categories for filtering
 TOOL_CATEGORIES = sorted({schema["category"] for schema in ALL_SCHEMAS})
 
@@ -4509,46 +4801,75 @@ TOOL_CATEGORIES = sorted({schema["category"] for schema in ALL_SCHEMAS})
 # filtering.
 STABLE_READ_TOOLS: frozenset[str] = frozenset(
     {
+        "code_find",
+        "tool_search",
+        "tool_call",
+        "compress_context",
+        "read_hashlines",
         "embed_codebase",
         "semantic_search",
-        "hybrid_search",
-        "search_for",
-        "search_symbols",
+        "semantic_search_streaming",
+        "expand_match",
+        "code_search",
         "read_code",
-        "list_buffers",
-        "check_codebase",
         "diff",
-        "pack_context",
         "look_for_file",
-        "get_references",
-        "get_symbol_metadata",
-        "analyze_change",
-        "get_test_coverage",
+        "get_full_context",
+        # Retired from read_only (one tool covers each):
+        # search_symbols/hybrid_search/search_for -> code_search modes
+        # pack_context -> applied internally by the tool
+        # get_references/get_symbol_metadata -> get_full_context
+        # analyze_change/get_test_coverage -> heavy niche analysis tools
     }
-)
+) | NAVIGATION_TOOL_NAMES
 
 _EDITING_TOOLS: frozenset[str] = frozenset(
     {
+        "code_edit",
+        "edit_hashlines",
+        "tool_chain",
         "write_code",
         "commit",
         "discard",
         "reload_codebase",
-        "undo",
-        "redo",
-        "auto_format",
-        "auto_polish",
-        "format_buffer",
-        "format_with_config",
-        "polish_before_commit",
-        "create_branch",
-        "checkout_branch",
-        "delete_buffer",
+        # Retired from editing profile:
+        # auto_format/auto_lint/auto_polish/format_buffer/lint_buffer/
+        # format_with_config/lint_with_config/polish_before_commit ->
+        #   bundled inside tool_chain chains ('post_edit' / 'pre_commit')
+        # validate_changes -> bundled inside tool_chain chains
+        # discard -> kept: safe revert without touching disk
     }
 )
 
-_ALL_TOOL_NAMES: frozenset[str] = frozenset(s["name"] for s in ALL_SCHEMAS)
+_ALL_TOOL_NAMES: frozenset[str] = frozenset(
+    s["name"] for s in list(ALL_SCHEMAS) + list(RETIRED_SCHEMAS)
+)
+
+AGENT_CORE_TOOLS: frozenset[str] = frozenset(
+    {
+        "code_find",
+        "code_edit",
+        "tool_search",
+        "tool_call",
+        "compress_context",
+        "read_hashlines",
+        "edit_hashlines",
+        "tool_chain",
+        "embed_codebase",
+        "code_search",
+        "semantic_search_streaming",
+        "expand_match",
+        "read_code",
+        "write_code",
+        "commit",
+        "diff",
+        "look_for_file",
+        "get_full_context",
+    }
+) | NAVIGATION_TOOL_NAMES
 
 TOOL_PROFILES: dict[str, frozenset[str]] = {
+    "agent_core": AGENT_CORE_TOOLS,
     "read_only": STABLE_READ_TOOLS,
     "editing": STABLE_READ_TOOLS | _EDITING_TOOLS,
     "full": _ALL_TOOL_NAMES,
@@ -4593,16 +4914,24 @@ def get_write_tools() -> list[dict[str, Any]]:
 
 
 def get_schema(name: str) -> dict[str, Any] | None:
-    """Return a single tool schema by name, or None if not found."""
+    """Return a single tool schema by name, or None if not found.
+
+    Covers both the published surface (ALL_SCHEMAS) and the retired-but-still-
+    implemented tools (RETIRED_SCHEMAS), so schema lookups keep working for
+    legacy callers even though retired tools are no longer advertised.
+    """
     for schema in ALL_SCHEMAS:
+        if schema.get("name") == name:
+            return schema
+    for schema in RETIRED_SCHEMAS:
         if schema.get("name") == name:
             return schema
     return None
 
 
 def get_all_schemas() -> list[dict[str, Any]]:
-    """Return all tool schemas."""
-    return list(ALL_SCHEMAS)
+    """Return all tool schemas: published surface plus retired implementations."""
+    return list(ALL_SCHEMAS) + list(RETIRED_SCHEMAS)
 
 
 def to_openai_functions(

@@ -170,7 +170,10 @@ def _get_grammar(language_hint: str | None) -> Any | None:
 
     try:
         mod = __import__(pkg)
-        lang = getattr(mod, "language", None)
+        entrypoint = (
+            "language_tsx" if hint == "tsx" else "language_typescript"
+        ) if lang_name == "typescript" else "language"
+        lang = getattr(mod, entrypoint, None)
         if lang is None:
             return None
         from tree_sitter import Language
@@ -255,6 +258,8 @@ def _chunk_with_tree_sitter(
 
     Returns None if parsing fails or no grammar is available.
     """
+    if file_hint.lower().endswith(".tsx") and language_hint in {"typescript", "tsx", "ts"}:
+        language_hint = "tsx"
     grammar = _get_grammar(language_hint)
     if grammar is None:
         logger.debug(

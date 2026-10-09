@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "gigacode": {
+      "command": "gigacode-mcp",
+      "args": [
+        "--work-dir",
+        "/absolute/path/to/.gigacode-buffers",
+        "--tool-profile",
+        "agent_core"
+      ],
+      "autoApprove": [
+        "gigacode__embed_codebase",
+        "gigacode__code_search",
+        "gigacode__semantic_search_streaming",
+        "gigacode__expand_match",
+        "gigacode__read_code",
+        "gigacode__look_for_file",
+        "gigacode__diff"
+      ],
+      "disabled": false
+    }
+  }
+}

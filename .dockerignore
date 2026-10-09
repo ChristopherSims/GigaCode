@@ -14,3 +14,4 @@ build/
 sitecustomize.py
 IMPROVEMENT_PLAN.md
 PYPI_DEPLOYMENT_PLAN.md
+bench*/

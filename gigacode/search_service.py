@@ -20,7 +20,7 @@ try:
 except ImportError:
     HAS_SKLEARN = False
 
-from gigacode.constants import DEFAULT_TOP_K, SIMILARITY_THRESHOLD
+from gigacode.constants import DEFAULT_TOP_K, MAX_MATCH_TEXT_PREVIEW_CHARS, SIMILARITY_THRESHOLD
 from gigacode.embedder import Embedder
 from gigacode.index_manager import IndexManager
 from gigacode.intent_cache import IntentCache
@@ -315,7 +315,7 @@ class SearchService:
                         type=chunk.type,
                         name=chunk.name,
                         score=float(score),
-                        text=chunk.text,
+                        text=chunk.text[:MAX_MATCH_TEXT_PREVIEW_CHARS] if chunk.text else None,
                     )
                     # Enrich with type inference if requested
                     if include_types:
@@ -479,7 +479,7 @@ class SearchService:
                         type=chunk.type,
                         name=chunk.name,
                         score=float(entry.get("rrf_score", 0.0)),
-                        text=chunk.text,
+                        text=chunk.text[:MAX_MATCH_TEXT_PREVIEW_CHARS] if chunk.text else None,
                     )
                 )
 
@@ -1121,13 +1121,13 @@ class SearchService:
     ) -> dict[str, Any]:
         """Build a match dict at the requested disclosure level."""
         base = {
-            "match_id": idx,
+            "match_id": int(idx),
             "file": chunk.file,
-            "start_line": chunk.start_line,
-            "end_line": chunk.end_line,
+            "start_line": int(chunk.start_line),
+            "end_line": int(chunk.end_line),
             "type": chunk.type,
             "name": chunk.name,
-            "score": round(score, 4),
+            "score": round(float(score), 4),
         }
 
         if disclosure == "signatures":

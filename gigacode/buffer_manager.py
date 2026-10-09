@@ -25,7 +25,11 @@ if TYPE_CHECKING:
 
 from gigacode.buffer_state import BufferState, BufferStateTransition
 from gigacode.chunker import CodeChunk, chunk_file, chunk_text
-from gigacode.constants import DEFAULT_THRESHOLD_MB, MAX_DIRTY_BEFORE_AUTO_REBUILD
+from gigacode.constants import (
+    DEFAULT_THRESHOLD_MB,
+    MAX_DIRTY_BEFORE_AUTO_REBUILD,
+    READ_CODE_DEFAULT_WINDOW,
+)
 from gigacode.json_logger import StructuredJsonLogger
 from gigacode.size_guard import check_size
 from gigacode.snapshot_manager import SnapshotManager
@@ -674,6 +678,29 @@ class BufferManager:
     # ------------------------------------------------------------------
     # Read/Write/Commit operations
     # ------------------------------------------------------------------
+    @staticmethod
+    def _resolve_file_key(file: str, known_files) -> str | None:
+        """Match a buffer file key tolerantly: separators, then basename.
+
+        Agents pass POSIX-style or bare-basename paths while the manifest keys
+        follow the embedding OS separator; a "/" vs "\" drift or a name-only
+        fragment should still resolve to a unique file.
+        """
+        normalized = file.replace("\\", "/").strip().lstrip("./")
+        candidates = {k: k.replace("\\", "/").strip().lstrip("./") for k in known_files}
+        for key, norm_key in candidates.items():
+            if norm_key == normalized:
+                return key
+        base = normalized.rsplit("/", 1)[-1].lower()
+        matches = [
+            key
+            for key, norm_key in candidates.items()
+            if norm_key.rsplit("/", 1)[-1].lower() == base
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        return None
+
     def read_code(
         self,
         buffer_id: str,
@@ -695,22 +722,35 @@ class BufferManager:
 
         if file is not None:
             if file not in snapshot_mgr.manifest.files:
-                return {"status": "error", "message": f"File not in buffer: {file}"}
+                resolved = self._resolve_file_key(file, snapshot_mgr.manifest.files)
+                if resolved is None:
+                    return {"status": "error", "message": f"File not in buffer: {file}"}
+                file = resolved
 
             lines = snapshot_mgr.read_lines(file)
             if lines is None:
                 return {"status": "error", "message": f"Failed to read file: {file}"}
 
-            end = end_line if end_line is not None else len(lines) + 1
-            end = max(start_line, end)
+            total_lines = len(lines)
+            if end_line is None:
+                # Bounded default window: cap the read at READ_CODE_DEFAULT_WINDOW
+                # lines so whole-file reads don't inflate agent context.
+                end = min(total_lines + 1, start_line + READ_CODE_DEFAULT_WINDOW)
+            else:
+                end = max(start_line, end_line)
             selected = lines[start_line - 1 : end - 1]
             result = {
                 "status": "ok",
                 "file": file,
                 "start_line": start_line,
                 "end_line": end,
+                "total_lines": total_lines,
                 "lines": selected,
             }
+            if end <= total_lines and (end_line is None or end < total_lines + 1):
+                if end - 1 < total_lines:
+                    result["window_truncated"] = True
+                    result["next_window"] = end
 
             self._audit_log(
                 operation="read_code",

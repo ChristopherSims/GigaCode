@@ -75,7 +75,7 @@ def _is_test_file(filename: str, language: str = "python") -> bool:
 
 def _extract_calls(text: str, language: str = "python") -> list[str]:
     """Extract function/method call names from source text."""
-    pattern = _CALL_PATTERNS.get(language)
+    pattern = _CALL_PATTERNS.get("typescript" if language == "tsx" else language)
     if not pattern:
         return []
     calls: set[str] = set()
@@ -90,7 +90,7 @@ def _extract_calls(text: str, language: str = "python") -> list[str]:
 
 def _extract_imports(text: str, language: str = "python") -> list[str]:
     """Extract import/module names from source text."""
-    pattern = _IMPORT_PATTERNS.get(language)
+    pattern = _IMPORT_PATTERNS.get("typescript" if language == "tsx" else language)
     if not pattern:
         return []
     imports: set[str] = set()

@@ -1,0 +1,257 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Embedder &mdash; GigaCode 0.8.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=486e5634"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Metadata Store" href="metadata_store.html" />
+    <link rel="prev" title="Chunker" href="chunker.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            GigaCode
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/basic_embed.html">Basic Embedding Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/search_workflows.html">Search Workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/edit_workflows.html">Edit Workflows</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api_reference.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="tools.html">Tools</a></li>
+<li class="toctree-l2"><a class="reference internal" href="managers.html">Managers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="services.html">Services</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hybrid_search.html">Hybrid Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="duplicate_detector.html">Duplicate Detector</a></li>
+<li class="toctree-l2"><a class="reference internal" href="language_detect.html">Language Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chunker.html">Chunker</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Embedder</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gigacode.embedder.Embedder"><code class="docutils literal notranslate"><span class="pre">Embedder</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.embedder.Embedder.is_loaded"><code class="docutils literal notranslate"><span class="pre">Embedder.is_loaded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.embedder.Embedder.ensure_loaded"><code class="docutils literal notranslate"><span class="pre">Embedder.ensure_loaded()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.embedder.Embedder.embedding_dim"><code class="docutils literal notranslate"><span class="pre">Embedder.embedding_dim</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.embedder.Embedder.encode"><code class="docutils literal notranslate"><span class="pre">Embedder.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.embedder.Embedder.embed"><code class="docutils literal notranslate"><span class="pre">Embedder.embed()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#gigacode.embedding_provider.EmbeddingProvider"><code class="docutils literal notranslate"><span class="pre">EmbeddingProvider</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.embedding_provider.EmbeddingProvider.embedding_dim"><code class="docutils literal notranslate"><span class="pre">EmbeddingProvider.embedding_dim</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#gigacode.embedding_provider.EmbeddingProvider.encode"><code class="docutils literal notranslate"><span class="pre">EmbeddingProvider.encode()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#gigacode.embedding_provider.validate_embedding_provider"><code class="docutils literal notranslate"><span class="pre">validate_embedding_provider()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="metadata_store.html">Metadata Store</a></li>
+<li class="toctree-l2"><a class="reference internal" href="incremental_indexer.html">Incremental Indexer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="semantic_cache.html">Semantic Cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="faiss_optimizer.html">FAISS Optimizer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#quick-reference">Quick Reference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api_reference.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance_tuning.html">Performance Tuning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">GigaCode</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api_reference.html">API Reference</a></li>
+      <li class="breadcrumb-item active">Embedder</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/embedder.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="embedder">
+<h1>Embedder<a class="headerlink" href="#embedder" title="Link to this heading"></a></h1>
+<p>SentenceTransformers-backed code embedder with lazy/offline loading.</p>
+<p id="module-gigacode.embedder">Code embedding model with batching and GPU acceleration.</p>
+<p>Defaults to a code-specific model (jina-embeddings-v2-base-code) and falls
+back to all-MiniLM-L6-v2 if unavailable.</p>
+<p>Model loading can be deferred with <code class="docutils literal notranslate"><span class="pre">lazy=True</span></code> so that constructing a tool
+does not require the embedding dependency or a network download until a
+semantic operation actually needs vectors.  <code class="docutils literal notranslate"><span class="pre">local_files_only=True</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cache_folder</span></code> support fully offline / pre-cached deployments.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gigacode.embedder.Embedder">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">gigacode.embedder.</span></span><span class="sig-name descname"><span class="pre">Embedder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lazy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_files_only</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/embedder.html#Embedder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.embedder.Embedder" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Lightweight wrapper around sentence-transformers with code defaults.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="gigacode.embedder.Embedder.is_loaded">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">is_loaded</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><a class="headerlink" href="#gigacode.embedder.Embedder.is_loaded" title="Link to this definition"></a></dt>
+<dd><p>Return True once the underlying model has been loaded.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.embedder.Embedder.ensure_loaded">
+<span class="sig-name descname"><span class="pre">ensure_loaded</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/embedder.html#Embedder.ensure_loaded"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.embedder.Embedder.ensure_loaded" title="Link to this definition"></a></dt>
+<dd><p>Load the embedding model on first use.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#ImportError" title="(in Python v3.14)"><strong>ImportError</strong></a> – If sentence-transformers (or its native backend) is
+    not installed, with an actionable install hint.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="gigacode.embedder.Embedder.embedding_dim">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">embedding_dim</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#gigacode.embedder.Embedder.embedding_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.embedder.Embedder.encode">
+<span class="sig-name descname"><span class="pre">encode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">texts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></span><a class="reference internal" href="../_modules/gigacode/embedder.html#Embedder.encode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.embedder.Embedder.encode" title="Link to this definition"></a></dt>
+<dd><p>Embed texts and L2-normalize so dot-product == cosine similarity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>texts</strong> – Input strings (code chunks).</p></li>
+<li><p><strong>batch_size</strong> – Forward-pass batch size.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>float32 ndarray of shape <code class="docutils literal notranslate"><span class="pre">(len(texts),</span> <span class="pre">embedding_dim)</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.embedder.Embedder.embed">
+<span class="sig-name descname"><span class="pre">embed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></span><a class="reference internal" href="../_modules/gigacode/embedder.html#Embedder.embed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.embedder.Embedder.embed" title="Link to this definition"></a></dt>
+<dd><p>Embed a single string, returning a 1-D vector.</p>
+</dd></dl>
+
+</dd></dl>
+
+<p id="module-gigacode.embedding_provider">Public embedding-provider interface.</p>
+<p>Applications may supply their own embedding backend — a locally hosted model,
+a remote provider, or a lightweight test double — instead of the bundled
+SentenceTransformers default.  The tool only relies on the small surface
+defined here, which lets callers keep control of batching, credentials, and
+provider configuration.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="gigacode.embedding_provider.EmbeddingProvider">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">gigacode.embedding_provider.</span></span><span class="sig-name descname"><span class="pre">EmbeddingProvider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/gigacode/embedding_provider.html#EmbeddingProvider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.embedding_provider.EmbeddingProvider" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Protocol" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Protocol</span></code></a></p>
+<p>Minimal contract for an embedding backend.</p>
+<p>Only <a class="reference internal" href="#gigacode.embedding_provider.EmbeddingProvider.embedding_dim" title="gigacode.embedding_provider.EmbeddingProvider.embedding_dim"><code class="xref py py-attr docutils literal notranslate"><span class="pre">embedding_dim</span></code></a> and <a class="reference internal" href="#gigacode.embedding_provider.EmbeddingProvider.encode" title="gigacode.embedding_provider.EmbeddingProvider.encode"><code class="xref py py-meth docutils literal notranslate"><span class="pre">encode()</span></code></a> are required.  A single-text
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">embed()</span></code> helper is optional; the tool provides one when wrapping an
+encode-only provider.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="gigacode.embedding_provider.EmbeddingProvider.embedding_dim">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">embedding_dim</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><a class="headerlink" href="#gigacode.embedding_provider.EmbeddingProvider.embedding_dim" title="Link to this definition"></a></dt>
+<dd><p>Dimension of the vectors returned by <a class="reference internal" href="#gigacode.embedding_provider.EmbeddingProvider.encode" title="gigacode.embedding_provider.EmbeddingProvider.encode"><code class="xref py py-meth docutils literal notranslate"><span class="pre">encode()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="gigacode.embedding_provider.EmbeddingProvider.encode">
+<span class="sig-name descname"><span class="pre">encode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">texts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Ellipsis</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">ndarray</span></a></span></span><a class="reference internal" href="../_modules/gigacode/embedding_provider.html#EmbeddingProvider.encode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.embedding_provider.EmbeddingProvider.encode" title="Link to this definition"></a></dt>
+<dd><p>Return an <code class="docutils literal notranslate"><span class="pre">(len(texts),</span> <span class="pre">embedding_dim)</span></code> float array.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="gigacode.embedding_provider.validate_embedding_provider">
+<span class="sig-prename descclassname"><span class="pre">gigacode.embedding_provider.</span></span><span class="sig-name descname"><span class="pre">validate_embedding_provider</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">provider</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/gigacode/embedding_provider.html#validate_embedding_provider"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#gigacode.embedding_provider.validate_embedding_provider" title="Link to this definition"></a></dt>
+<dd><p>Validate that <em>provider</em> satisfies <a class="reference internal" href="#gigacode.embedding_provider.EmbeddingProvider" title="gigacode.embedding_provider.EmbeddingProvider"><code class="xref py py-class docutils literal notranslate"><span class="pre">EmbeddingProvider</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#TypeError" title="(in Python v3.14)"><strong>TypeError</strong></a> – If the provider is missing required attributes or its
+    reported dimension is not a positive integer.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="chunker.html" class="btn btn-neutral float-left" title="Chunker" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="metadata_store.html" class="btn btn-neutral float-right" title="Metadata Store" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, GigaCode Contributors.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

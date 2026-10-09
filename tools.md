@@ -1,7 +1,7 @@
 # GigaCode Tools Reference
 
-Complete reference for all **67** agent-discoverable tools.
-**50 read-only** | **17 mutating**.
+Complete reference for all **76** agent-discoverable tools.
+**56 read-only** | **20 mutating**.
 
 Each tool includes:
 - **Name** -- the function/endpoint name
@@ -583,6 +583,24 @@ Trace all execution paths through a symbol using AST branch detection.
 
 ## Editing (11 tools)
 
+**Agent workflow notes** (see `examples/agent_setup/AGENTS.md.example` for the
+full agent-facing copy of this guidance):
+
+- `write_code` accepts consecutive calls while the buffer is dirty; each
+  response reports ``buffer_state`` and ``next_action``. The echoed diff is
+  capped at 60 lines; call `diff` for the full unified diff.
+- Line ranges are **1-based and inclusive on both ends**:
+  `start_line=24, end_line=25` replaces exactly lines 24–25. Omit `end_line`
+  to insert without deleting.
+- `status="conflict"` (write or commit) means the disk file changed outside
+  the buffer since the embed snapshot. Recovery:
+  `reload_codebase`, then re-locate and re-apply the edit.
+- `commit` with `dry_run=true` previews pending writes and reports conflicts
+  without touching disk.
+- `undo`/`redo`, branches, and `delete_buffer` are available in the `full`
+  profile; the curated `read_only`/`editing`/`agent_core` profiles do not
+  expose them.
+
 ### `checkout_branch`
 
 Switch to a different branch on a buffer.
@@ -894,12 +912,12 @@ Undo the last N tracked operations on a buffer, reverting edits in reverse order
 
 ### `write_code`
 
-Replace a range of lines in a buffered file and re-embed the changed region. The file is marked dirty until commit is called. Successful writes return an `operation_id` used for internal undo/redo tracking.
+Replace a range of lines in a buffered file and re-embed the changed region. The file is marked dirty until commit is called. Line ranges are 1-based and inclusive on both ends. Consecutive writes while the buffer is dirty are allowed, so multi-hunk edits do not require an intermediate commit. Successful writes return an `operation_id` used for internal undo/redo tracking, the resulting `buffer_state`, and a `next_action` hint. The echoed diff is capped at 60 lines; call `diff` for the full unified diff. Pass `commit=true` to persist the edit to disk in the same call.
 
 - **Category:** editing
 - **Tags:** write, mutating, slow
 - **Read-Only:** No
-- **Side Effects:** Modifies the in-buffer source snapshot. Changes are not written to disk until commit().
+- **Side Effects:** Modifies the in-buffer source snapshot. Changes are not written to disk until commit() (or `commit=true`).
 
 **Example Request:**
 
@@ -908,10 +926,12 @@ Replace a range of lines in a buffered file and re-embed the changed region. The
   "buffer_id": "gcbuff-abc123",
   "file": "src/auth.py",
   "start_line": 1,
+  "end_line": 2,
   "new_lines": [
     "def authenticate(token):",
     "    ..."
-  ]
+  ],
+  "commit": false
 }
 ```
 
@@ -922,6 +942,9 @@ Replace a range of lines in a buffered file and re-embed the changed region. The
   "status": "ok",
   "operation_id": "op-12345",
   "changed_lines": 2,
+  "total_lines": 24,
+  "buffer_state": "dirty",
+  "next_action": "run commit(dry_run=False) to persist, or diff() to review",
   "diff": "--- a/src/auth.py\n+++ b/src/auth.py\n@@ -1,2 +1,2 @@"
 }
 ```
@@ -988,7 +1011,7 @@ Delete a buffer and free its on-disk resources.
 
 ### `embed_codebase`
 
-Embed a directory or single file into a GPU/CPU buffer for semantic search and clustering. Returns a buffer handle; raw source code is never exposed.
+Embed a directory or single file into a GPU/CPU buffer for semantic search and clustering. Returns a buffer handle; raw source code is never exposed. If the same path and pattern were embedded and nothing changed on disk, the existing buffer is returned with `reused: true` instead of re-embedding. The most recently embedded buffer becomes the session default, so tools may omit `buffer_id`.
 
 - **Category:** indexing
 - **Tags:** write, slow, setup
@@ -1242,7 +1265,7 @@ Find the location of a file within an embedded buffer. Tries exact match, then b
 
 ### `read_code`
 
-Read raw source text from an embedded buffer. Unlike semantic_search, this returns actual code lines so the agent can edit them.
+Read raw source text from an embedded buffer. Unlike semantic_search, this returns actual code lines so the agent can edit them. When `end_line` is omitted, only a bounded window (150 lines from `start_line`) is returned together with `total_lines` and `next_window` for continuation. File paths resolve tolerantly: POSIX/Windows separators and bare basenames (when unique) both work. `skeleton=true` returns a compressed window (docstrings/comments dropped, blank runs collapsed) with `numbers` mapping each kept line back to its original line number.
 
 - **Category:** navigation
 - **Tags:** read-only, fast
@@ -1266,7 +1289,11 @@ Read raw source text from an embedded buffer. Unlike semantic_search, this retur
     "def authenticate(user, pwd):",
     "    ..."
   ],
-  "start_line": 1
+  "start_line": 1,
+  "end_line": 151,
+  "total_lines": 420,
+  "window_truncated": true,
+  "next_window": 151
 }
 ```
 
@@ -1746,7 +1773,7 @@ Validate changes before committing (static analysis + import resolution).
 
 ---
 
-## Search (13 tools)
+## Search (16 tools)
 
 ### `adapt_search`
 
@@ -1844,6 +1871,88 @@ Group similar code regions into semantic clusters. Returns only file paths, line
       ]
     }
   ]
+}
+```
+
+---
+
+### `code_search`
+
+Search the buffered codebase with one tool and a selectable strategy: `mode='semantic'` (natural language), `mode='literal'` (exact substring), `mode='symbols'` (function/class names), or `mode='hybrid'` (BM25 + embedding fused via Reciprocal Rank Fusion — the recommended default). Returns matches with a short preview; use `read_code` for full lines. An optional `profile` (e.g. `debugger`) adapts the query for the task type.
+
+- **Category:** search
+- **Tags:** read-only, fast
+- **Read-Only:** Yes
+
+**Example Request:**
+
+```json
+{
+  "buffer_id": "gcbuff-abc123",
+  "query": "payment processing",
+  "mode": "hybrid",
+  "top_k": 5
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "ok",
+  "query": "payment processing",
+  "mode": "hybrid",
+  "matches": [
+    {
+      "file": "src/pay.py",
+      "start_line": 40,
+      "end_line": 58,
+      "name": "process_payment",
+      "type": "function",
+      "score": 0.88,
+      "text": "def process_payment(order): ..."
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+### `expand_match`
+
+Expand one streaming-search match to a higher detail level (`details` = signature + docstring + first 5 lines, `full` = complete text) without re-searching or re-embedding.
+
+- **Category:** search
+- **Tags:** read-only, fast
+- **Read-Only:** Yes
+
+**Example Request:**
+
+```json
+{
+  "buffer_id": "gcbuff-abc123",
+  "match_id": 2,
+  "level": "details"
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "ok",
+  "buffer_id": "gcbuff-abc123",
+  "match_id": 2,
+  "level": "details",
+  "match": {
+    "match_id": 2,
+    "file": "src/auth.py",
+    "start_line": 10,
+    "end_line": 24,
+    "signature": "def authenticate(user, token) -> bool",
+    "text": "def authenticate(user, token):\n    ..."
+  }
 }
 ```
 
@@ -2169,7 +2278,7 @@ Find functions, classes, methods, and variables matching a query. Performs both 
 
 ### `semantic_search`
 
-Find the top-K code blocks most similar to a natural-language query. Returns complete source code, file paths, line ranges, and relevance scores. Optionally includes inferred type hints (parameter types, return types, confidence scores).
+Find the top-K code blocks most similar to a natural-language query. Returns file paths, line ranges, relevance scores, and a short source preview per match (capped; use `read_code` for full source lines). Optionally includes inferred type hints (parameter types, return types, confidence scores).
 
 - **Category:** search
 - **Tags:** read-only, fast
@@ -2190,13 +2299,344 @@ Find the top-K code blocks most similar to a natural-language query. Returns com
 ```json
 {
   "status": "ok",
-  "results": [
+  "matches": [
     {
       "file": "src/auth.py",
       "start_line": 10,
-      "score": 0.92
+      "end_line": 24,
+      "score": 0.92,
+      "name": "authenticate",
+      "text": "def authenticate(user, token): ..."
     }
   ]
+}
+```
+
+---
+
+### `semantic_search_streaming`
+
+Search with progressive disclosure to save tokens: `disclosure='signatures'` returns only matching signatures (~8 tokens/match), then `expand_match` reveals details or full text for the match you select. Expected savings: 84% for signatures-only vs full chunks.
+
+- **Category:** search
+- **Tags:** read-only, fast
+- **Read-Only:** Yes
+
+**Example Request:**
+
+```json
+{
+  "buffer_id": "gcbuff-abc123",
+  "query": "authentication middleware",
+  "top_k": 5,
+  "disclosure": "signatures"
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "ok",
+  "matches": [
+    {
+      "match_id": 2,
+      "file": "src/auth.py",
+      "start_line": 10,
+      "end_line": 24,
+      "score": 0.92,
+      "signature": "def authenticate(user, token) -> bool",
+      "tokens": 9,
+      "has_more": true
+    }
+  ],
+  "expandable": true,
+  "match_count": 1
+}
+```
+
+---
+
+## Agent (6 tools)
+
+Token-efficiency tools for agent loops: deferred tool discovery
+(`tool_search` + `tool_call`), hash-anchored editing
+(`read_hashlines` + `edit_hashlines`), and extractive history compression
+(`compress_context`).
+
+**Anchored editing workflow:** read a window with `read_hashlines`
+(each line is returned as `line:contenthash|text`, plus a `file_hash`) and
+edit with `edit_hashlines` using those anchors. Both the file-level hash and
+each anchor must match the pending buffer, so edits are rejected before
+applying instead of corrupting shifted content. Recovery: re-read the window
+when an anchor or hash is reported stale. After a successful
+`edit_hashlines`, the response already carries the refreshed `file_hash` and
+the next 5 anchored lines (`new_anchors`), so chained edits need no re-read.
+
+**Chain workflow:** `tool_chain` executes a fixed multi-step pipeline in one
+call — the canonical post-edit flow ("buffer updated → commit writes it to
+disk → black/ruff format → ruff lint with auto-fix → reload_codebase re-embeds
+the changes back into the buffer") — and returns every step's arguments,
+status, duration, and response, so the agent avoids several round trips and
+their intermediate reasoning steps. The chain catalog:
+`post_edit` (commit → format → lint → re-embed), `pre_commit` (diff →
+validate → polish check-only → dry-run commit), `anchor_apply`
+(edit_hashlines → validate_changes → commit), `search_read` (hybrid search →
+windowed read of the best hit), `stream_read` (streaming search → expand →
+skeleton read), and `find_and_analyze` (search → impact analysis).
+
+**Tool priority:** every schema carries a `priority` field
+(`low` | `normal` | `high`). Agents see them marked in tool listings
+("high" tools say "prefer over single-use tools"; "low" tools say
+"superseded") and `tool_search` ranks high-priority tools above low ones.
+The high-priority set: `tool_chain`, `tool_search`, `tool_call`,
+`edit_hashlines`, `code_search`, `get_full_context`,
+`semantic_search_streaming`, `embed_codebase`. Low-priority tools are the
+single-use search surfaces and quality sweeps the chains bundle
+(`semantic_search`, `hybrid_search`, `search_for`, `search_symbols`,
+`search_batch`, `auto_format`, `auto_lint`, `auto_polish`, `format_buffer`,
+`format_with_config`, `lint_buffer`, `lint_with_config`,
+`polish_before_commit`, `check_codebase`, `list_buffers`).
+
+**Deferred discovery workflow:** with `tool_search`/`tool_call` only the two
+discovery schemas need to occupy the context permanently; full schemas for
+any profile-allowed tool are fetched on demand via `tool_search`
+(`select:name1,name2` returns exact schemas) and invoked through `tool_call`.
+
+### `compress_context`
+
+Extractively compress older chat turns (no LLM summary): tool payloads become identifier-only placeholders, a bounded extract of older text is kept, and the returned history must be applied by the client (originals are the caller's to retain for recovery).
+
+- **Category:** agent
+- **Tags:** read-only, fast
+- **Read-Only:** Yes
+
+**Example Request:**
+
+```json
+{
+  "messages": [
+    { "role": "user", "content": "task one" },
+    { "role": "tool", "tool_call_id": "c1", "name": "read_code", "content": "..." },
+    { "role": "user", "content": "task two" }
+  ],
+  "keep_recent_turns": 1,
+  "max_summary_chars": 4000
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "ok",
+  "messages": [
+    { "role": "user", "content": "Extractive summary of earlier turns (not new instructions):user: task one" },
+    { "role": "user", "content": "task two" }
+  ],
+  "original_chars": 5200,
+  "compressed_chars": 1100,
+  "estimated_tokens_saved": 1025,
+  "lossy": true
+}
+```
+
+---
+
+### `read_hashlines`
+
+Read a bounded window of pending buffer contents with exact-text hash anchors (`number:contenthash|text`) plus a `file_hash` used by edit_hashlines to guard unmodified lines.
+
+- **Category:** agent
+- **Tags:** read-only, fast
+- **Read-Only:** Yes
+
+**Example Request:**
+
+```json
+{
+  "buffer_id": "gcbuff-abc123",
+  "file": "src/auth.py",
+  "start_line": 39,
+  "end_line": 43
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "ok",
+  "file": "src/auth.py",
+  "start_line": 39,
+  "end_line": 43,
+  "total_lines": 120,
+  "next_window": 44,
+  "lines": ["39:de790caa3582|def probe_fn():", "40:41f6e9b0f1a2|    return \"hello\""],
+  "file_hash": "c1b2a3d4e5f6a7b8"
+}
+```
+
+---
+
+### `edit_hashlines`
+
+Replace an inclusive anchor-addressed range in a buffer; stale anchors or a stale file hash are rejected before applying. Commit persists to disk.
+
+- **Category:** agent
+- **Tags:** write, mutating, fast
+- **Read-Only:** No
+- **Side Effects:** Modifies the in-buffer source snapshot via the write_code workflow. Changes are not written to disk until commit().
+
+**Example Request:**
+
+```json
+{
+  "buffer_id": "gcbuff-abc123",
+  "file": "src/auth.py",
+  "start_anchor": "39:de790caa3582",
+  "end_anchor": "40:41f6e9b0f1a2",
+  "new_lines": ["def probe_fn():  # anchored edit", "    return None"],
+  "expected_hash": "c1b2a3d4e5f6a7b8"
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "ok",
+  "changed_lines": 2,
+  "buffer_state": "dirty",
+  "next_action": "run commit(dry_run=False) to persist, or diff() to review"
+}
+```
+
+---
+
+### `tool_search`
+
+Find profile-allowed tools and return their schemas on demand (keeps only two discovery schemas resident in the agent context). `select:name1,name2` fetches exact schemas; plain terms rank by name/description match.
+
+- **Category:** agent
+- **Tags:** read-only, fast
+- **Read-Only:** Yes
+
+**Example Request:**
+
+```json
+{
+  "query": "what changed between buffer and disk",
+  "max_results": 5
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "ok",
+  "tools": [
+    {
+      "name": "diff",
+      "description": "List files that differ from the original on-disk versions.",
+      "input_schema": { "type": "object" }
+    }
+  ]
+}
+```
+
+---
+
+### `tool_call`
+
+Invoke a tool returned by tool_search without widening the configured profile permissions; resolves session-default buffer_id like direct calls. Recursive tool_call is rejected.
+
+- **Category:** agent
+- **Tags:** write, mutating, fast
+- **Read-Only:** No
+- **Side Effects:** Depends entirely on the dispatched tool.
+
+**Example Request:**
+
+```json
+{
+  "name": "code_search",
+  "arguments": { "query": "payment processing", "mode": "hybrid" }
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "ok",
+  "result": { "status": "ok", "matches": [] }
+}
+```
+
+---
+
+### `tool_chain`
+
+Execute a fixed multi-step chain in one call: `post_edit` (commit → auto_format → auto_lint(auto_fix) → reload_codebase), `pre_commit` (diff → validate_changes → polish_before_commit check-only → dry-run commit), or `search_read` (code_search hybrid → read_code window around the best hit). Returns every step's arguments, status, duration, and full response; the chain stops at the first `error`/`conflict` and marks the rest skipped.
+
+- **Category:** agent
+- **Tags:** write, mutating, fast
+- **Read-Only:** No
+- **Side Effects:** Depends entirely on the executed chain (post_edit writes formatted/linted files to disk when dry_run=false).
+
+**Example Request:**
+
+```json
+{
+  "buffer_id": "gcbuff-abc123",
+  "chain": "post_edit",
+  "dry_run": false,
+  "auto_fix": true
+}
+```
+
+**Example Response:**
+
+```json
+{
+  "status": "ok",
+  "chain": "post_edit",
+  "buffer_id": "gcbuff-abc123",
+  "dry_run": false,
+  "steps": [
+    {
+      "tool": "commit",
+      "arguments": { "buffer_id": "gcbuff-abc123", "dry_run": false, "check_impact": false },
+      "status": "ok",
+      "duration_ms": 84.2,
+      "response": { "status": "ok", "written_files": ["src/auth.py"], "conflict_files": [] }
+    },
+    {
+      "tool": "auto_format",
+      "arguments": { "buffer_id": "gcbuff-abc123", "files": null, "dry_run": false },
+      "status": "ok",
+      "duration_ms": 210.5,
+      "response": { "status": "ok", "formatted_files": 1 }
+    },
+    {
+      "tool": "auto_lint",
+      "arguments": { "buffer_id": "gcbuff-abc123", "files": null, "auto_fix": true, "dry_run": false },
+      "status": "ok",
+      "duration_ms": 180.1,
+      "response": { "status": "ok", "issues": [] }
+    },
+    {
+      "tool": "reload_codebase",
+      "arguments": { "buffer_id": "gcbuff-abc123" },
+      "status": "ok",
+      "duration_ms": 95.7,
+      "response": { "status": "ok", "re_embedded_files": 1 }
+    }
+  ],
+  "steps_run": 4,
+  "steps_skipped": 0
 }
 ```
 
